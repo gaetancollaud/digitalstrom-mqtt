@@ -8,7 +8,7 @@ The goal of this tool is to be able to sync a digitalstrom installation with MQT
 config.yaml
 ```yaml
 DIGITALSTROM_IP: 192.168.1.x
-DIGITALSTROM_USERNAME: admin
+DIGITALSTROM_USERNAME: dssadmin
 DIGITALSTROM_PASSWORD: XXX
 
 ```

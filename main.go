@@ -7,15 +7,14 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello, World!")
+	fmt.Println("String digitalstrom MQTT!")
 
 	config := config.FromEnv()
 	tm := digitalstrom.NewTokenManager(config)
-	fmt.Printf("Config  %s\n", config.String())
 
 	status := tm.RefreshToken()
 
-	fmt.Printf("status %s\n", status)
+	fmt.Printf("token %s\n", status)
 
 	//resp, err := http.Get("http://example.com/")
 }

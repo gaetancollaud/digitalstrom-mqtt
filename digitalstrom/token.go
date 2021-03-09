@@ -5,19 +5,25 @@ import (
 	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"net/http"
-	"strconv"
 )
 
 type TokenManager struct {
-	config *config.Config
-	token  string
+	config     *config.Config
+	httpClient *HttpClient
+	token      string
+}
+
+type loginResponse struct {
 }
 
 func NewTokenManager(config *config.Config) *TokenManager {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	tm := new(TokenManager)
+
 	tm.config = config
+	tm.httpClient = NewUrlBuilder(config)
+
 	return tm
 }
 
@@ -28,13 +34,11 @@ func check(e error) {
 }
 
 func (tm *TokenManager) RefreshToken() string {
-	url := "https://" + tm.config.Ip + ":" + strconv.Itoa(tm.config.Port) + "/json/system/login?user=" + tm.config.Username + "&password=" + tm.config.Password
+	body, err := tm.httpClient.get("json/system/login?user=%s&password=%s", tm.config.Username, tm.config.Password)
 
-	fmt.Printf("URL: %s\n", url)
-	resp, err := http.Get(url)
 	check(err)
 
-	return resp.Status
+	return body["token"].(string)
 }
 
 //https://192.168.1.50:8080/json/system/login?user=dssadmin&password=m7Phf1Dl2EIvlHUABBeI
