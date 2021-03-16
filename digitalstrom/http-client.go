@@ -28,7 +28,6 @@ func NewHttpClient(config *config.Config) *HttpClient {
 func (httpClient *HttpClient) get(path string, a ...interface{}) (map[string]interface{}, error) {
 
 	token := httpClient.TokenManager.GetToken()
-
 	url, err := url.Parse(path)
 
 	if checkNoError(err) {
@@ -63,9 +62,16 @@ func (httpClient *HttpClient) getWithoutToken(path string, a ...interface{}) (ma
 	var jsonValue map[string]interface{}
 	json.Unmarshal(body, &jsonValue)
 
-	if !jsonValue["ok"].(bool) {
-		return nil, errors.New("Error with digitalstrom API: " + jsonValue["message"].(string))
+	if val, ok := jsonValue["ok"]; ok {
+		if !val.(bool) {
+			return nil, errors.New("Error with digitalstrom API: " + jsonValue["message"].(string))
+		}
+	} else {
+		return nil, errors.New("No 'ok' field present, cannot check request")
 	}
 
-	return jsonValue["result"].(map[string]interface{}), nil
+	if val, ok := jsonValue["result"]; ok {
+		return val.(map[string]interface{}), nil
+	}
+	return nil, errors.New("No value returned")
 }
