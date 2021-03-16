@@ -4,17 +4,16 @@ import (
 	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
+	"time"
 )
 
 func main() {
 	fmt.Println("String digitalstrom MQTT!")
 
 	config := config.FromEnv()
-	tm := digitalstrom.NewTokenManager(config)
 
-	status := tm.RefreshToken()
+	ds := digitalstrom.New(config)
+	ds.Start()
 
-	fmt.Printf("token %s\n", status)
-
-	//resp, err := http.Get("http://example.com/")
+	time.Sleep(100 * 365 * 24 * time.Hour)
 }
