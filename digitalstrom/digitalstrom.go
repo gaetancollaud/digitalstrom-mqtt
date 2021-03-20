@@ -7,10 +7,11 @@ import (
 )
 
 type DigitalStrom struct {
-	config     *config.Config
-	KeepAlive  KeepAlive
-	httpClient *HttpClient
-	eventsManager *EventsManager
+	config         *config.Config
+	KeepAlive      KeepAlive
+	httpClient     *HttpClient
+	eventsManager  *EventsManager
+	devicesManager *DevicesManager
 }
 
 // TODO move keep alive in dedicated class
@@ -24,6 +25,7 @@ func New(config *config.Config) *DigitalStrom {
 	ds.config = config
 	ds.httpClient = NewHttpClient(config)
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
+	ds.devicesManager = NewDevicesManager(ds.httpClient)
 	return ds
 }
 
@@ -35,6 +37,7 @@ func (ds *DigitalStrom) Start() {
 	user := ds.getLoggedInUser()
 	fmt.Println("Checking user", user)
 	ds.eventsManager.Start()
+	ds.devicesManager.Start()
 }
 
 func (ds *DigitalStrom) Stop() {
@@ -60,12 +63,12 @@ func (ds *DigitalStrom) digitalstromKeepAlive() {
 }
 
 func (ds *DigitalStrom) getLoggedInUser() string {
-	get, err := ds.httpClient.get("json/system/loggedInUser")
+	response, err := ds.httpClient.get("json/system/loggedInUser")
 	if checkNoError(err) {
-		if len(get) == 0 {
+		if !response.isMap || len(response.mapValue) == 0 {
 			fmt.Errorf("No user logged in")
 		} else {
-			return get["name"].(string)
+			return response.mapValue["name"].(string)
 		}
 	}
 	return ""

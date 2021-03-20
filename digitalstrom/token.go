@@ -19,11 +19,14 @@ func NewTokenManager(config *config.Config, httpClient *HttpClient) *TokenManage
 }
 
 func (tm *TokenManager) refreshToken() string {
-	body, err := tm.httpClient.getWithoutToken("json/system/login?user=%s&password=%s", tm.config.Username, tm.config.Password)
+	response, err := tm.httpClient.getWithoutToken("json/system/login?user=" + tm.config.Username + "&password=" + tm.config.Password)
 
 	checkNoError(err)
 
-	return body["token"].(string)
+	if response.isMap {
+		return response.mapValue["token"].(string)
+	}
+	return ""
 }
 
 func (tm *TokenManager) GetToken() string {

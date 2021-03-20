@@ -8,13 +8,20 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strconv"
+	"strings"
 )
 
 type HttpClient struct {
 	config       *config.Config
 	TokenManager *TokenManager
+}
+
+type DigitalStromResponse struct {
+	isMap      bool
+	mapValue   map[string]interface{}
+	isArray    bool
+	arrayValue []interface{}
 }
 
 func NewHttpClient(config *config.Config) *HttpClient {
@@ -25,22 +32,20 @@ func NewHttpClient(config *config.Config) *HttpClient {
 	return httpClient
 }
 
-func (httpClient *HttpClient) get(path string, a ...interface{}) (map[string]interface{}, error) {
+func (httpClient *HttpClient) get(path string) (*DigitalStromResponse, error) {
 
 	token := httpClient.TokenManager.GetToken()
-	url, err := url.Parse(path)
 
-	if checkNoError(err) {
-		query := url.Query()
-		query.Set("token", token)
-		url.RawQuery = query.Encode()
-		return httpClient.getWithoutToken(url.String(), a...)
+	if strings.Index(path, "?") == -1 {
+		path = path + "?token=" + token
+	} else {
+		path = path + "&token=" + token
 	}
-	return nil, err
+	return httpClient.getWithoutToken(path)
 }
 
-func (httpClient *HttpClient) getWithoutToken(path string, a ...interface{}) (map[string]interface{}, error) {
-	url := "https://" + httpClient.config.Ip + ":" + strconv.Itoa(httpClient.config.Port) + "/" + fmt.Sprintf(path, a...)
+func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromResponse, error) {
+	url := "https://" + httpClient.config.Ip + ":" + strconv.Itoa(httpClient.config.Port) + "/" + path
 	fmt.Printf("Calling URL: %s\n", url)
 
 	resp, err := http.Get(url)
@@ -71,7 +76,22 @@ func (httpClient *HttpClient) getWithoutToken(path string, a ...interface{}) (ma
 	}
 
 	if val, ok := jsonValue["result"]; ok {
-		return val.(map[string]interface{}), nil
+		res := new(DigitalStromResponse)
+		mapValue, ok := val.(map[string]interface{})
+		if ok {
+			res.isMap = true
+			res.isArray = false
+			res.mapValue = mapValue
+			return res, nil
+		}
+		arrayValue, ok := val.([]interface{})
+		if ok {
+			res.isMap = false
+			res.isArray = true
+			res.arrayValue = arrayValue
+			return res, nil
+		}
+		return nil, errors.New("Unknown return type")
 	}
 	return nil, errors.New("No value returned")
 }

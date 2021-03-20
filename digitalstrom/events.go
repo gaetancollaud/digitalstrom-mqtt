@@ -53,11 +53,11 @@ func (em *EventsManager) listeningToevents() {
 			return
 		}
 
-		get, err := em.httpClient.get("json/event/get?subscriptionID=" + SUBSCRIPTION_ID)
+		response, err := em.httpClient.get("json/event/get?subscriptionID=" + SUBSCRIPTION_ID)
 		if checkNoError(err) {
-			if ret, ok := get["events"]; ok {
+			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
-				fmt.Println("Event received ! ", events, len(events))
+				fmt.Println("Event received ! ", events, prettyPrintArray(events))
 			}
 		}
 	}

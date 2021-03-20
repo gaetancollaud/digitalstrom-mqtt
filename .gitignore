@@ -1,4 +1,6 @@
 .idea/
 vendor/
 
+tests/
+
 config.yaml
