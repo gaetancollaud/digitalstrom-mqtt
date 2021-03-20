@@ -38,6 +38,8 @@ func (ds *DigitalStrom) Start() {
 	fmt.Println("Checking user", user)
 	ds.eventsManager.Start()
 	ds.devicesManager.Start()
+
+	go ds.updateDevicesOnEvent(ds.eventsManager.events)
 }
 
 func (ds *DigitalStrom) Stop() {
@@ -57,7 +59,7 @@ func (ds *DigitalStrom) digitalstromKeepAlive() {
 			return
 		case t := <-ds.KeepAlive.ticker.C:
 			user := ds.getLoggedInUser()
-			fmt.Println("Checking user", user, t)
+			fmt.Println("Keep alive, user", user, t)
 		}
 	}
 }
@@ -72,4 +74,15 @@ func (ds *DigitalStrom) getLoggedInUser() string {
 		}
 	}
 	return ""
+}
+
+func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
+	for event := range events {
+		fmt.Println("Event received, updating devices")
+		ds.devicesManager.updateZone(event.ZoneId)
+	}
+}
+
+func (ds *DigitalStrom) GetDeviceChangeChannel() chan DeviceStatusChanged {
+	return ds.devicesManager.deviceStatusChan
 }

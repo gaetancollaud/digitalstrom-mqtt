@@ -13,6 +13,7 @@ type Config struct {
 	Port     int
 	Username string
 	Password string
+	MqttUrl  string
 }
 
 const (
@@ -22,6 +23,7 @@ const (
 	envKeyDigitalstromPort     string = "DIGITALSTROM_PORT"
 	envKeyDigitalstromUsername string = "DIGITALSTROM_USERNAME"
 	envKeyDigitalstromPassword string = "DIGITALSTROM_PASSWORD"
+	envKeyMqttUrl              string = "MQTT_URL"
 )
 
 func check(e error) {
@@ -53,6 +55,7 @@ func FromEnv() *Config {
 		envKeyDigitalstromPort:     8080,
 		envKeyDigitalstromUsername: Undefined,
 		envKeyDigitalstromPassword: Undefined,
+		envKeyMqttUrl:              Undefined,
 	})
 	check(err)
 
@@ -61,6 +64,7 @@ func FromEnv() *Config {
 	c.Port = v.GetInt(envKeyDigitalstromPort)
 	c.Username = v.GetString(envKeyDigitalstromUsername)
 	c.Password = v.GetString(envKeyDigitalstromPassword)
+	c.MqttUrl = v.GetString(envKeyMqttUrl)
 
 	return c
 }

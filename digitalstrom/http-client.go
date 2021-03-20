@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"io/ioutil"
 	"net/http"
@@ -46,7 +45,6 @@ func (httpClient *HttpClient) get(path string) (*DigitalStromResponse, error) {
 
 func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromResponse, error) {
 	url := "https://" + httpClient.config.Ip + ":" + strconv.Itoa(httpClient.config.Port) + "/" + path
-	fmt.Printf("Calling URL: %s\n", url)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -62,7 +60,7 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 		return nil, err
 	}
 
-	fmt.Printf("%s status: %s\n", url, resp.Status)
+	//fmt.Printf("%s status: %s\n", url, resp.Status)
 
 	var jsonValue map[string]interface{}
 	json.Unmarshal(body, &jsonValue)

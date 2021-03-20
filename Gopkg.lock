@@ -2,12 +2,31 @@
 
 
 [[projects]]
+  digest = "1:9c37c1aa0f7bcd4150a16eb0e2d628d31b8afd1c2f2259fe5c3824d6b7142043"
+  name = "github.com/eclipse/paho.mqtt.golang"
+  packages = [
+    ".",
+    "packets",
+  ]
+  pruneopts = "UT"
+  revision = "18bfbdece2e98c020293755a3468bf510a7b2497"
+  version = "v1.3.2"
+
+[[projects]]
   digest = "1:80057945464ffb5b0da1f026beb8df0e8dbd098eaf771a349291bed2cd29a83e"
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   pruneopts = "UT"
   revision = "45d7d09e39ef4ac08d493309fa031790c15bfe8a"
   version = "v1.4.9"
+
+[[projects]]
+  digest = "1:6d29f02f0f01c627c2be40fb7347669a9ff2aa215cb97747294c1d13ffa74bdd"
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b65e62901fc1c0d968042419e74789f6af455eb9"
+  version = "v1.4.2"
 
 [[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
@@ -113,10 +132,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:98873c8b40ae89798e9de1a1e3420c769ad4c1348db1015c22b8643d9e86216d"
+  digest = "1:dbf0dcffcc230683c57cb70a742582e14f2795fd292926b19080487aa7c46a91"
   name = "golang.org/x/net"
   packages = [
     "idna",
+    "internal/socks",
+    "proxy",
     "publicsuffix",
   ]
   pruneopts = "UT"
@@ -186,6 +207,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/eclipse/paho.mqtt.golang",
     "github.com/mitchellh/go-homedir",
     "github.com/spf13/viper",
     "gopkg.in/resty.v1",

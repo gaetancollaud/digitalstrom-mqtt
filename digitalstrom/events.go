@@ -16,15 +16,20 @@ const EVENT_RUNNING = "running"
 const EVENT_MODEL_READY = "model_ready"
 const EVENT_DSMETER_READY = "dsMeter_ready"
 
+type Event struct {
+	ZoneId int
+}
+
 type EventsManager struct {
 	httpClient *HttpClient
-	events     chan string
+	events     chan Event
 	running    bool
 }
 
 func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 	em := new(EventsManager)
 	em.httpClient = httpClient
+	em.events = make(chan Event)
 	return em
 }
 
@@ -57,7 +62,15 @@ func (em *EventsManager) listeningToevents() {
 		if checkNoError(err) {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
-				fmt.Println("Event received ! ", events, prettyPrintArray(events))
+
+				//fmt.Println("Events received :", events, prettyPrintArray(events))
+
+				for _, event := range events {
+					m := event.(map[string]interface{})
+					source := m["source"].(map[string]interface{})
+					eventObj := Event{ZoneId: int(source["zoneID"].(float64))}
+					em.events <- eventObj
+				}
 			}
 		}
 	}
