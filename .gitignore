@@ -1,6 +1,6 @@
 .idea/
 vendor/
-
+dist/
 tests/
 
 config.yaml
