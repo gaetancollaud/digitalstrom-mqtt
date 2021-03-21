@@ -6,17 +6,34 @@ jobs:
   build:
     strategy:
       matrix:
-        go-version: [ 1.15.x, 1.16.x ]
+        go-version: [ 1.16.x ]
         os: [ ubuntu-latest, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
-
+    env:
+      GOPATH: ${{ github.workspace }}
+      GO111MODULE: off
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      - name: Install
+        run: |
+          go get -u github.com/golang/dep/cmd/dep
+          dep ensure
       - name: Build
         run: go build -o dist/digitalstrom-mqtt-${{matrix.os}} ./main.go
 

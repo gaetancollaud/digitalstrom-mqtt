@@ -132,13 +132,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dbf0dcffcc230683c57cb70a742582e14f2795fd292926b19080487aa7c46a91"
+  digest = "1:3587bbb18e3d5299dc0020733e2839138afb0a29456ffd4073a3962bb9966556"
   name = "golang.org/x/net"
   packages = [
-    "idna",
     "internal/socks",
     "proxy",
-    "publicsuffix",
   ]
   pruneopts = "UT"
   revision = "e18ecbb051101a46fc263334b127c89bc7bff7ea"
@@ -155,25 +153,15 @@
   revision = "68d13333faf24bbe12c06419ed07e851a9dbf8f9"
 
 [[projects]]
-  digest = "1:33168e887aff0e3eae823593f38433f28928104925e54a6252937e6e3939f904"
+  digest = "1:666e3df74f0c4788cc92426b18e33d93b7b62a3d4e8253f7c4b2226132a0f8de"
   name = "golang.org/x/text"
   packages = [
-    "collate",
-    "collate/build",
-    "internal/colltab",
     "internal/gen",
-    "internal/language",
-    "internal/language/compact",
-    "internal/tag",
     "internal/triegen",
     "internal/ucd",
-    "language",
-    "secure/bidirule",
     "transform",
-    "unicode/bidi",
     "unicode/cldr",
     "unicode/norm",
-    "unicode/rangetable",
   ]
   pruneopts = "UT"
   revision = "75a595aef632b07c6eeaaa805adb6f0f66e4130e"
@@ -186,14 +174,6 @@
   pruneopts = "UT"
   revision = "5e97220809ffaa826f787728501264e9114cb834"
   version = "v1.62.0"
-
-[[projects]]
-  digest = "1:41206f4d0410803e64cfb203f665330c3183988408cb532b56305a816a87bd99"
-  name = "gopkg.in/resty.v1"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "fa5875c0caa5c260ab78acec5a244215a730247f"
-  version = "v1.12.0"
 
 [[projects]]
   digest = "1:5054a1f394226de9e6ddc47b0ba77e35092a4112f4a1cd9cb94aba1f5bdc3ec6"
@@ -210,7 +190,6 @@
     "github.com/eclipse/paho.mqtt.golang",
     "github.com/mitchellh/go-homedir",
     "github.com/spf13/viper",
-    "gopkg.in/resty.v1",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
