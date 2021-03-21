@@ -18,7 +18,8 @@ func main() {
 
 	mqtt := digitalstrom_mqtt.New(config)
 
-	mqtt.ListenForDeviceStatus(ds.GetDeviceChangeChannel())
+	go mqtt.ListenForDeviceStatus(ds.GetDeviceChangeChannel())
+	go mqtt.ListenForCircuitValues(ds.GetCircuitChangeChannel())
 
 	time.Sleep(100 * 365 * 24 * time.Hour)
 }

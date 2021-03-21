@@ -10,6 +10,7 @@ config.yaml
 DIGITALSTROM_IP: 192.168.1.x
 DIGITALSTROM_USERNAME: dssadmin
 DIGITALSTROM_PASSWORD: XXX
+MQTT_URL: tcp://192.168.1.X:1883
 
 ```
 
@@ -19,4 +20,11 @@ DIGITALSTROM_PASSWORD: XXX
 Make install.deps
 dep ensure
 go run .
+```
+
+### Compile
+
+```shell
+make build-amd64
+make build-arm
 ```

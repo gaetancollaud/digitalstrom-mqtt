@@ -16,9 +16,9 @@ const (
 )
 
 type DeviceStatusChanged struct {
-	DeviceName string
-	Channel    string
-	NewValue   float64
+	Device   Device
+	Channel  string
+	NewValue float64
 }
 
 type Device struct {
@@ -102,12 +102,6 @@ func extractChannels(data map[string]interface{}) []string {
 	return channels
 }
 
-func (dm *DevicesManager) reloadOneDevices(dsid string) {
-	response, err := dm.httpClient.get("json/apartment/getDevices?dsid=" + dsid)
-	if checkNoError(err) {
-		fmt.Println("Devices loaded", prettyPrintArray(response.arrayValue))
-	}
-}
 func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
 	response, err := dm.httpClient.get("json/property/getFloating?path=" + path)
 	if checkNoError(err) {
@@ -126,14 +120,14 @@ func (dm *DevicesManager) updateZone(zoneId int) {
 			for _, channel := range device.Channels {
 				newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
 				if checkNoError(err) {
-					dm.updateValue(&device, channel, newValue)
+					dm.updateValue(device, channel, newValue)
 				}
 			}
 		}
 	}
 }
 
-func (dm *DevicesManager) updateValue(device *Device, channel string, newValue float64) {
+func (dm *DevicesManager) updateValue(device Device, channel string, newValue float64) {
 	publishValue := false
 	if oldVal, ok := device.Values[channel]; ok {
 		//do something here
@@ -150,53 +144,9 @@ func (dm *DevicesManager) updateValue(device *Device, channel string, newValue f
 	}
 	if publishValue {
 		dm.deviceStatusChan <- DeviceStatusChanged{
-			DeviceName: device.Name,
-			Channel:    channel,
-			NewValue:   newValue,
+			Device:   device,
+			Channel:  channel,
+			NewValue: newValue,
 		}
 	}
 }
-
-//
-//func (dm *DevicesManager) getDeviceOutputStatus(deviceId string, valueType string) {
-//	response, err := dm.httpClient.get("/json/device/getOutputValue?dsid=" + deviceId + "&type=" + valueType)
-//	if checkNoError(err) {
-//		fmt.Println("Device status:", prettyPrintMap(response.mapValue))
-//	}
-//}
-//
-//func (dm *DevicesManager) getDeviceOutputStatusFromOffset(deviceId string, offset int) {
-//	response, err := dm.httpClient.get("/json/device/getOutputValue?dsid=" + deviceId + "&offset=" + strconv.Itoa(offset))
-//	if checkNoError(err) {
-//		fmt.Println("Device status:", prettyPrintMap(response.mapValue))
-//	}
-//}
-//
-//func (dm *DevicesManager) getDeviceOutputChannel(deviceId string, channels string) {
-//
-//	response, err := dm.httpClient.get("/json/device/getOutputChannelValue?dsid=" + deviceId + "&channels=" + channels)
-//	if checkNoError(err) {
-//		fmt.Println("Device channels:", prettyPrintMap(response.mapValue))
-//	}
-//
-//}
-//
-//func (dm *DevicesManager) getSceneeOutputChannel(dsid string, sceneId int, channels string) {
-//	response, err := dm.httpClient.get("/json/device/getOutputChannelSceneValue2?dsid=" + dsid + "&sceneNumber=" + strconv.Itoa(sceneId) + "&channels=" + channels)
-//	if checkNoError(err) {
-//		fmt.Println("Device channels:", prettyPrintMap(response.mapValue))
-//	}
-//}
-//
-//func (dm *DevicesManager) getInfoStatic(dsuid string) {
-//	response, err := dm.httpClient.get("/json/device/getInfoStatic?dsuid=" + dsuid)
-//	if checkNoError(err) {
-//		fmt.Println("Device channels:", prettyPrintMap(response.mapValue))
-//	}
-//}
-//func (dm *DevicesManager) getTreeChildren(path string) {
-//	response, err := dm.httpClient.get("json/property/getChildren?path=" + path)
-//	if checkNoError(err) {
-//		fmt.Println("Properties:", prettyPrintArray(response.arrayValue))
-//	}
-//}

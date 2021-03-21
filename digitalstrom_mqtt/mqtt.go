@@ -48,12 +48,32 @@ func New(config *config.Config) *DigitalstromMqtt {
 
 func (dm *DigitalstromMqtt) ListenForDeviceStatus(changes chan digitalstrom.DeviceStatusChanged) {
 	for event := range changes {
-		dm.Publish(event)
+		dm.publishDevice(event)
 	}
 }
 
-func (dm *DigitalstromMqtt) Publish(changed digitalstrom.DeviceStatusChanged) {
-	topic := "digitalstrom/" + changed.DeviceName + "/" + changed.Channel + "/status"
+func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.CircuitValueChanged) {
+	for event := range changes {
+		dm.publishCircuit(event)
+	}
+}
+
+func (dm *DigitalstromMqtt) publishDevice(changed digitalstrom.DeviceStatusChanged) {
+	topic := "digitalstrom/devices/" + changed.Device.Name + "/" + changed.Channel + "/status"
 
 	dm.client.Publish(topic, 0, false, fmt.Sprintf("%.2f", changed.NewValue))
+}
+
+func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChanged) {
+	//fmt.Println("Updating meter", changed.Circuit.Name, changed.ConsumptionW, changed.EnergyWs)
+
+	if changed.ConsumptionW != -1 {
+		topic := "digitalstrom/meters/" + changed.Circuit.Name + "/consumptionW"
+		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.ConsumptionW))
+	}
+
+	if changed.EnergyWs != -1 {
+		topic := "digitalstrom/meters/" + changed.Circuit.Name + "/EnergyWs"
+		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.EnergyWs))
+	}
 }

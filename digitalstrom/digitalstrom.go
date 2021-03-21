@@ -8,10 +8,11 @@ import (
 
 type DigitalStrom struct {
 	config         *config.Config
-	KeepAlive      KeepAlive
+	cron           KeepAlive
 	httpClient     *HttpClient
 	eventsManager  *EventsManager
 	devicesManager *DevicesManager
+	circuitManager *CircuitsManager
 }
 
 // TODO move keep alive in dedicated class
@@ -26,55 +27,59 @@ func New(config *config.Config) *DigitalStrom {
 	ds.httpClient = NewHttpClient(config)
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
 	ds.devicesManager = NewDevicesManager(ds.httpClient)
+	ds.circuitManager = NewCircuitManager(ds.httpClient)
 	return ds
 }
 
 func (ds *DigitalStrom) Start() {
 	fmt.Println("Staring digitalstrom")
-	ds.KeepAlive.ticker = time.NewTicker(30 * time.Second)
-	ds.KeepAlive.tickerDone = make(chan bool)
-	go ds.digitalstromKeepAlive()
-	user := ds.getLoggedInUser()
-	fmt.Println("Checking user", user)
+	ds.cron.ticker = time.NewTicker(30 * time.Second)
+	ds.cron.tickerDone = make(chan bool)
+	go ds.digitalstromCron()
+
 	ds.eventsManager.Start()
+	ds.circuitManager.Start()
 	ds.devicesManager.Start()
+
+	go ds.circuitManager.UpdateCircuitsValue()
 
 	go ds.updateDevicesOnEvent(ds.eventsManager.events)
 }
 
 func (ds *DigitalStrom) Stop() {
 	fmt.Println("Stopping digitalstrom")
-	if ds.KeepAlive.ticker != nil {
-		ds.KeepAlive.ticker.Stop()
-		ds.KeepAlive.tickerDone <- true
-		ds.KeepAlive.ticker = nil
+	if ds.cron.ticker != nil {
+		ds.cron.ticker.Stop()
+		ds.cron.tickerDone <- true
+		ds.cron.ticker = nil
 	}
 	ds.eventsManager.Stop()
 }
 
-func (ds *DigitalStrom) digitalstromKeepAlive() {
+func (ds *DigitalStrom) digitalstromCron() {
 	for {
 		select {
-		case <-ds.KeepAlive.tickerDone:
+		case <-ds.cron.tickerDone:
 			return
-		case t := <-ds.KeepAlive.ticker.C:
-			user := ds.getLoggedInUser()
-			fmt.Println("Keep alive, user", user, t)
+		case t := <-ds.cron.ticker.C:
+			fmt.Println("Digitalstrom cron", t)
+			ds.circuitManager.UpdateCircuitsValue()
+			//user := ds.getLoggedInUser()
 		}
 	}
 }
 
-func (ds *DigitalStrom) getLoggedInUser() string {
-	response, err := ds.httpClient.get("json/system/loggedInUser")
-	if checkNoError(err) {
-		if !response.isMap || len(response.mapValue) == 0 {
-			fmt.Errorf("No user logged in")
-		} else {
-			return response.mapValue["name"].(string)
-		}
-	}
-	return ""
-}
+//func (ds *DigitalStrom) getLoggedInUser() string {
+//	response, err := ds.httpClient.get("json/system/loggedInUser")
+//	if checkNoError(err) {
+//		if !response.isMap || len(response.mapValue) == 0 {
+//			fmt.Errorf("No user logged in")
+//		} else {
+//			return response.mapValue["name"].(string)
+//		}
+//	}
+//	return ""
+//}
 
 func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
 	for event := range events {
@@ -85,4 +90,8 @@ func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
 
 func (ds *DigitalStrom) GetDeviceChangeChannel() chan DeviceStatusChanged {
 	return ds.devicesManager.deviceStatusChan
+}
+
+func (ds *DigitalStrom) GetCircuitChangeChannel() chan CircuitValueChanged {
+	return ds.circuitManager.circuitValuesChan
 }
