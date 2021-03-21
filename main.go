@@ -14,12 +14,12 @@ func main() {
 	config := config.FromEnv()
 
 	ds := digitalstrom.New(config)
+	mqtt := digitalstrom_mqtt.New(config, ds)
+
 	ds.Start()
+	mqtt.Start()
 
-	mqtt := digitalstrom_mqtt.New(config)
-
-	go mqtt.ListenForDeviceStatus(ds.GetDeviceChangeChannel())
-	go mqtt.ListenForCircuitValues(ds.GetCircuitChangeChannel())
+	fmt.Println("Waiting forever")
 
 	time.Sleep(100 * 365 * 24 * time.Hour)
 }

@@ -2,6 +2,8 @@ package digitalstrom
 
 import (
 	"fmt"
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"strconv"
 )
 
 const SUBSCRIPTION_ID = "42"
@@ -17,7 +19,8 @@ const EVENT_MODEL_READY = "model_ready"
 const EVENT_DSMETER_READY = "dsMeter_ready"
 
 type Event struct {
-	ZoneId int
+	ZoneId  int
+	SceneId int
 }
 
 type EventsManager struct {
@@ -52,23 +55,31 @@ func (em *EventsManager) registerSubscription() {
 }
 
 func (em *EventsManager) listeningToevents() {
-
 	for {
 		if !em.running {
 			return
 		}
 
 		response, err := em.httpClient.get("json/event/get?subscriptionID=" + SUBSCRIPTION_ID)
-		if checkNoError(err) {
+		if utils.CheckNoError(err) {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
 
-				//fmt.Println("Events received :", events, prettyPrintArray(events))
+				fmt.Println("Events received :", events, utils.PrettyPrintArray(events))
 
 				for _, event := range events {
 					m := event.(map[string]interface{})
 					source := m["source"].(map[string]interface{})
-					eventObj := Event{ZoneId: int(source["zoneID"].(float64))}
+					properties := m["properties"].(map[string]interface{})
+					sceneId := -1
+					if scene, ok := properties["sceneID"]; ok {
+						sceneId, err = strconv.Atoi(scene.(string))
+						utils.CheckNoError(err)
+					}
+					eventObj := Event{
+						ZoneId:  int(source["zoneID"].(float64)),
+						SceneId: sceneId,
+					}
 					em.events <- eventObj
 				}
 			}

@@ -1,18 +1,18 @@
-package digitalstrom
+package utils
 
 import (
 	"encoding/json"
 	"fmt"
 )
 
-func checkNoError(e error) bool {
+func CheckNoError(e error) bool {
 	if e != nil {
 		panic(fmt.Errorf("Error with token: %v\n", e))
 	}
 	return e == nil
 }
 
-func prettyPrintMap(value map[string]interface{}) string {
+func PrettyPrintMap(value map[string]interface{}) string {
 	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		fmt.Println("error:", err)
@@ -20,7 +20,7 @@ func prettyPrintMap(value map[string]interface{}) string {
 	return string(b)
 }
 
-func prettyPrintArray(value interface{}) string {
+func PrettyPrintArray(value interface{}) string {
 	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		fmt.Println("error:", err)

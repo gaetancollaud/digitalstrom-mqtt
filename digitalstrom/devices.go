@@ -1,7 +1,9 @@
 package digitalstrom
 
 import (
+	"errors"
 	"fmt"
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"strconv"
 	"strings"
 )
@@ -19,6 +21,12 @@ type DeviceStatusChanged struct {
 	Device   Device
 	Channel  string
 	NewValue float64
+}
+
+type DeviceCommand struct {
+	DeviceName string
+	Channel    string
+	NewValue   float64
 }
 
 type Device struct {
@@ -54,7 +62,7 @@ func (dm *DevicesManager) Start() {
 
 func (dm *DevicesManager) reloadAllDevices() {
 	response, err := dm.httpClient.get("json/apartment/getDevices")
-	if checkNoError(err) {
+	if utils.CheckNoError(err) {
 		for _, s := range response.arrayValue {
 			m := s.(map[string]interface{})
 			dm.devices = append(dm.devices, Device{
@@ -71,7 +79,7 @@ func (dm *DevicesManager) reloadAllDevices() {
 			})
 		}
 
-		//fmt.Println("Devices loaded", prettyPrintArray(dm.devices))
+		//fmt.Println("Devices loaded", utils.PrettyPrintArray(dm.devices))
 	}
 }
 
@@ -104,7 +112,7 @@ func extractChannels(data map[string]interface{}) []string {
 
 func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
 	response, err := dm.httpClient.get("json/property/getFloating?path=" + path)
-	if checkNoError(err) {
+	if utils.CheckNoError(err) {
 		//fmt.Println("Properties:", prettyPrintMap(response.mapValue))
 		return response.mapValue["value"].(float64), nil
 	}
@@ -115,14 +123,18 @@ func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
 func (dm *DevicesManager) updateZone(zoneId int) {
 	for _, device := range dm.devices {
 		if device.ZoneId == zoneId && len(device.Channels) > 0 {
-			// device need to be updated
-			fmt.Println("Updating device ", device.Name)
-			for _, channel := range device.Channels {
-				newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
-				if checkNoError(err) {
-					dm.updateValue(device, channel, newValue)
-				}
-			}
+			dm.updateDevice(device)
+		}
+	}
+}
+
+func (dm *DevicesManager) updateDevice(device Device) {
+	// device need to be updated
+	fmt.Println("Updating device ", device.Name)
+	for _, channel := range device.Channels {
+		newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
+		if utils.CheckNoError(err) {
+			dm.updateValue(device, channel, newValue)
 		}
 	}
 }
@@ -149,4 +161,33 @@ func (dm *DevicesManager) updateValue(device Device, channel string, newValue fl
 			NewValue: newValue,
 		}
 	}
+}
+
+func (dm *DevicesManager) SetValue(command DeviceCommand) error {
+	deviceFound := false
+	channelFound := false
+	for _, device := range dm.devices {
+		if device.Name == command.DeviceName && len(device.Channels) > 0 {
+			deviceFound = true
+			for _, c := range device.Channels {
+				if c == command.Channel {
+					channelFound = true
+
+					fmt.Println("Setting value ", command)
+					strValue := strconv.Itoa(int(command.NewValue))
+					_, err := dm.httpClient.get("json/device/setOutputChannelValue?dsid=" + device.Dsid + "&channelvalues=" + c + "=" + strValue + "&applyNow=1")
+					if utils.CheckNoError(err) {
+						dm.updateValue(device, command.Channel, command.NewValue)
+					}
+				}
+			}
+		}
+	}
+	if !deviceFound {
+		return errors.New("No device '" + command.DeviceName + "' found")
+	}
+	if !channelFound {
+		return errors.New("No channel '" + command.Channel + "' found on device '" + command.DeviceName + "'")
+	}
+	return nil
 }

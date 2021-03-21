@@ -2,6 +2,7 @@ package digitalstrom
 
 import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 )
 
 type TokenManager struct {
@@ -21,7 +22,7 @@ func NewTokenManager(config *config.Config, httpClient *HttpClient) *TokenManage
 func (tm *TokenManager) refreshToken() string {
 	response, err := tm.httpClient.getWithoutToken("json/system/login?user=" + tm.config.Username + "&password=" + tm.config.Password)
 
-	checkNoError(err)
+	utils.CheckNoError(err)
 
 	if response.isMap {
 		return response.mapValue["token"].(string)

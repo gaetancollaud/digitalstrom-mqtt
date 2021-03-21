@@ -91,5 +91,6 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 		}
 		return nil, errors.New("Unknown return type")
 	}
-	return nil, errors.New("No value returned")
+	// no value returned
+	return nil, nil
 }

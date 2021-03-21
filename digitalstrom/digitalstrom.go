@@ -8,15 +8,14 @@ import (
 
 type DigitalStrom struct {
 	config         *config.Config
-	cron           KeepAlive
+	cron           DigitalstromCron
 	httpClient     *HttpClient
 	eventsManager  *EventsManager
 	devicesManager *DevicesManager
 	circuitManager *CircuitsManager
 }
 
-// TODO move keep alive in dedicated class
-type KeepAlive struct {
+type DigitalstromCron struct {
 	ticker     *time.Ticker
 	tickerDone chan bool
 }
@@ -64,22 +63,9 @@ func (ds *DigitalStrom) digitalstromCron() {
 		case t := <-ds.cron.ticker.C:
 			fmt.Println("Digitalstrom cron", t)
 			ds.circuitManager.UpdateCircuitsValue()
-			//user := ds.getLoggedInUser()
 		}
 	}
 }
-
-//func (ds *DigitalStrom) getLoggedInUser() string {
-//	response, err := ds.httpClient.get("json/system/loggedInUser")
-//	if checkNoError(err) {
-//		if !response.isMap || len(response.mapValue) == 0 {
-//			fmt.Errorf("No user logged in")
-//		} else {
-//			return response.mapValue["name"].(string)
-//		}
-//	}
-//	return ""
-//}
 
 func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
 	for event := range events {
@@ -94,4 +80,8 @@ func (ds *DigitalStrom) GetDeviceChangeChannel() chan DeviceStatusChanged {
 
 func (ds *DigitalStrom) GetCircuitChangeChannel() chan CircuitValueChanged {
 	return ds.circuitManager.circuitValuesChan
+}
+
+func (ds *DigitalStrom) SetDeviceValue(command DeviceCommand) error {
+	return ds.devicesManager.SetValue(command)
 }
