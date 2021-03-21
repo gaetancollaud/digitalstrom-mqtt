@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom_mqtt"
+	"gaetancollaud/digitalstrom-mqtt/config"
+	"gaetancollaud/digitalstrom-mqtt/digitalstrom"
+	"gaetancollaud/digitalstrom-mqtt/digitalstrom_mqtt"
 	"time"
 )
 

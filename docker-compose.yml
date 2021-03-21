@@ -3,3 +3,5 @@ services:
   digitalstrom-mqtt:
     image: gaetancollaud/digitalstrom-mqtt
     build: .
+    env_file:
+      - .env

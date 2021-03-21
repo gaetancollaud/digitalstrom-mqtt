@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"gaetancollaud/digitalstrom-mqtt/config"
 	"io/ioutil"
 	"net/http"
 	"strconv"

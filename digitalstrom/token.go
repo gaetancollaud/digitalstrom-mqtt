@@ -1,8 +1,8 @@
 package digitalstrom
 
 import (
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"gaetancollaud/digitalstrom-mqtt/config"
+	"gaetancollaud/digitalstrom-mqtt/utils"
 )
 
 type TokenManager struct {
