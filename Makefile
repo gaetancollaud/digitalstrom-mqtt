@@ -18,12 +18,6 @@ install:
 	go install ./...
 .PHONY: install
 
-# Install the development dependencies.
-install.deps:
-	@echo "==> Installing dev dependencies"
-	go get -u github.com/golang/dep/cmd/dep
-.PHONY: install.deps
-
 # Run all tests.
 test:
 	go test -timeout 2m ./... && echo "\n==>\033[32m Ok\033[m\n"

@@ -1,8 +1,0 @@
-
-required = [
-    "github.com/spf13/viper"
-]
-
-[prune]
-  go-tests = true
-  unused-packages = true
