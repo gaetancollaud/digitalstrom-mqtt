@@ -56,14 +56,6 @@
   version = "v1.8.4"
 
 [[projects]]
-  digest = "1:5d231480e1c64a726869bc4142d270184c419749d34f167646baa21008eb0a79"
-  name = "github.com/mitchellh/go-homedir"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "af06845cf3004701891bf4fdb884bfe4920b3727"
-  version = "v1.1.0"
-
-[[projects]]
   digest = "1:2a3c9556884d94bdbcdcdc62350f8cf466cf7eb39669fe7a0640f2600f61ceaf"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -80,15 +72,15 @@
   version = "v1.8.1"
 
 [[projects]]
-  digest = "1:e76b197a689daae40d3b3597319b3b66e29c94eccda6461b1c97e2524cf3630b"
+  digest = "1:9892d658619bf7f315a58e16a11abfe4aa26cca56d45441e8cc2bb25d4641b89"
   name = "github.com/spf13/afero"
   packages = [
     ".",
     "mem",
   ]
   pruneopts = "UT"
-  revision = "32b5faae5bd7fe285255e818818f7971e9279c1a"
-  version = "v1.5.1"
+  revision = "bc94f58beda5dbff6f74599fcb1f1717c5b1c111"
+  version = "v1.6.0"
 
 [[projects]]
   digest = "1:ff4cd55a3666b6ea3a876c9e133bfb54d6c812e725409a773f2c94a0b3a92f4f"
@@ -139,18 +131,18 @@
     "proxy",
   ]
   pruneopts = "UT"
-  revision = "e18ecbb051101a46fc263334b127c89bc7bff7ea"
+  revision = "d523dce5a7f4b994f7ed0531dbe44cd8fd803e26"
 
 [[projects]]
   branch = "master"
-  digest = "1:0e9aca0bcd3a361de352f071f143be6dc075adb53cf8e15a6bc6cfffb83ef4e6"
+  digest = "1:9475fbbe0af85107f6dc4c19ae42d3685662197bf3c509fd92a238d2f559fbbc"
   name = "golang.org/x/sys"
   packages = [
     "internal/unsafeheader",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "68d13333faf24bbe12c06419ed07e851a9dbf8f9"
+  revision = "1e4c9ba3b0c4fcddbe90893331bdc829813066a1"
 
 [[projects]]
   digest = "1:666e3df74f0c4788cc92426b18e33d93b7b62a3d4e8253f7c4b2226132a0f8de"
@@ -188,7 +180,6 @@
   analyzer-version = 1
   input-imports = [
     "github.com/eclipse/paho.mqtt.golang",
-    "github.com/mitchellh/go-homedir",
     "github.com/spf13/viper",
   ]
   solver-name = "gps-cdcl"

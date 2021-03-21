@@ -1,0 +1,5 @@
+version: '3.0'
+services:
+  digitalstrom-mqtt:
+    image: gaetancollaud/digitalstrom-mqtt
+    build: .

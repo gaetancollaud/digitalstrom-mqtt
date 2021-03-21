@@ -1,0 +1,9 @@
+.idea/
+vendor/
+dist/
+tests/
+.github/
+Dockerfile
+docker-compose.yml
+
+config.yaml

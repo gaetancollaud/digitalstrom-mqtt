@@ -1,4 +1,6 @@
 
+PLATFORM=local
+
 # Build all files.
 build:
 	@echo "==> Building ./dist/sdm"
@@ -26,6 +28,12 @@ install.deps:
 test:
 	go test -timeout 2m ./... && echo "\n==>\033[32m Ok\033[m\n"
 .PHONY: test
+
+.PHONY: docker
+docker:
+	@docker build . --target bin \
+	--output bin/ \
+	--platform ${PLATFORM}
 
 # Clean.
 clean:
