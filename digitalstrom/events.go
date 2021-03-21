@@ -65,7 +65,7 @@ func (em *EventsManager) listeningToevents() {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
 
-				fmt.Println("Events received :", events, utils.PrettyPrintArray(events))
+				//fmt.Println("Events received :", events, utils.PrettyPrintArray(events))
 
 				for _, event := range events {
 					m := event.(map[string]interface{})
