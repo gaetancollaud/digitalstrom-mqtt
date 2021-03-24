@@ -2,7 +2,7 @@ package digitalstrom
 
 import (
 	"fmt"
-	"gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"time"
 )
 

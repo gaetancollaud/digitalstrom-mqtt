@@ -2,7 +2,7 @@ package digitalstrom
 
 import (
 	"fmt"
-	"gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"strconv"
 )
 

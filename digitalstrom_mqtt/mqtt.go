@@ -3,9 +3,9 @@ package digitalstrom_mqtt
 import (
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"gaetancollaud/digitalstrom-mqtt/config"
-	"gaetancollaud/digitalstrom-mqtt/digitalstrom"
-	"gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"strconv"
 	"strings"
 )

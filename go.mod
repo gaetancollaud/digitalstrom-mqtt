@@ -1,4 +1,4 @@
-module gaetancollaud/digitalstrom-mqtt
+module github.com/gaetancollaud/digitalstrom-mqtt
 
 go 1.15
 
