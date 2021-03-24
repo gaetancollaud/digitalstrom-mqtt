@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
@@ -38,7 +39,8 @@ const (
 
 func check(e error) {
 	if e != nil {
-		panic(fmt.Errorf("Error when reading config: %v\n", e))
+		log.Panic().
+			Err(e).Msg("Error when reading config")
 	}
 }
 

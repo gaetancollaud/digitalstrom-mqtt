@@ -6,6 +6,7 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
 )
@@ -23,15 +24,20 @@ type DigitalstromMqtt struct {
 }
 
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	log.Debug().
+		Str("topic", msg.Topic()).
+		Bytes("payload", msg.Payload()).
+		Msg("Message received")
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	fmt.Println("MQTT Connected")
+	log.Info().Msg("MQTT Connected")
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	fmt.Printf("MQTT  Connect lost: %v", err)
+	log.Error().
+		Err(err).
+		Msg("MQTT connection lost")
 }
 
 func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.DigitalStrom) *DigitalstromMqtt {
@@ -85,7 +91,7 @@ func (dm *DigitalstromMqtt) publishDevice(changed digitalstrom.DeviceStatusChang
 }
 
 func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChanged) {
-	//fmt.Println("Updating meter", changed.Circuit.Name, changed.ConsumptionW, changed.EnergyWs)
+	//log.Info().Msg("Updating meter", changed.Circuit.Name, changed.ConsumptionW, changed.EnergyWs)
 
 	if changed.ConsumptionW != -1 {
 		topic := BASE_CIRCUIT_TOPIC + changed.Circuit.Name + "/consumptionW"
@@ -107,10 +113,10 @@ func (dm *DigitalstromMqtt) deviceReceiverHandler(msg mqtt.Message) {
 		split := strings.Split(topic, "/")
 		if len(split) == 2 {
 			value, err := strconv.ParseFloat(string(msg.Payload()), 64)
-			if utils.CheckNoError(err) {
+			if utils.CheckNoErrorAndPrint(err) {
 				deviceName := split[0]
 				channel := split[1]
-				fmt.Println("MQTT message to set device '" + deviceName + "' and channel '" + channel + " to '" + string(msg.Payload()) + "'")
+				log.Info().Msg("MQTT message to set device '" + deviceName + "' and channel '" + channel + " to '" + string(msg.Payload()) + "'")
 				dm.digitalstrom.SetDeviceValue(digitalstrom.DeviceCommand{
 					DeviceName: deviceName,
 					Channel:    channel,
@@ -118,7 +124,7 @@ func (dm *DigitalstromMqtt) deviceReceiverHandler(msg mqtt.Message) {
 				})
 			}
 		} else {
-			fmt.Println("Unable to split the device name and channel. Format should be '" + BASE_DEVICE_TOPIC + "device_name/channel/" + COMMAND_SUFFIX + "'")
+			log.Info().Msg("Unable to split the device name and channel. Format should be '" + BASE_DEVICE_TOPIC + "device_name/channel/" + COMMAND_SUFFIX + "'")
 		}
 	}
 }

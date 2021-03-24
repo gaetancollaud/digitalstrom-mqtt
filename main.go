@@ -1,15 +1,22 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom_mqtt"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"os"
 	"time"
 )
 
 func main() {
-	fmt.Println("String digitalstrom MQTT!")
+
+	// TODO put in config
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	log.Info().Msg("String digitalstrom MQTT!")
 
 	config := config.FromEnv()
 

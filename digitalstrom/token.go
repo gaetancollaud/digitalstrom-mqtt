@@ -22,7 +22,7 @@ func NewTokenManager(config *config.ConfigDigitalstrom, httpClient *HttpClient) 
 func (tm *TokenManager) refreshToken() string {
 	response, err := tm.httpClient.getWithoutToken("json/system/login?user=" + tm.config.Username + "&password=" + tm.config.Password)
 
-	utils.CheckNoError(err)
+	utils.CheckNoErrorAndPrint(err)
 
 	if response.isMap {
 		return response.mapValue["token"].(string)

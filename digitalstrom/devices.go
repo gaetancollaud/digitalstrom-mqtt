@@ -2,8 +2,8 @@ package digitalstrom
 
 import (
 	"errors"
-	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
 )
@@ -62,7 +62,7 @@ func (dm *DevicesManager) Start() {
 
 func (dm *DevicesManager) reloadAllDevices() {
 	response, err := dm.httpClient.get("json/apartment/getDevices")
-	if utils.CheckNoError(err) {
+	if utils.CheckNoErrorAndPrint(err) {
 		for _, s := range response.arrayValue {
 			m := s.(map[string]interface{})
 			dm.devices = append(dm.devices, Device{
@@ -79,7 +79,7 @@ func (dm *DevicesManager) reloadAllDevices() {
 			})
 		}
 
-		//fmt.Println("Devices loaded", utils.PrettyPrintArray(dm.devices))
+		//log.Info().Msg("Devices loaded", utils.PrettyPrintArray(dm.devices))
 	}
 }
 
@@ -112,8 +112,7 @@ func extractChannels(data map[string]interface{}) []string {
 
 func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
 	response, err := dm.httpClient.get("json/property/getFloating?path=" + path)
-	if utils.CheckNoError(err) {
-		//fmt.Println("Properties:", prettyPrintMap(response.mapValue))
+	if err == nil {
 		return response.mapValue["value"].(float64), nil
 	}
 	return 0, err
@@ -130,11 +129,16 @@ func (dm *DevicesManager) updateZone(zoneId int) {
 
 func (dm *DevicesManager) updateDevice(device Device) {
 	// device need to be updated
-	fmt.Println("Updating device ", device.Name)
+	log.Debug().Str("device", device.Name).Msg("Updating device ")
 	for _, channel := range device.Channels {
 		newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
-		if utils.CheckNoError(err) {
+		if err == nil {
 			dm.updateValue(device, channel, newValue)
+		} else {
+			log.Error().
+				Str("device", device.Name).
+				Err(err).
+				Msg("Unable to udpate device")
 		}
 	}
 }
@@ -145,13 +149,22 @@ func (dm *DevicesManager) updateValue(device Device, channel string, newValue fl
 		//do something here
 		if oldVal != newValue {
 			device.Values[channel] = newValue
-			fmt.Println("Value changed", device.Name, channel, oldVal, newValue)
+			log.Info().
+				Str("device", device.Name).
+				Str("channel", channel).
+				Float64("oldValue", oldVal).
+				Float64("newValue", newValue).
+				Msg("Value changed")
 			publishValue = true
 		}
 	} else {
 		// new value
 		device.Values[channel] = newValue
-		fmt.Println("New value", device.Name, channel, newValue)
+		log.Info().
+			Str("device", device.Name).
+			Str("channel", channel).
+			Float64("newValue", newValue).
+			Msg("New value")
 		publishValue = true
 	}
 	if publishValue {
@@ -173,10 +186,14 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 				if c == command.Channel {
 					channelFound = true
 
-					fmt.Println("Setting value ", command)
+					log.Info().
+						Str("device", command.DeviceName).
+						Str("channel", command.Channel).
+						Float64("value", command.NewValue).
+						Msg("Setting value ")
 					strValue := strconv.Itoa(int(command.NewValue))
 					_, err := dm.httpClient.get("json/device/setOutputChannelValue?dsid=" + device.Dsid + "&channelvalues=" + c + "=" + strValue + "&applyNow=1")
-					if utils.CheckNoError(err) {
+					if utils.CheckNoErrorAndPrint(err) {
 						dm.updateValue(device, command.Channel, command.NewValue)
 					}
 				}

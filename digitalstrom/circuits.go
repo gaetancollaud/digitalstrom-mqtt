@@ -1,8 +1,8 @@
 package digitalstrom
 
 import (
-	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type CircuitValueChanged struct {
@@ -37,9 +37,13 @@ func (dm *CircuitsManager) Start() {
 }
 
 func (dm *CircuitsManager) reloadAllCircuits() {
-	fmt.Println("Reloading circuits")
+	log.Info().Msg("Reloading circuits")
 	response, err := dm.httpClient.get("json/apartment/getCircuits")
-	if utils.CheckNoError(err) {
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("Unable to load circuit list")
+	} else {
 		circuits := response.mapValue["circuits"].([]interface{})
 		for _, s := range circuits {
 			m := s.(map[string]interface{})
@@ -51,7 +55,9 @@ func (dm *CircuitsManager) reloadAllCircuits() {
 			})
 		}
 
-		//fmt.Println("Circuits loaded", utils.PrettyPrintArray(dm.circuits))
+		log.Debug().
+			Str("circuits", utils.PrettyPrintArray(dm.circuits)).
+			Msg("Circuits loaded")
 	}
 }
 
@@ -61,12 +67,12 @@ func (dm *CircuitsManager) UpdateCircuitsValue() {
 		energyWs := int64(-1)
 
 		response, err := dm.httpClient.get("json/circuit/getConsumption?id=" + circuit.Dsid)
-		if utils.CheckNoError(err) {
+		if utils.CheckNoErrorAndPrint(err) {
 			consumptionW = int64(response.mapValue["consumption"].(float64))
 		}
 
 		response, err = dm.httpClient.get("json/circuit/getEnergyMeterValue?id=" + circuit.Dsid)
-		if utils.CheckNoError(err) {
+		if utils.CheckNoErrorAndPrint(err) {
 			energyWs = int64(response.mapValue["meterValue"].(float64))
 		}
 

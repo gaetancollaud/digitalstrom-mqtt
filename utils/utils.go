@@ -2,12 +2,12 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/rs/zerolog/log"
 )
 
-func CheckNoError(e error) bool {
+func CheckNoErrorAndPrint(e error) bool {
 	if e != nil {
-		fmt.Println(fmt.Errorf("Error with token: %v\n", e))
+		log.Info().Err(e).Msg("Error")
 	}
 	return e == nil
 }
@@ -15,7 +15,7 @@ func CheckNoError(e error) bool {
 func PrettyPrintMap(value map[string]interface{}) string {
 	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Info().Err(err).Msg("Cannot pretty print")
 	}
 	return string(b)
 }
@@ -23,7 +23,7 @@ func PrettyPrintMap(value map[string]interface{}) string {
 func PrettyPrintArray(value interface{}) string {
 	b, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Info().Err(err).Msg("Cannot pretty print")
 	}
 	return string(b)
 }

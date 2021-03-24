@@ -1,8 +1,8 @@
 package digitalstrom
 
 import (
-	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/rs/zerolog/log"
 	"time"
 )
 
@@ -31,7 +31,7 @@ func New(config *config.Config) *DigitalStrom {
 }
 
 func (ds *DigitalStrom) Start() {
-	fmt.Println("Staring digitalstrom")
+	log.Info().Msg("Staring digitalstrom")
 	ds.cron.ticker = time.NewTicker(30 * time.Second)
 	ds.cron.tickerDone = make(chan bool)
 	go ds.digitalstromCron()
@@ -50,7 +50,7 @@ func (ds *DigitalStrom) Start() {
 }
 
 func (ds *DigitalStrom) Stop() {
-	fmt.Println("Stopping digitalstrom")
+	log.Info().Msg("Stopping digitalstrom")
 	if ds.cron.ticker != nil {
 		ds.cron.ticker.Stop()
 		ds.cron.tickerDone <- true
@@ -64,8 +64,8 @@ func (ds *DigitalStrom) digitalstromCron() {
 		select {
 		case <-ds.cron.tickerDone:
 			return
-		case t := <-ds.cron.ticker.C:
-			fmt.Println("Digitalstrom cron", t)
+		case <-ds.cron.ticker.C:
+			log.Info().Msg("Updating circuits values")
 			ds.circuitManager.UpdateCircuitsValue()
 		}
 	}
@@ -73,7 +73,7 @@ func (ds *DigitalStrom) digitalstromCron() {
 
 func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
 	for event := range events {
-		fmt.Println("Event received, updating devices")
+		log.Info().Msg("Event received, updating devices")
 		ds.devicesManager.updateZone(event.ZoneId)
 
 		time.AfterFunc(2*time.Second, func() {
@@ -96,7 +96,9 @@ func (ds *DigitalStrom) SetDeviceValue(command DeviceCommand) error {
 }
 
 func (ds *DigitalStrom) refreshAllDevices() {
-	fmt.Printf("Refreshing all %d devices\n", len(ds.devicesManager.devices))
+	log.Info().
+		Int("size", len(ds.devicesManager.devices)).
+		Msg("Refreshing all devices")
 	for _, device := range ds.devicesManager.devices {
 		ds.devicesManager.updateDevice(device)
 	}

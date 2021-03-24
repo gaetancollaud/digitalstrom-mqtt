@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -60,7 +61,10 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 		return nil, err
 	}
 
-	//fmt.Printf("%s status: %s\n", url, resp.Status)
+	log.Debug().
+		Str("url", url).
+		Str("status", resp.Status).
+		Msg("Response received")
 
 	var jsonValue map[string]interface{}
 	json.Unmarshal(body, &jsonValue)

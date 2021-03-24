@@ -1,8 +1,8 @@
 package digitalstrom
 
 import (
-	"fmt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 	"strconv"
 )
 
@@ -37,14 +37,14 @@ func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 }
 
 func (em *EventsManager) Start() {
-	fmt.Println("Register subscription and listen to events")
+	log.Info().Msg("Register subscription and listen to events")
 	em.running = true
 	em.registerSubscription()
 	go em.listeningToevents()
 }
 
 func (em *EventsManager) Stop() {
-	fmt.Println("Stopping events")
+	log.Info().Msg("Stopping events")
 	em.running = false
 }
 
@@ -61,11 +61,11 @@ func (em *EventsManager) listeningToevents() {
 		}
 
 		response, err := em.httpClient.get("json/event/get?subscriptionID=" + SUBSCRIPTION_ID)
-		if utils.CheckNoError(err) {
+		if utils.CheckNoErrorAndPrint(err) {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
 
-				//fmt.Println("Events received :", events, utils.PrettyPrintArray(events))
+				//log.Info().Msg("Events received :", events, utils.PrettyPrintArray(events))
 
 				for _, event := range events {
 					m := event.(map[string]interface{})
@@ -74,7 +74,7 @@ func (em *EventsManager) listeningToevents() {
 					sceneId := -1
 					if scene, ok := properties["sceneID"]; ok {
 						sceneId, err = strconv.Atoi(scene.(string))
-						utils.CheckNoError(err)
+						utils.CheckNoErrorAndPrint(err)
 					}
 					eventObj := Event{
 						ZoneId:  int(source["zoneID"].(float64)),
