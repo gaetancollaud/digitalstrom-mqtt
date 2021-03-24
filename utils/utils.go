@@ -7,7 +7,7 @@ import (
 
 func CheckNoError(e error) bool {
 	if e != nil {
-		panic(fmt.Errorf("Error with token: %v\n", e))
+		fmt.Println(fmt.Errorf("Error with token: %v\n", e))
 	}
 	return e == nil
 }

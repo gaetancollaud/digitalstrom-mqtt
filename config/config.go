@@ -8,12 +8,21 @@ import (
 	"os"
 )
 
-type Config struct {
+type ConfigDigitalstrom struct {
 	Ip       string
 	Port     int
 	Username string
 	Password string
-	MqttUrl  string
+}
+type ConfigMqtt struct {
+	MqttUrl string
+	// TODO username/password
+
+}
+type Config struct {
+	DigitalStrom   ConfigDigitalstrom
+	Mqtt           ConfigMqtt
+	RefreshAtStart bool
 }
 
 const (
@@ -24,6 +33,7 @@ const (
 	envKeyDigitalstromUsername string = "DIGITALSTROM_USERNAME"
 	envKeyDigitalstromPassword string = "DIGITALSTROM_PASSWORD"
 	envKeyMqttUrl              string = "MQTT_URL"
+	envKeyRefreshAtStart       string = "REFRESH_AT_START"
 )
 
 func check(e error) {
@@ -56,19 +66,26 @@ func FromEnv() *Config {
 		envKeyDigitalstromUsername: Undefined,
 		envKeyDigitalstromPassword: Undefined,
 		envKeyMqttUrl:              Undefined,
+		envKeyRefreshAtStart:       false,
 	})
 	check(err)
 
-	c := &Config{}
-	c.Ip = v.GetString(envKeyDigitalstromIp)
-	c.Port = v.GetInt(envKeyDigitalstromPort)
-	c.Username = v.GetString(envKeyDigitalstromUsername)
-	c.Password = v.GetString(envKeyDigitalstromPassword)
-	c.MqttUrl = v.GetString(envKeyMqttUrl)
+	c := &Config{
+		DigitalStrom: ConfigDigitalstrom{
+			Ip:       v.GetString(envKeyDigitalstromIp),
+			Port:     v.GetInt(envKeyDigitalstromPort),
+			Username: v.GetString(envKeyDigitalstromUsername),
+			Password: v.GetString(envKeyDigitalstromPassword),
+		},
+		Mqtt: ConfigMqtt{
+			MqttUrl: v.GetString(envKeyMqttUrl),
+		},
+		RefreshAtStart: v.GetBool(envKeyRefreshAtStart),
+	}
 
 	return c
 }
 
 func (c *Config) String() string {
-	return fmt.Sprintf("{host: %s:%s, Username: %s, Password: %s}", c.Ip, c.Port, c.Username, c.Password)
+	return fmt.Sprintf("%+v\n", c)
 }

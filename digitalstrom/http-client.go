@@ -12,7 +12,7 @@ import (
 )
 
 type HttpClient struct {
-	config       *config.Config
+	config       *config.ConfigDigitalstrom
 	TokenManager *TokenManager
 }
 
@@ -23,7 +23,7 @@ type DigitalStromResponse struct {
 	arrayValue []interface{}
 }
 
-func NewHttpClient(config *config.Config) *HttpClient {
+func NewHttpClient(config *config.ConfigDigitalstrom) *HttpClient {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient := new(HttpClient)
 	httpClient.config = config

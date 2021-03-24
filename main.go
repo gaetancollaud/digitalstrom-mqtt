@@ -14,7 +14,7 @@ func main() {
 	config := config.FromEnv()
 
 	ds := digitalstrom.New(config)
-	mqtt := digitalstrom_mqtt.New(config, ds)
+	mqtt := digitalstrom_mqtt.New(&config.Mqtt, ds)
 
 	ds.Start()
 	mqtt.Start()

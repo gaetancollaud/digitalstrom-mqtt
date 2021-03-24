@@ -16,7 +16,7 @@ const BASE_CIRCUIT_TOPIC = BASE_TOPIC + "circuits/"
 const COMMAND_SUFFIX = "command"
 
 type DigitalstromMqtt struct {
-	config *config.Config
+	config *config.ConfigMqtt
 	client mqtt.Client
 
 	digitalstrom *digitalstrom.DigitalStrom
@@ -34,7 +34,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 	fmt.Printf("MQTT  Connect lost: %v", err)
 }
 
-func New(config *config.Config, digitalstrom *digitalstrom.DigitalStrom) *DigitalstromMqtt {
+func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.DigitalStrom) *DigitalstromMqtt {
 	inst := new(DigitalstromMqtt)
 	inst.config = config
 

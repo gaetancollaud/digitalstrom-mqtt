@@ -23,7 +23,7 @@ type DigitalstromCron struct {
 func New(config *config.Config) *DigitalStrom {
 	ds := new(DigitalStrom)
 	ds.config = config
-	ds.httpClient = NewHttpClient(config)
+	ds.httpClient = NewHttpClient(&config.DigitalStrom)
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
 	ds.devicesManager = NewDevicesManager(ds.httpClient)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
@@ -43,6 +43,10 @@ func (ds *DigitalStrom) Start() {
 	go ds.circuitManager.UpdateCircuitsValue()
 
 	go ds.updateDevicesOnEvent(ds.eventsManager.events)
+
+	if ds.config.RefreshAtStart {
+		go ds.refreshAllDevices()
+	}
 }
 
 func (ds *DigitalStrom) Stop() {
@@ -71,6 +75,11 @@ func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
 	for event := range events {
 		fmt.Println("Event received, updating devices")
 		ds.devicesManager.updateZone(event.ZoneId)
+
+		time.AfterFunc(2*time.Second, func() {
+			// update again because maybe the three was not up to date yet
+			ds.devicesManager.updateZone(event.ZoneId)
+		})
 	}
 }
 
@@ -84,4 +93,11 @@ func (ds *DigitalStrom) GetCircuitChangeChannel() chan CircuitValueChanged {
 
 func (ds *DigitalStrom) SetDeviceValue(command DeviceCommand) error {
 	return ds.devicesManager.SetValue(command)
+}
+
+func (ds *DigitalStrom) refreshAllDevices() {
+	fmt.Printf("Refreshing all %d devices\n", len(ds.devicesManager.devices))
+	for _, device := range ds.devicesManager.devices {
+		ds.devicesManager.updateDevice(device)
+	}
 }

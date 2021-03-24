@@ -6,12 +6,12 @@ import (
 )
 
 type TokenManager struct {
-	config     *config.Config
+	config     *config.ConfigDigitalstrom
 	httpClient *HttpClient
 	token      string
 }
 
-func NewTokenManager(config *config.Config, httpClient *HttpClient) *TokenManager {
+func NewTokenManager(config *config.ConfigDigitalstrom, httpClient *HttpClient) *TokenManager {
 	tm := new(TokenManager)
 	tm.config = config
 	tm.httpClient = httpClient
