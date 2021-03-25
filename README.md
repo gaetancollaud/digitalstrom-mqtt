@@ -14,6 +14,10 @@ MQTT_URL: tcp://192.168.1.X:1883
 
 ```
 
+## How to run
+
+todo
+
 ## Development
 
 ```shell
