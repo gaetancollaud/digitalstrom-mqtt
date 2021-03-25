@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
+        name: Login to Docker Registry
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
+          docker login -u gaetancollaud --password-stdin
+      -
         name: Checkout
         uses: actions/checkout@v2
         with:
