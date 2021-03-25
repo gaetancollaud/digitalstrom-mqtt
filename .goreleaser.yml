@@ -30,9 +30,10 @@ dockers:
       - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm"
     use_buildx: true
     goarch: arm
+    goarm: 6
     dockerfile: Dockerfile
     build_flag_templates:
-      - "--platform=linux/arm/v7"
+      - "--platform=linux/arm/v6"
     extra_files:
       - config.yaml.example
   - image_templates:
