@@ -19,8 +19,8 @@ archives:
 
 dockers:
   - image_templates:
-      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}"
-      - "gaetancollaud/digitalstrom-mqtt:latest"
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-amd64"
+      - "gaetancollaud/digitalstrom-mqtt:latest-amd64"
     use_buildx: true
     dockerfile: Dockerfile
     build_flag_templates:
@@ -51,11 +51,11 @@ dockers:
 docker_manifests:
   - name_template: gaetancollaud/digitalstrom-mqtt:{{ .Version }}
     image_templates:
-      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-amd64
       - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm
       - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8
   - name_template: gaetancollaud/digitalstrom-mqtt:latest
     image_templates:
-      - gaetancollaud/digitalstrom-mqtt:latest
+      - gaetancollaud/digitalstrom-mqtt:latest-amd64
       - gaetancollaud/digitalstrom-mqtt:latest-arm
       - gaetancollaud/digitalstrom-mqtt:latest-arm64v8
