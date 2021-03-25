@@ -17,8 +17,7 @@ MQTT_URL: tcp://192.168.1.X:1883
 ## Development
 
 ```shell
-Make install.deps
-dep ensure
+go install
 go run .
 ```
 
