@@ -1,0 +1,46 @@
+env:
+  - GO111MODULE=on
+builds:
+  - goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+
+archives:
+  - files:
+      - README.md
+      - LICENSE.md
+      - config.yaml.example
+
+dockers:
+  - image_templates:
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-amd64"
+    use_buildx: true
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm"
+    use_buildx: true
+    goarch: arm
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+  - image_templates:
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8"
+    use_buildx: true
+    goarch: arm64
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+docker_manifests:
+  - name_template: gaetancollaud/digitalstrom-mqtt:{{ .Version }}
+    image_templates:
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-amd64
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8
