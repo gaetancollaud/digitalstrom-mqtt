@@ -11,9 +11,6 @@ builds:
       - arm
       - arm64
 
-snapshot:
-  name_template: "latest"
-
 archives:
   - files:
       - README.md
@@ -31,8 +28,8 @@ dockers:
     extra_files:
       - config.yaml.example
   - image_templates:
-      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}"
-      - "gaetancollaud/digitalstrom-mqtt:latest"
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm"
+      - "gaetancollaud/digitalstrom-mqtt:latest-arm"
     use_buildx: true
     goarch: arm
     goarm: 6
@@ -42,8 +39,8 @@ dockers:
     extra_files:
       - config.yaml.example
   - image_templates:
-      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}"
-      - "gaetancollaud/digitalstrom-mqtt:latest"
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8"
+      - "gaetancollaud/digitalstrom-mqtt:latest-arm64v8"
     use_buildx: true
     goarch: arm64
     dockerfile: Dockerfile
@@ -51,7 +48,12 @@ dockers:
       - "--platform=linux/arm64/v8"
     extra_files:
       - config.yaml.example
-
 docker_manifests:
   - name_template: gaetancollaud/digitalstrom-mqtt:{{ .Version }}
-  - name_template: gaetancollaud/digitalstrom-mqtt:latest
+    image_templates:
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}
+      - gaetancollaud/digitalstrom-mqtt:latest
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm
+      - gaetancollaud/digitalstrom-mqtt:latest-arm
+      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8
+      - gaetancollaud/digitalstrom-mqtt:latest-arm64v8
