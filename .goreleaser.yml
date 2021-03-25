@@ -27,7 +27,7 @@ dockers:
     extra_files:
       - config.yaml.example
   - image_templates:
-      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm"
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}"
     use_buildx: true
     goarch: arm
     goarm: 6
@@ -37,7 +37,7 @@ dockers:
     extra_files:
       - config.yaml.example
   - image_templates:
-      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8"
+      - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}"
     use_buildx: true
     goarch: arm64
     dockerfile: Dockerfile
@@ -49,5 +49,3 @@ docker_manifests:
   - name_template: gaetancollaud/digitalstrom-mqtt:{{ .Version }}
     image_templates:
       - gaetancollaud/digitalstrom-mqtt:{{ .Version }}
-      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm
-      - gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8
