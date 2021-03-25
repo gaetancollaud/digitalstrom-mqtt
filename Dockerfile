@@ -20,6 +20,6 @@ FROM alpine
 WORKDIR /go/bin/
 
 COPY --from=builder /dist/digitalstrom-mqtt /go/bin/digitalstrom-mqtt
-COPY ./config.yaml.example /go/bin/config.yaml
+COPY config.yaml.example /go/bin/config.yaml
 
 ENTRYPOINT ["/go/bin/digitalstrom-mqtt"]

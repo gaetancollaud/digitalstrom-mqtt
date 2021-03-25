@@ -14,7 +14,7 @@ builds:
 archives:
   - files:
       - README.md
-      - LICENSE.md
+      - LICENSE
       - config.yaml.example
 
 dockers:
