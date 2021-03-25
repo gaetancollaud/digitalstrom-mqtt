@@ -27,7 +27,7 @@ dockers:
       - "--platform=linux/amd64"
     extra_files:
       - config.yaml.example
-    skip_publish: true
+    skip_push: true
   - image_templates:
       - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm"
       - "gaetancollaud/digitalstrom-mqtt:latest-arm"
@@ -39,7 +39,7 @@ dockers:
       - "--platform=linux/arm/v6"
     extra_files:
       - config.yaml.example
-    skip_publish: true
+    skip_push: true
   - image_templates:
       - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8"
       - "gaetancollaud/digitalstrom-mqtt:latest-arm64v8"
@@ -50,7 +50,7 @@ dockers:
       - "--platform=linux/arm64/v8"
     extra_files:
       - config.yaml.example
-    skip_publish: true
+    skip_push: true
 docker_manifests:
   - name_template: gaetancollaud/digitalstrom-mqtt:{{ .Version }}
     image_templates:
