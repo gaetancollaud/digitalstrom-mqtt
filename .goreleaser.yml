@@ -11,6 +11,9 @@ builds:
       - arm
       - arm64
 
+snapshot:
+  name_template: "latest"
+
 archives:
   - files:
       - README.md
