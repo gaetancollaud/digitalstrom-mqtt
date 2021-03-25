@@ -8,6 +8,10 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
+      - name: Login to Docker Registry
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
+          docker login  -u gaetancollaud --password-stdin
       -
         name: Checkout
         uses: actions/checkout@v2
@@ -23,6 +27,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
-          args: release --snapshot --skip-publish --rm-dist
+          args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
