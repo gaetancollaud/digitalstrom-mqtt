@@ -32,4 +32,10 @@ jobs:
           path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       - name: Build
         run: go build -o dist/digitalstrom-mqtt-${{matrix.os}} ./main.go
-
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: release --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
