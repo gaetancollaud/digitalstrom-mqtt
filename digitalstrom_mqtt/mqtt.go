@@ -6,9 +6,11 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const BASE_TOPIC = "digitalstrom/"
@@ -38,15 +40,21 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 	log.Error().
 		Err(err).
 		Msg("MQTT connection lost")
+	time.Sleep(5 * time.Second)
 }
 
 func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.DigitalStrom) *DigitalstromMqtt {
 	inst := new(DigitalstromMqtt)
 	inst.config = config
+	u, err := uuid.NewRandom()
+	clientPostfix := "-"
+	if utils.CheckNoErrorAndPrint(err) {
+		clientPostfix = "-" + u.String()
+	}
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf(config.MqttUrl))
-	opts.SetClientID("digitalstrom-mqtt")
+	opts.SetClientID("digitalstrom-mqtt" + clientPostfix)
 	//opts.SetUsername("emqx") // TODO
 	//opts.SetPassword("public")
 	opts.SetDefaultPublishHandler(messagePubHandler)

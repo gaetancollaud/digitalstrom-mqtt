@@ -1,4 +1,3 @@
-FROM scratch
+FROM alpine
 ENTRYPOINT ["/digitalstrom-mqtt"]
-COPY digitalstrom-mqtt /
-COPY config.yaml.example /config.yaml
+COPY digitalstrom-mqtt config.yaml.example /
