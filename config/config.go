@@ -22,7 +22,7 @@ type ConfigMqtt struct {
 	TopicFormat string
 }
 type Config struct {
-	DigitalStrom   ConfigDigitalstrom
+	Digitalstrom   ConfigDigitalstrom
 	Mqtt           ConfigMqtt
 	RefreshAtStart bool
 }
@@ -74,13 +74,13 @@ func FromEnv() *Config {
 		envKeyMqttUrl:              Undefined,
 		envKeyMqttUsername:         Undefined,
 		envKeyMqttPassword:         Undefined,
-		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{type}",
+		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandStatus}",
 		envKeyRefreshAtStart:       false,
 	})
 	check(err)
 
 	c := &Config{
-		DigitalStrom: ConfigDigitalstrom{
+		Digitalstrom: ConfigDigitalstrom{
 			Ip:       v.GetString(envKeyDigitalstromIp),
 			Port:     v.GetInt(envKeyDigitalstromPort),
 			Username: v.GetString(envKeyDigitalstromUsername),
@@ -99,5 +99,5 @@ func FromEnv() *Config {
 }
 
 func (c *Config) String() string {
-	return fmt.Sprintf("%+v\n", c)
+	return fmt.Sprintf("%+v\n", c.Digitalstrom)
 }

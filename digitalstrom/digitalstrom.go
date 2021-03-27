@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type DigitalStrom struct {
+type Digitalstrom struct {
 	config         *config.Config
 	cron           DigitalstromCron
 	httpClient     *HttpClient
@@ -20,17 +20,17 @@ type DigitalstromCron struct {
 	tickerDone chan bool
 }
 
-func New(config *config.Config) *DigitalStrom {
-	ds := new(DigitalStrom)
+func New(config *config.Config) *Digitalstrom {
+	ds := new(Digitalstrom)
 	ds.config = config
-	ds.httpClient = NewHttpClient(&config.DigitalStrom)
+	ds.httpClient = NewHttpClient(&config.Digitalstrom)
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
 	ds.devicesManager = NewDevicesManager(ds.httpClient)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
 	return ds
 }
 
-func (ds *DigitalStrom) Start() {
+func (ds *Digitalstrom) Start() {
 	log.Info().Msg("Staring digitalstrom")
 	ds.cron.ticker = time.NewTicker(30 * time.Second)
 	ds.cron.tickerDone = make(chan bool)
@@ -49,7 +49,7 @@ func (ds *DigitalStrom) Start() {
 	}
 }
 
-func (ds *DigitalStrom) Stop() {
+func (ds *Digitalstrom) Stop() {
 	log.Info().Msg("Stopping digitalstrom")
 	if ds.cron.ticker != nil {
 		ds.cron.ticker.Stop()
@@ -59,7 +59,7 @@ func (ds *DigitalStrom) Stop() {
 	ds.eventsManager.Stop()
 }
 
-func (ds *DigitalStrom) digitalstromCron() {
+func (ds *Digitalstrom) digitalstromCron() {
 	for {
 		select {
 		case <-ds.cron.tickerDone:
@@ -71,7 +71,7 @@ func (ds *DigitalStrom) digitalstromCron() {
 	}
 }
 
-func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
+func (ds *Digitalstrom) updateDevicesOnEvent(events chan Event) {
 	for event := range events {
 		log.Info().Msg("Event received, updating devices")
 		ds.devicesManager.updateZone(event.ZoneId)
@@ -83,23 +83,27 @@ func (ds *DigitalStrom) updateDevicesOnEvent(events chan Event) {
 	}
 }
 
-func (ds *DigitalStrom) GetDeviceChangeChannel() chan DeviceStatusChanged {
+func (ds *Digitalstrom) GetDeviceChangeChannel() chan DeviceStatusChanged {
 	return ds.devicesManager.deviceStatusChan
 }
 
-func (ds *DigitalStrom) GetCircuitChangeChannel() chan CircuitValueChanged {
+func (ds *Digitalstrom) GetCircuitChangeChannel() chan CircuitValueChanged {
 	return ds.circuitManager.circuitValuesChan
 }
 
-func (ds *DigitalStrom) SetDeviceValue(command DeviceCommand) error {
+func (ds *Digitalstrom) SetDeviceValue(command DeviceCommand) error {
 	return ds.devicesManager.SetValue(command)
 }
 
-func (ds *DigitalStrom) refreshAllDevices() {
+func (ds *Digitalstrom) refreshAllDevices() {
 	log.Info().
 		Int("size", len(ds.devicesManager.devices)).
 		Msg("Refreshing all devices")
 	for _, device := range ds.devicesManager.devices {
 		ds.devicesManager.updateDevice(device)
 	}
+}
+
+func (ds *Digitalstrom) GetAllDevices() []Device {
+	return ds.devicesManager.devices
 }
