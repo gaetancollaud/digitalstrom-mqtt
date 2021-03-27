@@ -16,9 +16,10 @@ type ConfigDigitalstrom struct {
 	Password string
 }
 type ConfigMqtt struct {
-	MqttUrl string
-	// TODO username/password
-
+	MqttUrl     string
+	Username    string
+	Password    string
+	TopicFormat string
 }
 type Config struct {
 	DigitalStrom   ConfigDigitalstrom
@@ -34,6 +35,9 @@ const (
 	envKeyDigitalstromUsername string = "DIGITALSTROM_USERNAME"
 	envKeyDigitalstromPassword string = "DIGITALSTROM_PASSWORD"
 	envKeyMqttUrl              string = "MQTT_URL"
+	envKeyMqttUsername         string = "MQTT_USERNAME"
+	envKeyMqttPassword         string = "MQTT_PASSWORD"
+	envKeyMqttTopicFormat      string = "MQTT_TOPIC_FORMAT"
 	envKeyRefreshAtStart       string = "REFRESH_AT_START"
 )
 
@@ -68,6 +72,9 @@ func FromEnv() *Config {
 		envKeyDigitalstromUsername: Undefined,
 		envKeyDigitalstromPassword: Undefined,
 		envKeyMqttUrl:              Undefined,
+		envKeyMqttUsername:         Undefined,
+		envKeyMqttPassword:         Undefined,
+		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{type}",
 		envKeyRefreshAtStart:       false,
 	})
 	check(err)
@@ -80,7 +87,10 @@ func FromEnv() *Config {
 			Password: v.GetString(envKeyDigitalstromPassword),
 		},
 		Mqtt: ConfigMqtt{
-			MqttUrl: v.GetString(envKeyMqttUrl),
+			MqttUrl:     v.GetString(envKeyMqttUrl),
+			Username:    v.GetString(envKeyMqttUsername),
+			Password:    v.GetString(envKeyMqttPassword),
+			TopicFormat: v.GetString(envKeyMqttTopicFormat),
 		},
 		RefreshAtStart: v.GetBool(envKeyRefreshAtStart),
 	}

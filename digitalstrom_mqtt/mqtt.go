@@ -55,8 +55,12 @@ func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.DigitalStrom) *Di
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf(config.MqttUrl))
 	opts.SetClientID("digitalstrom-mqtt" + clientPostfix)
-	//opts.SetUsername("emqx") // TODO
-	//opts.SetPassword("public")
+	if len(config.Username) > 0 {
+		opts.SetUsername(config.Username)
+	}
+	if len(config.Password) > 0 {
+		opts.SetPassword(config.Password)
+	}
 	opts.SetDefaultPublishHandler(messagePubHandler)
 	opts.OnConnect = connectHandler
 	opts.OnConnectionLost = connectLostHandler
