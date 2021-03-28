@@ -4,15 +4,17 @@ This application allows you to set and react to any DigitalSTROM devices using M
 
 You can set the output values using the command topic and get the current value using the status topic.
 
+![](./images/mqtt-explorer.png)
+
 ## Motivation
 
-[DigitalSTROM](https://www.digitalstrom.com/en/) system is built upon scenes. You press a button and a scene starts. The
+[DigitalSTROM](https://www.digitalstrom.com/en/) system is built upon scenes. You press a button, and a scene starts. The
 scene can trigger as many output devices as you want. While this is fine for a standalone system, it’s really difficult
 to integrate with a more complex automation system. Basically, if you want the master of your automation to be an
 external system, you will have a bad time.
 
 DigitalSTROM provides a REST api, but it’s not that easy to use since there are a lot of different concepts (scenes,
-groups, areas, …). There is also an event endpoint so you can react to some events. Unfortunately it’s pretty limited (
+groups, areas, …). There is also an event endpoint, so you can react to some events. Unfortunately it’s pretty limited (
 for example you don’t have an event when a device output is changed).
 
 Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. For example
@@ -108,3 +110,19 @@ go install
 go run .
 ```
 
+## Tested devices
+
+digitalSTROM-MQTT was tested with theses devices but should work with any digitalSTROM devices.
+
+* dSM12
+* dSS20
+* GE-KM200
+* GE-TKM210
+* SW-TKM200
+* SW-TKM210
+* GR-KL200
+* GR-KL210
+* GR-KL220
+
+Feel free to create an issue or to directly edit this file if you have successfully tested this software with your
+devices.
