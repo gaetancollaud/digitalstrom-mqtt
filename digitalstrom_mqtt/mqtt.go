@@ -1,7 +1,6 @@
 package digitalstrom_mqtt
 
 import (
-	"errors"
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
@@ -115,44 +114,29 @@ func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChan
 	}
 }
 
-func (dm *DigitalstromMqtt) deviceReceiverHandler(msg mqtt.Message) {
-	//if strings.HasSuffix(msg.Topic(), COMMAND_SUFFIX) {
-	err, deviceType, deviceName, channel, statusCommand := extractFromTopic(dm.config.TopicFormat, msg.Topic())
-
-	log.Debug().
-		Str("deviceType", deviceType).
-		Str("deviceName", deviceName).
-		Str("channel", channel).
-		Str("statusCommand", statusCommand).
-		Msg("Update command received")
-
-	// This is a command
-	//baseTopicLen := len(BASE_DEVICE_TOPIC)
-	//commandLen := len(COMMAND_SUFFIX) + 1 // + slash
-	//topic := string([]rune(msg.Topic())[baseTopicLen : len(msg.Topic())-commandLen])
-	//split := strings.Split(topic, "/")
-	//if len(split) == 2 {
-	value, err := strconv.ParseFloat(string(msg.Payload()), 64)
+func (dm *DigitalstromMqtt) deviceReceiverHandler(deviceName string, channel string, msg mqtt.Message) {
+	payloadStr := string(msg.Payload())
+	value, err := strconv.ParseFloat(payloadStr, 64)
 	if utils.CheckNoErrorAndPrint(err) {
-		log.Info().Msg("MQTT message to set device '" + deviceName + "' and channel '" + channel + " to '" + string(msg.Payload()) + "'")
+		log.Info().Msg("MQTT message to set device '" + deviceName + "' and channel '" + channel + " to '" + payloadStr + "'")
 		dm.digitalstrom.SetDeviceValue(digitalstrom.DeviceCommand{
 			DeviceName: deviceName,
 			Channel:    channel,
 			NewValue:   value,
 		})
+	} else {
+		log.Error().Err(err).Str("payload", payloadStr).Msg("Unable to parse payload")
 	}
-	//} else {
-	//	log.Info().Msg("Unable to split the device name and channel. Format should be '" + BASE_DEVICE_TOPIC + "device_name/channel/" + COMMAND_SUFFIX + "'")
-	//}
-	//}
 }
 
 func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 	for _, device := range dm.digitalstrom.GetAllDevices() {
 		for _, channel := range device.Channels {
 			topic := getTopic(dm.config.TopicFormat, "devices", device.Name, channel, "command")
+			log.Trace().Str("topic", topic).Str("deviceName", device.Name).Str("channel", channel).Msg("Subscribing for topic")
 			dm.client.Subscribe(topic, 0, func(client mqtt.Client, message mqtt.Message) {
-				dm.deviceReceiverHandler(message)
+				log.Debug().Str("topic", topic).Str("deviceName", device.Name).Str("channel", channel).Msg("Message received")
+				dm.deviceReceiverHandler(device.Name, channel, message)
 			})
 		}
 
@@ -167,38 +151,4 @@ func getTopic(format string, deviceType string, deviceName string, channel strin
 	topic = strings.ReplaceAll(topic, "{commandStatus}", commandStatus)
 
 	return topic
-}
-
-func extractFromTopic(format string, topic string) (err error, deviceType string, deviceName string, channel string, commandStatus string) {
-
-	formatSplit := strings.Split(format, "/")
-	topicSplit := strings.Split(topic, "/")
-
-	if len(formatSplit) != len(topicSplit) {
-		return errors.New("Unable to parse topic '" + topic + "' with format '" + format + "'"), "", "", "", ""
-	}
-
-	//deviceType := ""
-	//deviceName := ""
-	//channel := ""
-	//commandStatus := ""
-
-	for i := 0; i < len(formatSplit); i++ {
-		formatPart := formatSplit[i]
-		topicPart := topicSplit[i]
-
-		if formatPart == "{deviceType}" {
-			deviceType = topicPart
-		} else if formatPart == "{deviceName}" {
-			deviceName = topicPart
-		} else if formatPart == "{channel}" {
-			channel = topicPart
-		} else if formatPart == "{commandStatus}" {
-			commandStatus = topicPart
-		}
-	}
-
-	// TODO check if values are empty
-
-	return nil, deviceType, deviceName, channel, commandStatus
 }
