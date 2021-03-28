@@ -17,9 +17,9 @@ DigitalSTROM provides a REST api, but it’s not that easy to use since there ar
 groups, areas, …). There is also an event endpoint, so you can react to some events. Unfortunately it’s pretty limited (
 for example you don’t have an event when a device output is changed).
 
-Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. For example
-in [OpenHAB](https://www.openhab.org/addons/bindings/digitalstrom/), you can set a device value but you will not get
-notified when the output changes when you press on a physical button for example. So for example if you have a light
+Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. In 
+[OpenHAB](https://www.openhab.org/addons/bindings/digitalstrom/), you can set a device value but you will not get
+notified when the output changes when you press on a physical button (for example). So for instance if you have a light
 status, and you press the physical button, the state is not reflected in the app.
 
 ## Concept
@@ -36,8 +36,8 @@ This app use the `json/device/` api to set the values, `json/property` to get th
 takes 1-2s per call if you ask the actual value from the device) and `json/event/` to be notified when a scene change.
 
 Since we don’t have an event when an output value changes we have to work around this limitation. Any push of a button (
-for example) will trigger a scene. DigitalSTROM provides an event for when a scene is called. And a scene is in a zone.
-We can then get the status of the devices in this zone. This overfetch a bit too much data (since we ask for all devices
+for example) will trigger a scene. DigitalSTROM provides an event when a scene is called. 
+We can then get the status of the devices in this scene. This overfetch a bit too much data (since we ask for all devices
 in a zone) but narrows the update status request so we don’t have to ask for all the devices in the system.
 
 ## Configurationgit 
