@@ -40,9 +40,9 @@ for example) will trigger a scene. DigitalSTROM provides an event for when a sce
 We can then get the status of the devices in this zone. This overfetch a bit too much data (since we ask for all devices
 in a zone) but narrows the update status request so we don’t have to ask for all the devices in the system.
 
-## Configuration
+## Configurationgit 
 
-You have two wait of configuring the app. Either using a `config.yaml` file next to the executable or with environment
+You have two ways of configuring the app. Either using a `config.yaml` file next to the executable or with environment
 variables.
 
 | required | property | description | default | example |
