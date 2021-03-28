@@ -10,7 +10,7 @@ import (
 )
 
 type ConfigDigitalstrom struct {
-	Ip       string
+	Host     string
 	Port     int
 	Username string
 	Password string
@@ -30,7 +30,7 @@ type Config struct {
 const (
 	Undefined                  string = ""
 	configFile                 string = "config.yaml"
-	envKeyDigitalstromIp       string = "DIGITALSTROM_IP"
+	envKeyDigitalstromHost     string = "DIGITALSTROM_HOST"
 	envKeyDigitalstromPort     string = "DIGITALSTROM_PORT"
 	envKeyDigitalstromUsername string = "DIGITALSTROM_USERNAME"
 	envKeyDigitalstromPassword string = "DIGITALSTROM_PASSWORD"
@@ -67,7 +67,7 @@ func readConfig(defaults map[string]interface{}) (*viper.Viper, error) {
 // FromEnv returns a Config from env variables
 func FromEnv() *Config {
 	v, err := readConfig(map[string]interface{}{
-		envKeyDigitalstromIp:       Undefined,
+		envKeyDigitalstromHost:     Undefined,
 		envKeyDigitalstromPort:     8080,
 		envKeyDigitalstromUsername: Undefined,
 		envKeyDigitalstromPassword: Undefined,
@@ -75,13 +75,13 @@ func FromEnv() *Config {
 		envKeyMqttUsername:         Undefined,
 		envKeyMqttPassword:         Undefined,
 		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandStatus}",
-		envKeyRefreshAtStart:       false,
+		envKeyRefreshAtStart:       true,
 	})
 	check(err)
 
 	c := &Config{
 		Digitalstrom: ConfigDigitalstrom{
-			Ip:       v.GetString(envKeyDigitalstromIp),
+			Host:     v.GetString(envKeyDigitalstromHost),
 			Port:     v.GetInt(envKeyDigitalstromPort),
 			Username: v.GetString(envKeyDigitalstromUsername),
 			Password: v.GetString(envKeyDigitalstromPassword),

@@ -45,7 +45,7 @@ func (httpClient *HttpClient) get(path string) (*DigitalStromResponse, error) {
 }
 
 func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromResponse, error) {
-	url := "https://" + httpClient.config.Ip + ":" + strconv.Itoa(httpClient.config.Port) + "/" + path
+	url := "https://" + httpClient.config.Host + ":" + strconv.Itoa(httpClient.config.Port) + "/" + path
 
 	resp, err := http.Get(url)
 	if err != nil {
