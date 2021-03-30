@@ -6,7 +6,7 @@ import (
 
 func TestTopicGeneration(t *testing.T) {
 
-	format := "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandStatus}"
+	format := "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}"
 
 	if getTopic(format, "circuits", "abc", "chan", "test") != "digitalstrom/circuits/abc/chan/test" {
 		t.Errorf("wrong topic")

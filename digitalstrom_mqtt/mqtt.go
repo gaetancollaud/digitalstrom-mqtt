@@ -76,13 +76,13 @@ func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.Digitalstrom) *Di
 }
 
 func (dm *DigitalstromMqtt) Start() {
-	go dm.ListenForDeviceStatus(dm.digitalstrom.GetDeviceChangeChannel())
+	go dm.ListenForDeviceState(dm.digitalstrom.GetDeviceChangeChannel())
 	go dm.ListenForCircuitValues(dm.digitalstrom.GetCircuitChangeChannel())
 
 	dm.subscribeToAllDevicesCommands()
 }
 
-func (dm *DigitalstromMqtt) ListenForDeviceStatus(changes chan digitalstrom.DeviceStatusChanged) {
+func (dm *DigitalstromMqtt) ListenForDeviceState(changes chan digitalstrom.DeviceStateChanged) {
 	for event := range changes {
 		dm.publishDevice(event)
 	}
@@ -94,8 +94,8 @@ func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.Cir
 	}
 }
 
-func (dm *DigitalstromMqtt) publishDevice(changed digitalstrom.DeviceStatusChanged) {
-	topic := getTopic(dm.config.TopicFormat, "devices", changed.Device.Name, changed.Channel, "status")
+func (dm *DigitalstromMqtt) publishDevice(changed digitalstrom.DeviceStateChanged) {
+	topic := getTopic(dm.config.TopicFormat, "devices", changed.Device.Name, changed.Channel, "state")
 
 	dm.client.Publish(topic, 0, false, fmt.Sprintf("%.2f", changed.NewValue))
 }
@@ -104,12 +104,12 @@ func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChan
 	//log.Info().Msg("Updating meter", changed.Circuit.Name, changed.ConsumptionW, changed.EnergyWs)
 
 	if changed.ConsumptionW != -1 {
-		topic := getTopic(dm.config.TopicFormat, "circuits", changed.Circuit.Name, "consumptionW", "status")
+		topic := getTopic(dm.config.TopicFormat, "circuits", changed.Circuit.Name, "consumptionW", "state")
 		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.ConsumptionW))
 	}
 
 	if changed.EnergyWs != -1 {
-		topic := getTopic(dm.config.TopicFormat, "circuits", changed.Circuit.Name, "EnergyWs", "status")
+		topic := getTopic(dm.config.TopicFormat, "circuits", changed.Circuit.Name, "EnergyWs", "state")
 		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.EnergyWs))
 	}
 }
@@ -144,12 +144,12 @@ func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 	}
 }
 
-func getTopic(format string, deviceType string, deviceName string, channel string, commandStatus string) string {
+func getTopic(format string, deviceType string, deviceName string, channel string, commandState string) string {
 	topic := format
 	topic = strings.ReplaceAll(topic, "{deviceType}", deviceType)
 	topic = strings.ReplaceAll(topic, "{deviceName}", deviceName)
 	topic = strings.ReplaceAll(topic, "{channel}", channel)
-	topic = strings.ReplaceAll(topic, "{commandStatus}", commandStatus)
+	topic = strings.ReplaceAll(topic, "{commandState}", commandState)
 
 	return topic
 }

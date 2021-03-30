@@ -74,7 +74,7 @@ func FromEnv() *Config {
 		envKeyMqttUrl:              Undefined,
 		envKeyMqttUsername:         Undefined,
 		envKeyMqttPassword:         Undefined,
-		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandStatus}",
+		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
 		envKeyRefreshAtStart:       true,
 	})
 	check(err)

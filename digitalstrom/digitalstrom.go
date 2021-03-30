@@ -83,8 +83,8 @@ func (ds *Digitalstrom) updateDevicesOnEvent(events chan Event) {
 	}
 }
 
-func (ds *Digitalstrom) GetDeviceChangeChannel() chan DeviceStatusChanged {
-	return ds.devicesManager.deviceStatusChan
+func (ds *Digitalstrom) GetDeviceChangeChannel() chan DeviceStateChanged {
+	return ds.devicesManager.deviceStateChan
 }
 
 func (ds *Digitalstrom) GetCircuitChangeChannel() chan CircuitValueChanged {

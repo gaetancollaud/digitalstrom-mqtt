@@ -17,7 +17,7 @@ const (
 	Unknown            = "Unknown"
 )
 
-type DeviceStatusChanged struct {
+type DeviceStateChanged struct {
 	Device   Device
 	Channel  string
 	NewValue float64
@@ -45,13 +45,13 @@ type Device struct {
 type DevicesManager struct {
 	httpClient       *HttpClient
 	devices          []Device
-	deviceStatusChan chan DeviceStatusChanged
+	deviceStateChan chan DeviceStateChanged
 }
 
 func NewDevicesManager(httpClient *HttpClient) *DevicesManager {
 	dm := new(DevicesManager)
 	dm.httpClient = httpClient
-	dm.deviceStatusChan = make(chan DeviceStatusChanged)
+	dm.deviceStateChan = make(chan DeviceStateChanged)
 
 	return dm
 }
@@ -168,7 +168,7 @@ func (dm *DevicesManager) updateValue(device Device, channel string, newValue fl
 		publishValue = true
 	}
 	if publishValue {
-		dm.deviceStatusChan <- DeviceStatusChanged{
+		dm.deviceStateChan <- DeviceStateChanged{
 			Device:   device,
 			Channel:  channel,
 			NewValue: newValue,

@@ -2,7 +2,7 @@
 
 This application allows you to set and react to any DigitalSTROM devices using MQTT.
 
-You can set the output values using the command topic and get the current value using the status topic.
+You can set the output values using the command topic and get the current value using the state topic.
 
 ![](./images/mqtt-explorer.png)
 
@@ -20,7 +20,7 @@ for example you don’t have an event when a device output is changed).
 Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. In 
 [OpenHAB](https://www.openhab.org/addons/bindings/digitalstrom/), you can set a device value but you will not get
 notified when the output changes when you press on a physical button (for example). So for instance if you have a light
-status, and you press the physical button, the state is not reflected in the app.
+state, and you press the physical button, the state is not reflected in the app.
 
 ## Concept
 
@@ -37,8 +37,8 @@ takes 1-2s per call if you ask the actual value from the device) and `json/event
 
 Since we don’t have an event when an output value changes we have to work around this limitation. Any push of a button (
 for example) will trigger a scene. DigitalSTROM provides an event when a scene is called. 
-We can then get the status of the devices in this scene. This overfetch a bit too much data (since we ask for all devices
-in a zone) but narrows the update status request so we don’t have to ask for all the devices in the system.
+We can then get the state of the devices in this scene. This overfetch a bit too much data (since we ask for all devices
+in a zone) but narrows the update state request so we don’t have to ask for all the devices in the system.
 
 ## Configuration
 
@@ -54,8 +54,8 @@ variables.
 | * | MQTT_URL | MQTT url | | tcp://192.168.1.20:1883 |
 |   | MQTT_USERNAME | MQTT username |  | myUser |
 |   | MQTT_PASSWORD | MQTT password |  | 9TyVg74e5S |
-|   | MQTT_TOPIC_FORMAT | Topic format | digitalstrom/{deviceType}/{deviceName}/{channel}/{commandStatus} | |
-|   | REFRESH_AT_START | should the status be refreshed at start | true | |
+|   | MQTT_TOPIC_FORMAT | Topic format | digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState} | |
+|   | REFRESH_AT_START | should the states be refreshed at start | true | |
 
 ## Minimal config file
 
