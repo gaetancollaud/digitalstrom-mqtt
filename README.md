@@ -4,7 +4,7 @@ This application allows you to set and react to any DigitalSTROM devices using M
 
 You can set the output values using the command topic and get the current value using the state topic.
 
-![](./images/mqtt-explorer.png)
+![](./docs/images/mqtt-explorer.png)
 
 ## Motivation
 
