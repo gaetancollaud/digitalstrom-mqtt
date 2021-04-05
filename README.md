@@ -66,7 +66,6 @@ DIGITALSTROM_HOST: 192.168.1.x
 DIGITALSTROM_USERNAME: dssadmin
 DIGITALSTROM_PASSWORD: XXX
 MQTT_URL: tcp://192.168.1.X:1883
-
 ```
 
 ## How to run
@@ -110,9 +109,30 @@ go install
 go run .
 ```
 
+## Topics 
+
+### GE devices (lights)
+```
+digitalstrom/devices/DEVICE_NAME/brightness/state
+digitalstrom/devices/DEVICE_NAME/brightness/command
+```
+### GR devices (blinds)
+```
+digitalstrom/devices/DEVICE_NAME/shadePositionOutside/state
+digitalstrom/devices/DEVICE_NAME/shadePositionOutside/command
+digitalstrom/devices/DEVICE_NAME/shadeOpeningAngleOutside/state
+digitalstrom/devices/DEVICE_NAME/shadeOpeningAngleOutside/command
+```
+### dSS20 (circuits)
+```
+digitalstrom/circuits/chambres/consumptionW/state
+digitalstrom/circuits/chambres/EnergyWs/state
+```
+
+
 ## Tested devices
 
-digitalSTROM-MQTT was tested with theses devices but should work with any digitalSTROM devices.
+digitalSTROM-MQTT was tested with these devices but should work with any digitalSTROM devices.
 
 * dSM12
 * dSS20
