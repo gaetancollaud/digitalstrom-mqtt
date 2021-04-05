@@ -65,7 +65,7 @@ func (ds *Digitalstrom) digitalstromCron() {
 		case <-ds.cron.tickerDone:
 			return
 		case <-ds.cron.ticker.C:
-			log.Info().Msg("Updating circuits values")
+			log.Debug().Msg("Updating circuits values")
 			ds.circuitManager.UpdateCircuitsValue()
 		}
 	}
@@ -73,7 +73,10 @@ func (ds *Digitalstrom) digitalstromCron() {
 
 func (ds *Digitalstrom) updateDevicesOnEvent(events chan Event) {
 	for event := range events {
-		log.Info().Msg("Event received, updating devices")
+		log.Info().
+			Int("SceneId", event.SceneId).
+			Int("ZoneId", event.ZoneId).
+			Msg("Event received, updating devices")
 		ds.devicesManager.updateZone(event.ZoneId)
 
 		time.AfterFunc(2*time.Second, func() {

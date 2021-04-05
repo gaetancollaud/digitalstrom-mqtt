@@ -3,5 +3,17 @@ services:
   digitalstrom-mqtt:
     image: gaetancollaud/digitalstrom-mqtt:latest-amd64
     build: .
+    environment:
+      - MQTT_URL=tcp://mosquitto:1883
+      - MQTT_RETAIN=true
+      - REFRESH_AT_START=true
     env_file:
       - .env
+
+  mosquitto:
+    image: eclipse-mosquitto:1.5
+    volumes:
+      - ./docs/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "1883:1883"
+      - "9001:9001"
