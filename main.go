@@ -16,9 +16,19 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	log.Info().Msg("String digitalstrom MQTT!")
-
 	config := config.FromEnv()
+
+	if config.LogLevel == "DEBUG" {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else if config.LogLevel == "INFO" {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	} else if config.LogLevel == "WARN" {
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	} else if config.LogLevel == "ERROR" {
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	}
+
+	log.Info().Msg("String digitalstrom MQTT!")
 
 	ds := digitalstrom.New(config)
 	mqtt := digitalstrom_mqtt.New(&config.Mqtt, ds)

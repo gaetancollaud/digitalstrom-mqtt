@@ -27,6 +27,7 @@ type Config struct {
 	Digitalstrom   ConfigDigitalstrom
 	Mqtt           ConfigMqtt
 	RefreshAtStart bool
+	LogLevel       string
 }
 
 const (
@@ -43,6 +44,7 @@ const (
 	envKeyMqttNormalizeTopicName string = "MQTT_NORMALIZE_DEVICE_NAME"
 	envKeyMqttRetain             string = "MQTT_RETAIN"
 	envKeyRefreshAtStart         string = "REFRESH_AT_START"
+	envKeyLogLevel               string = "LOG_LEVEL"
 )
 
 func check(e error) {
@@ -82,6 +84,7 @@ func FromEnv() *Config {
 		envKeyMqttNormalizeTopicName: false,
 		envKeyMqttRetain:             false,
 		envKeyRefreshAtStart:         true,
+		envKeyLogLevel:               "INFO",
 	})
 	check(err)
 
@@ -101,6 +104,7 @@ func FromEnv() *Config {
 			Retain:              v.GetBool(envKeyMqttRetain),
 		},
 		RefreshAtStart: v.GetBool(envKeyRefreshAtStart),
+		LogLevel: v.GetString(envKeyLogLevel),
 	}
 
 	return c

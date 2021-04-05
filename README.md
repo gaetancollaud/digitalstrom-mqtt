@@ -58,6 +58,7 @@ variables.
 |   | MQTT_NORMALIZE_DEVICE_NAME | Remove special chars from device name | false | |
 |   | MQTT_RETAIN | Retain MQTT messages | false | |
 |   | REFRESH_AT_START | should the states be refreshed at start | true | |
+|   | LOG_LEVEL | log level | INFO | DEBUG,INFO,WARN,ERROR |
 
 ## Minimal config file
 
@@ -93,6 +94,10 @@ docker run \
   -e MQTT_URL=tcp://192.168.1.X:1883 \
   gaetancollaud/digitalstrom-mqtt
 ```
+
+### MQTT-Explorer
+
+We recommend using https://mqtt-explorer.com/ if you want a simple interface for MQTT.
 
 ## Topics
 
