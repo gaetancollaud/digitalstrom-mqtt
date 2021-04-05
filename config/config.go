@@ -21,6 +21,7 @@ type ConfigMqtt struct {
 	Password            string
 	TopicFormat         string
 	NormalizeDeviceName bool
+	Retain              bool
 }
 type Config struct {
 	Digitalstrom   ConfigDigitalstrom
@@ -40,6 +41,7 @@ const (
 	envKeyMqttPassword           string = "MQTT_PASSWORD"
 	envKeyMqttTopicFormat        string = "MQTT_TOPIC_FORMAT"
 	envKeyMqttNormalizeTopicName string = "MQTT_NORMALIZE_DEVICE_NAME"
+	envKeyMqttRetain             string = "MQTT_RETAIN"
 	envKeyRefreshAtStart         string = "REFRESH_AT_START"
 )
 
@@ -78,6 +80,7 @@ func FromEnv() *Config {
 		envKeyMqttPassword:           Undefined,
 		envKeyMqttTopicFormat:        "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
 		envKeyMqttNormalizeTopicName: false,
+		envKeyMqttRetain:             false,
 		envKeyRefreshAtStart:         true,
 	})
 	check(err)
@@ -95,6 +98,7 @@ func FromEnv() *Config {
 			Password:            v.GetString(envKeyMqttPassword),
 			TopicFormat:         v.GetString(envKeyMqttTopicFormat),
 			NormalizeDeviceName: v.GetBool(envKeyMqttNormalizeTopicName),
+			Retain:              v.GetBool(envKeyMqttRetain),
 		},
 		RefreshAtStart: v.GetBool(envKeyRefreshAtStart),
 	}

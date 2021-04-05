@@ -92,7 +92,7 @@ func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.Cir
 func (dm *DigitalstromMqtt) publishDevice(changed digitalstrom.DeviceStateChanged) {
 	topic := dm.getTopic("devices", changed.Device.Name, changed.Channel, "state")
 
-	dm.client.Publish(topic, 0, false, fmt.Sprintf("%.2f", changed.NewValue))
+	dm.client.Publish(topic, 0, dm.config.Retain, fmt.Sprintf("%.2f", changed.NewValue))
 }
 
 func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChanged) {
@@ -100,12 +100,12 @@ func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChan
 
 	if changed.ConsumptionW != -1 {
 		topic := dm.getTopic("circuits", changed.Circuit.Name, "consumptionW", "state")
-		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.ConsumptionW))
+		dm.client.Publish(topic, 0, dm.config.Retain, fmt.Sprintf("%d", changed.ConsumptionW))
 	}
 
 	if changed.EnergyWs != -1 {
 		topic := dm.getTopic("circuits", changed.Circuit.Name, "EnergyWs", "state")
-		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.EnergyWs))
+		dm.client.Publish(topic, 0, dm.config.Retain, fmt.Sprintf("%d", changed.EnergyWs))
 	}
 }
 
