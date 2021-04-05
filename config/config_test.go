@@ -6,10 +6,10 @@ import (
 )
 
 func TestFromEnv(t *testing.T) {
-	os.Setenv(envKeyDigitalstromIp, "test_ip")
+	os.Setenv(envKeyDigitalstromHost, "test_ip")
 
 	c := FromEnv()
-	if c.Digitalstrom.Ip != "test_ip" {
+	if c.Digitalstrom.Host != "test_ip" {
 		t.Errorf("wrong Endpoint")
 	}
 }

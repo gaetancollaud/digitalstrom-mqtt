@@ -16,10 +16,11 @@ type ConfigDigitalstrom struct {
 	Password string
 }
 type ConfigMqtt struct {
-	MqttUrl     string
-	Username    string
-	Password    string
-	TopicFormat string
+	MqttUrl             string
+	Username            string
+	Password            string
+	TopicFormat         string
+	NormalizeDeviceName bool
 }
 type Config struct {
 	Digitalstrom   ConfigDigitalstrom
@@ -28,17 +29,18 @@ type Config struct {
 }
 
 const (
-	Undefined                  string = ""
-	configFile                 string = "config.yaml"
-	envKeyDigitalstromHost     string = "DIGITALSTROM_HOST"
-	envKeyDigitalstromPort     string = "DIGITALSTROM_PORT"
-	envKeyDigitalstromUsername string = "DIGITALSTROM_USERNAME"
-	envKeyDigitalstromPassword string = "DIGITALSTROM_PASSWORD"
-	envKeyMqttUrl              string = "MQTT_URL"
-	envKeyMqttUsername         string = "MQTT_USERNAME"
-	envKeyMqttPassword         string = "MQTT_PASSWORD"
-	envKeyMqttTopicFormat      string = "MQTT_TOPIC_FORMAT"
-	envKeyRefreshAtStart       string = "REFRESH_AT_START"
+	Undefined                    string = ""
+	configFile                   string = "config.yaml"
+	envKeyDigitalstromHost       string = "DIGITALSTROM_HOST"
+	envKeyDigitalstromPort       string = "DIGITALSTROM_PORT"
+	envKeyDigitalstromUsername   string = "DIGITALSTROM_USERNAME"
+	envKeyDigitalstromPassword   string = "DIGITALSTROM_PASSWORD"
+	envKeyMqttUrl                string = "MQTT_URL"
+	envKeyMqttUsername           string = "MQTT_USERNAME"
+	envKeyMqttPassword           string = "MQTT_PASSWORD"
+	envKeyMqttTopicFormat        string = "MQTT_TOPIC_FORMAT"
+	envKeyMqttNormalizeTopicName string = "MQTT_NORMALIZE_DEVICE_NAME"
+	envKeyRefreshAtStart         string = "REFRESH_AT_START"
 )
 
 func check(e error) {
@@ -67,15 +69,16 @@ func readConfig(defaults map[string]interface{}) (*viper.Viper, error) {
 // FromEnv returns a Config from env variables
 func FromEnv() *Config {
 	v, err := readConfig(map[string]interface{}{
-		envKeyDigitalstromHost:     Undefined,
-		envKeyDigitalstromPort:     8080,
-		envKeyDigitalstromUsername: Undefined,
-		envKeyDigitalstromPassword: Undefined,
-		envKeyMqttUrl:              Undefined,
-		envKeyMqttUsername:         Undefined,
-		envKeyMqttPassword:         Undefined,
-		envKeyMqttTopicFormat:      "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
-		envKeyRefreshAtStart:       true,
+		envKeyDigitalstromHost:       Undefined,
+		envKeyDigitalstromPort:       8080,
+		envKeyDigitalstromUsername:   Undefined,
+		envKeyDigitalstromPassword:   Undefined,
+		envKeyMqttUrl:                Undefined,
+		envKeyMqttUsername:           Undefined,
+		envKeyMqttPassword:           Undefined,
+		envKeyMqttTopicFormat:        "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
+		envKeyMqttNormalizeTopicName: false,
+		envKeyRefreshAtStart:         true,
 	})
 	check(err)
 
@@ -87,10 +90,11 @@ func FromEnv() *Config {
 			Password: v.GetString(envKeyDigitalstromPassword),
 		},
 		Mqtt: ConfigMqtt{
-			MqttUrl:     v.GetString(envKeyMqttUrl),
-			Username:    v.GetString(envKeyMqttUsername),
-			Password:    v.GetString(envKeyMqttPassword),
-			TopicFormat: v.GetString(envKeyMqttTopicFormat),
+			MqttUrl:             v.GetString(envKeyMqttUrl),
+			Username:            v.GetString(envKeyMqttUsername),
+			Password:            v.GetString(envKeyMqttPassword),
+			TopicFormat:         v.GetString(envKeyMqttTopicFormat),
+			NormalizeDeviceName: v.GetBool(envKeyMqttNormalizeTopicName),
 		},
 		RefreshAtStart: v.GetBool(envKeyRefreshAtStart),
 	}

@@ -8,16 +8,16 @@ You can set the output values using the command topic and get the current value 
 
 ## Motivation
 
-[DigitalSTROM](https://www.digitalstrom.com/en/) system is built upon scenes. You press a button, and a scene starts. The
-scene can trigger as many output devices as you want. While this is fine for a standalone system, it’s really difficult
-to integrate with a more complex automation system. Basically, if you want the master of your automation to be an
-external system, you will have a bad time.
+[DigitalSTROM](https://www.digitalstrom.com/en/) system is built upon scenes. You press a button, and a scene starts.
+The scene can trigger as many output devices as you want. While this is fine for a standalone system, it’s really
+difficult to integrate with a more complex automation system. Basically, if you want the master of your automation to be
+an external system, you will have a bad time.
 
 DigitalSTROM provides a REST api, but it’s not that easy to use since there are a lot of different concepts (scenes,
 groups, areas, …). There is also an event endpoint, so you can react to some events. Unfortunately it’s pretty limited (
 for example you don’t have an event when a device output is changed).
 
-Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. In 
+Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. In
 [OpenHAB](https://www.openhab.org/addons/bindings/digitalstrom/), you can set a device value but you will not get
 notified when the output changes when you press on a physical button (for example). So for instance if you have a light
 state, and you press the physical button, the state is not reflected in the app.
@@ -36,9 +36,9 @@ This app use the `json/device/` api to set the values, `json/property` to get th
 takes 1-2s per call if you ask the actual value from the device) and `json/event/` to be notified when a scene change.
 
 Since we don’t have an event when an output value changes we have to work around this limitation. Any push of a button (
-for example) will trigger a scene. DigitalSTROM provides an event when a scene is called. 
-We can then get the state of the devices in this scene. This overfetch a bit too much data (since we ask for all devices
-in a zone) but narrows the update state request so we don’t have to ask for all the devices in the system.
+for example) will trigger a scene. DigitalSTROM provides an event when a scene is called. We can then get the state of
+the devices in this scene. This overfetch a bit too much data (since we ask for all devices in a zone) but narrows the
+update state request, so we don’t have to ask for all the devices in the system.
 
 ## Configuration
 
@@ -55,6 +55,7 @@ variables.
 |   | MQTT_USERNAME | MQTT username |  | myUser |
 |   | MQTT_PASSWORD | MQTT password |  | 9TyVg74e5S |
 |   | MQTT_TOPIC_FORMAT | Topic format | digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState} | |
+|   | MQTT_NORMALIZE_DEVICE_NAME | Remove special chars from device name | false | |
 |   | REFRESH_AT_START | should the states be refreshed at start | true | |
 
 ## Minimal config file
@@ -92,26 +93,30 @@ docker run \
   gaetancollaud/digitalstrom-mqtt
 ```
 
-## Topics 
+## Topics
 
 ### GE devices (lights)
+
 ```
 digitalstrom/devices/DEVICE_NAME/brightness/state
 digitalstrom/devices/DEVICE_NAME/brightness/command
 ```
+
 ### GR devices (blinds)
+
 ```
 digitalstrom/devices/DEVICE_NAME/shadePositionOutside/state
 digitalstrom/devices/DEVICE_NAME/shadePositionOutside/command
 digitalstrom/devices/DEVICE_NAME/shadeOpeningAngleOutside/state
 digitalstrom/devices/DEVICE_NAME/shadeOpeningAngleOutside/command
 ```
+
 ### dSS20 (circuits)
+
 ```
 digitalstrom/circuits/chambres/consumptionW/state
 digitalstrom/circuits/chambres/EnergyWs/state
 ```
-
 
 ## Tested devices
 

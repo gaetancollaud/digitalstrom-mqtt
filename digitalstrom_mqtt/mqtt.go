@@ -13,11 +13,6 @@ import (
 	"time"
 )
 
-//const BASE_TOPIC = "digitalstrom/"
-//const BASE_DEVICE_TOPIC = BASE_TOPIC + "devices/"
-//const BASE_CIRCUIT_TOPIC = BASE_TOPIC + "circuits/"
-//const COMMAND_SUFFIX = "command"
-
 type DigitalstromMqtt struct {
 	config *config.ConfigMqtt
 	client mqtt.Client
@@ -95,7 +90,7 @@ func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.Cir
 }
 
 func (dm *DigitalstromMqtt) publishDevice(changed digitalstrom.DeviceStateChanged) {
-	topic := getTopic(dm.config.TopicFormat, "devices", changed.Device.Name, changed.Channel, "state")
+	topic := dm.getTopic("devices", changed.Device.Name, changed.Channel, "state")
 
 	dm.client.Publish(topic, 0, false, fmt.Sprintf("%.2f", changed.NewValue))
 }
@@ -104,12 +99,12 @@ func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChan
 	//log.Info().Msg("Updating meter", changed.Circuit.Name, changed.ConsumptionW, changed.EnergyWs)
 
 	if changed.ConsumptionW != -1 {
-		topic := getTopic(dm.config.TopicFormat, "circuits", changed.Circuit.Name, "consumptionW", "state")
+		topic := dm.getTopic("circuits", changed.Circuit.Name, "consumptionW", "state")
 		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.ConsumptionW))
 	}
 
 	if changed.EnergyWs != -1 {
-		topic := getTopic(dm.config.TopicFormat, "circuits", changed.Circuit.Name, "EnergyWs", "state")
+		topic := dm.getTopic("circuits", changed.Circuit.Name, "EnergyWs", "state")
 		dm.client.Publish(topic, 0, false, fmt.Sprintf("%d", changed.EnergyWs))
 	}
 }
@@ -133,23 +128,40 @@ func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 	for _, device := range dm.digitalstrom.GetAllDevices() {
 		for _, channel := range device.Channels {
 			deviceName := device.Name // deep copy
-			topic := getTopic(dm.config.TopicFormat, "devices", deviceName, channel, "command")
+			topic := dm.getTopic("devices", deviceName, channel, "command")
 			log.Trace().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channel).Msg("Subscribing for topic")
 			dm.client.Subscribe(topic, 0, func(client mqtt.Client, message mqtt.Message) {
 				log.Debug().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channel).Msg("Message received")
 				dm.deviceReceiverHandler(deviceName, channel, message)
 			})
 		}
-
 	}
 }
 
-func getTopic(format string, deviceType string, deviceName string, channel string, commandState string) string {
-	topic := format
+func (dm *DigitalstromMqtt) getTopic(deviceType string, deviceName string, channel string, commandState string) string {
+	topic := dm.config.TopicFormat
+
+	if dm.config.NormalizeDeviceName {
+		deviceName = normalizeForTopicName(deviceName)
+	}
+
 	topic = strings.ReplaceAll(topic, "{deviceType}", deviceType)
 	topic = strings.ReplaceAll(topic, "{deviceName}", deviceName)
 	topic = strings.ReplaceAll(topic, "{channel}", channel)
 	topic = strings.ReplaceAll(topic, "{commandState}", commandState)
 
 	return topic
+}
+
+func normalizeForTopicName(item string) string {
+	output := ""
+	for i := 0; i < len(item); i++ {
+		c := item[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' {
+			output += string(c)
+		} else if c == ' ' || c == '/' {
+			output += "_"
+		}
+	}
+	return output
 }
