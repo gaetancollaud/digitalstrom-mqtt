@@ -92,23 +92,6 @@ docker run \
   gaetancollaud/digitalstrom-mqtt
 ```
 
-## Development
-
-Checkout the repository.
-
-Copy and adapt the config file
-
-```shell
-cp config.yaml.example config.yaml
-```
-
-Then install the dependencies and run
-
-```shell
-go install
-go run .
-```
-
 ## Topics 
 
 ### GE devices (lights)
@@ -146,3 +129,7 @@ digitalSTROM-MQTT was tested with these devices but should work with any digital
 
 Feel free to create an issue or to directly edit this file if you have successfully tested this software with your
 devices.
+
+## Development
+
+See [CONTRIBUTION.md](./CONTRIBUTION.md)
