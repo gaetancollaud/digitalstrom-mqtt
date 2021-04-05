@@ -8,16 +8,14 @@ import (
 func TestTopicGeneration(t *testing.T) {
 
 	config := config.ConfigMqtt{
-		TopicFormat: "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
+		TopicFormat: "digitalstrom/{deviceType}/{deviceName}/{deviceId}/{channel}/{commandState}",
 	}
 
 	mqtt := DigitalstromMqtt{
 		config: &config,
 	}
 
-	if mqtt.getTopic("circuits", "abc", "chan", "test") != "digitalstrom/circuits/abc/chan/test" {
-		t.Errorf("wrong topic")
-	}
+	expect(t, mqtt.getTopic("circuits", "id", "abc", "chan", "test"), "digitalstrom/circuits/abc/id/chan/test", "wrong topic")
 }
 
 func TestNormalize(t *testing.T) {

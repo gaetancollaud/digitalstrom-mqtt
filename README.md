@@ -71,6 +71,18 @@ DIGITALSTROM_PASSWORD: XXX
 MQTT_URL: tcp://192.168.1.X:1883
 ```
 
+### MQTT topic format variable
+
+Those are the variable available for the configuration `MQTT_TOPIC_FORMAT`.
+
+| variable | description | example |
+| --- | --- | --- |
+| {deviceType} |  | `circuit` or `device` |
+| {deviceName} | Device or Circuit name | `light_bathroom` |
+| {deviceId} | Dsid of the device | `302de89f43f00e40000120b3` |
+| {channel} | DS channel |  |
+| {commandState} |  | `command` or `state` |
+
 ## How to run
 
 ### Using the binary
