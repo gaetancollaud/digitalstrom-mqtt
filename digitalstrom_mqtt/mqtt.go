@@ -129,11 +129,12 @@ func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 		for _, channel := range device.Channels {
 			deviceName := device.Name // deep copy
 			deviceId := device.Dsid   // deep copy
-			topic := dm.getTopic("devices", deviceId, deviceName, channel, "command")
-			log.Trace().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channel).Msg("Subscribing for topic")
+			channelCopy := channel    // deep copy
+			topic := dm.getTopic("devices", deviceId, deviceName, channelCopy, "command")
+			log.Trace().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channelCopy).Msg("Subscribing for topic")
 			dm.client.Subscribe(topic, 0, func(client mqtt.Client, message mqtt.Message) {
-				log.Debug().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channel).Msg("Message received")
-				dm.deviceReceiverHandler(deviceName, channel, message)
+				log.Debug().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channelCopy).Msg("Message received")
+				dm.deviceReceiverHandler(deviceName, channelCopy, message)
 			})
 		}
 	}

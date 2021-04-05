@@ -18,7 +18,9 @@ func main() {
 
 	config := config.FromEnv()
 
-	if config.LogLevel == "DEBUG" {
+	if config.LogLevel == "TRACE" {
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	}else if config.LogLevel == "DEBUG" {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else if config.LogLevel == "INFO" {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)

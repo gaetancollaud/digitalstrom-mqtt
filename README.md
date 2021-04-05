@@ -58,7 +58,7 @@ variables.
 |   | MQTT_NORMALIZE_DEVICE_NAME | Remove special chars from device name | false | |
 |   | MQTT_RETAIN | Retain MQTT messages | false | |
 |   | REFRESH_AT_START | should the states be refreshed at start | true | |
-|   | LOG_LEVEL | log level | INFO | DEBUG,INFO,WARN,ERROR |
+|   | LOG_LEVEL | log level | INFO | TRACE,DEBUG,INFO,WARN,ERROR |
 
 ## Minimal config file
 
