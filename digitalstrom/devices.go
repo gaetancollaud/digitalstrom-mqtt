@@ -79,7 +79,7 @@ func (dm *DevicesManager) reloadAllDevices() {
 			})
 		}
 
-		//log.Info().Msg("Devices loaded", utils.PrettyPrintArray(dm.devices))
+		log.Debug().Str("devices", utils.PrettyPrintArray(dm.devices)).Msg("Devices loaded")
 	}
 }
 

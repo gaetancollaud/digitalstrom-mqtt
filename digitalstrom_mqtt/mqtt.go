@@ -61,7 +61,10 @@ func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.Digitalstrom) *Di
 	opts.OnConnectionLost = connectLostHandler
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
+		log.Panic().
+			Err(token.Error()).
+			Str("url", config.MqttUrl).
+			Msg("Unable to connect to the mqtt broken")
 	}
 
 	inst.client = client
