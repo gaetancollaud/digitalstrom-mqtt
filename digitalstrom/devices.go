@@ -150,10 +150,10 @@ func (dm *DevicesManager) updateDevice(device Device) {
 		if err == nil {
 			dm.updateValue(device, channel, newValue)
 		} else {
-			log.Error().
+			log.Warn().
 				Str("device", device.Name).
 				Err(err).
-				Msg("Unable to udpate device")
+				Msg("Unable to update device")
 		}
 	}
 }
