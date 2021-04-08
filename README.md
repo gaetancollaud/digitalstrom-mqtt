@@ -55,7 +55,7 @@ variables.
 |   | MQTT_USERNAME | MQTT username |  | myUser |
 |   | MQTT_PASSWORD | MQTT password |  | 9TyVg74e5S |
 |   | MQTT_TOPIC_FORMAT | Topic format | digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState} | |
-|   | MQTT_NORMALIZE_DEVICE_NAME | Remove special chars from device name | false | |
+|   | MQTT_NORMALIZE_DEVICE_NAME | Remove special chars from device name | true | |
 |   | MQTT_RETAIN | Retain MQTT messages | false | |
 |   | REFRESH_AT_START | should the states be refreshed at start | true | |
 |   | LOG_LEVEL | log level | INFO | TRACE,DEBUG,INFO,WARN,ERROR |
