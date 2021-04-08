@@ -61,7 +61,7 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 		return nil, err
 	}
 
-	log.Debug().
+	log.Trace().
 		Str("url", url).
 		Str("status", resp.Status).
 		Msg("Response received")

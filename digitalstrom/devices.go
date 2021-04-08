@@ -30,21 +30,22 @@ type DeviceCommand struct {
 }
 
 type Device struct {
-	Name       string
-	Dsid       string
-	Dsuid      string
-	DeviceType DeviceType
-	MeterDsid  string
-	MeterDsuid string
-	MeterName  string
-	ZoneId     int
-	Channels   []string
-	Values     map[string]float64
+	Name           string
+	Dsid           string
+	Dsuid          string
+	DeviceType     DeviceType
+	HwInfo         string
+	MeterDsid      string
+	MeterDsuid     string
+	MeterName      string
+	ZoneId         int
+	OutputChannels []string
+	Values         map[string]float64
 }
 
 type DevicesManager struct {
-	httpClient       *HttpClient
-	devices          []Device
+	httpClient      *HttpClient
+	devices         []Device
 	deviceStateChan chan DeviceStateChanged
 }
 
@@ -65,22 +66,34 @@ func (dm *DevicesManager) reloadAllDevices() {
 	if utils.CheckNoErrorAndPrint(err) {
 		for _, s := range response.arrayValue {
 			m := s.(map[string]interface{})
-			dm.devices = append(dm.devices, Device{
-				Dsid:       m["id"].(string),
-				Dsuid:      m["dSUID"].(string),
-				Name:       m["name"].(string),
-				MeterDsid:  m["meterDSID"].(string),
-				MeterDsuid: m["meterDSUID"].(string),
-				MeterName:  m["meterName"].(string),
-				ZoneId:     int(m["zoneID"].(float64)),
-				DeviceType: extractDeviceType(m),
-				Channels:   extractChannels(m),
-				Values:     make(map[string]float64),
-			})
+			if dm.supportedDevice(m) {
+				dm.devices = append(dm.devices, Device{
+					Dsid:           m["id"].(string),
+					Dsuid:          m["dSUID"].(string),
+					Name:           m["name"].(string),
+					HwInfo:         m["hwInfo"].(string),
+					MeterDsid:      m["meterDSID"].(string),
+					MeterDsuid:     m["meterDSUID"].(string),
+					MeterName:      m["meterName"].(string),
+					ZoneId:         int(m["zoneID"].(float64)),
+					DeviceType:     extractDeviceType(m),
+					OutputChannels: extractOutputChannels(m),
+					Values:         make(map[string]float64),
+				})
+			}
 		}
 
 		log.Debug().Str("devices", utils.PrettyPrintArray(dm.devices)).Msg("Devices loaded")
 	}
+}
+
+func (dm *DevicesManager) supportedDevice(m map[string]interface{}) bool {
+	if m["dSUID"] == nil || len(m["dSUID"].(string)) == 0 {
+		log.Info().Str("name", m["name"].(string)).Msg("Device not supported because it has no dSUID. Enable debug to see the complete devices")
+		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Device not supported because it has no dSUID")
+		return false
+	}
+	return true
 }
 
 func extractDeviceType(data map[string]interface{}) DeviceType {
@@ -97,17 +110,19 @@ func extractDeviceType(data map[string]interface{}) DeviceType {
 	return Unknown
 }
 
-func extractChannels(data map[string]interface{}) []string {
+func extractOutputChannels(data map[string]interface{}) []string {
 	outputChannels := data["outputChannels"].([]interface{})
 
-	var channels []string
+	var outputs []string
 
 	for _, outputChannel := range outputChannels {
-		id := outputChannel.(map[string]interface{})["channelId"].(string)
-		channels = append(channels, id)
-
+		chanObj := outputChannel.(map[string]interface{})
+		if chanObj["channelName"] != nil {
+			id := chanObj["channelName"].(string)
+			outputs = append(outputs, id)
+		}
 	}
-	return channels
+	return outputs
 }
 
 func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
@@ -121,7 +136,7 @@ func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
 
 func (dm *DevicesManager) updateZone(zoneId int) {
 	for _, device := range dm.devices {
-		if device.ZoneId == zoneId && len(device.Channels) > 0 {
+		if device.ZoneId == zoneId && len(device.OutputChannels) > 0 {
 			dm.updateDevice(device)
 		}
 	}
@@ -130,7 +145,7 @@ func (dm *DevicesManager) updateZone(zoneId int) {
 func (dm *DevicesManager) updateDevice(device Device) {
 	// device need to be updated
 	log.Debug().Str("device", device.Name).Msg("Updating device ")
-	for _, channel := range device.Channels {
+	for _, channel := range device.OutputChannels {
 		newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
 		if err == nil {
 			dm.updateValue(device, channel, newValue)
@@ -180,9 +195,9 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 	deviceFound := false
 	channelFound := false
 	for _, device := range dm.devices {
-		if device.Name == command.DeviceName && len(device.Channels) > 0 {
+		if device.Name == command.DeviceName && len(device.OutputChannels) > 0 {
 			deviceFound = true
-			for _, c := range device.Channels {
+			for _, c := range device.OutputChannels {
 				if c == command.Channel {
 					channelFound = true
 

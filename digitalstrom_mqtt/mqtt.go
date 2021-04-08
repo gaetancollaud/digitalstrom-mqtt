@@ -129,7 +129,7 @@ func (dm *DigitalstromMqtt) deviceReceiverHandler(deviceName string, channel str
 
 func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 	for _, device := range dm.digitalstrom.GetAllDevices() {
-		for _, channel := range device.Channels {
+		for _, channel := range device.OutputChannels {
 			deviceName := device.Name // deep copy
 			deviceId := device.Dsid   // deep copy
 			channelCopy := channel    // deep copy

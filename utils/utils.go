@@ -13,7 +13,7 @@ func CheckNoErrorAndPrint(e error) bool {
 }
 
 func PrettyPrintMap(value map[string]interface{}) string {
-	b, err := json.MarshalIndent(value, "", "  ")
+	b, err := json.Marshal(value)
 	if err != nil {
 		log.Info().Err(err).Msg("Cannot pretty print")
 	}
@@ -21,7 +21,7 @@ func PrettyPrintMap(value map[string]interface{}) string {
 }
 
 func PrettyPrintArray(value interface{}) string {
-	b, err := json.MarshalIndent(value, "", "  ")
+	b, err := json.Marshal(value)
 	if err != nil {
 		log.Info().Err(err).Msg("Cannot pretty print")
 	}

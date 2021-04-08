@@ -14,6 +14,9 @@ type CircuitValueChanged struct {
 type Circuit struct {
 	Name         string
 	Dsid         string
+	HwName       string
+	HasMetering  bool
+	IsValid      bool
 	consumptionW int64
 	energyWs     int64
 }
@@ -47,12 +50,17 @@ func (dm *CircuitsManager) reloadAllCircuits() {
 		circuits := response.mapValue["circuits"].([]interface{})
 		for _, s := range circuits {
 			m := s.(map[string]interface{})
-			dm.circuits = append(dm.circuits, Circuit{
-				Dsid:         m["dsid"].(string),
-				Name:         m["name"].(string),
-				consumptionW: -1,
-				energyWs:     -1,
-			})
+			if dm.supportedCircuit(m) {
+				dm.circuits = append(dm.circuits, Circuit{
+					Dsid:         m["dsid"].(string),
+					Name:         m["name"].(string),
+					HwName:       m["hwName"].(string),
+					HasMetering:  m["hasMetering"].(bool),
+					IsValid:      m["isValid"].(bool),
+					consumptionW: -1,
+					energyWs:     -1,
+				})
+			}
 		}
 
 		log.Debug().
@@ -61,22 +69,42 @@ func (dm *CircuitsManager) reloadAllCircuits() {
 	}
 }
 
+func (dm *CircuitsManager) supportedCircuit(m map[string]interface{}) bool {
+	name := ""
+	if m["name"] != nil {
+		name = m["name"].(string)
+	}
+	if m["dsid"] == nil || len(m["dsid"].(string)) == 0 {
+		log.Info().Str("name", name).Msg("Circuit not supported because it has no dsid. Enable debug to see the complete devices")
+		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Circuit not supported because it has no dsid")
+		return false
+	}
+	if !m["isValid"].(bool) {
+		log.Info().Str("name", name).Msg("Circuit is not valid. Enable debug to see the complete devices")
+		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Circuit is not valid")
+		return false
+	}
+	return true
+}
+
 func (dm *CircuitsManager) UpdateCircuitsValue() {
 	for _, circuit := range dm.circuits {
-		consumptionW := int64(-1)
-		energyWs := int64(-1)
+		if circuit.HasMetering {
+			consumptionW := int64(-1)
+			energyWs := int64(-1)
 
-		response, err := dm.httpClient.get("json/circuit/getConsumption?id=" + circuit.Dsid)
-		if utils.CheckNoErrorAndPrint(err) {
-			consumptionW = int64(response.mapValue["consumption"].(float64))
+			response, err := dm.httpClient.get("json/circuit/getConsumption?id=" + circuit.Dsid)
+			if utils.CheckNoErrorAndPrint(err) {
+				consumptionW = int64(response.mapValue["consumption"].(float64))
+			}
+
+			response, err = dm.httpClient.get("json/circuit/getEnergyMeterValue?id=" + circuit.Dsid)
+			if utils.CheckNoErrorAndPrint(err) {
+				energyWs = int64(response.mapValue["meterValue"].(float64))
+			}
+
+			dm.updateValue(circuit, consumptionW, energyWs)
 		}
-
-		response, err = dm.httpClient.get("json/circuit/getEnergyMeterValue?id=" + circuit.Dsid)
-		if utils.CheckNoErrorAndPrint(err) {
-			energyWs = int64(response.mapValue["meterValue"].(float64))
-		}
-
-		dm.updateValue(circuit, consumptionW, energyWs)
 	}
 }
 
