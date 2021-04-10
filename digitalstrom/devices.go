@@ -146,7 +146,8 @@ func (dm *DevicesManager) updateDevice(device Device) {
 	// device need to be updated
 	log.Debug().Str("device", device.Name).Msg("Updating device ")
 	for _, channel := range device.OutputChannels {
-		newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
+		c := getStateChannelRenaming(channel)
+		newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + c + "/targetValue")
 		if err == nil {
 			dm.updateValue(device, channel, newValue)
 		} else {
@@ -156,6 +157,14 @@ func (dm *DevicesManager) updateDevice(device Device) {
 				Msg("Unable to update device")
 		}
 	}
+}
+
+func getStateChannelRenaming(channel string) string {
+	// See https://github.com/gaetancollaud/digitalstrom-mqtt/issues/7
+	if channel == "heatingPower" {
+		return "powerState"
+	}
+	return channel
 }
 
 func (dm *DevicesManager) updateValue(device Device, channel string, newValue float64) {
