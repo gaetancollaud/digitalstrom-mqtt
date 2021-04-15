@@ -17,6 +17,13 @@ const (
 	Unknown            = "Unknown"
 )
 
+type DeviceAction string
+
+const (
+	Set  DeviceAction = "set"
+	Stop              = "stop"
+)
+
 type DeviceStateChanged struct {
 	Device   Device
 	Channel  string
@@ -26,6 +33,7 @@ type DeviceStateChanged struct {
 type DeviceCommand struct {
 	DeviceName string
 	Channel    string
+	Action     DeviceAction
 	NewValue   float64
 }
 
@@ -204,10 +212,17 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 					log.Info().
 						Str("device", command.DeviceName).
 						Str("channel", command.Channel).
+						Str("action", string(command.Action)).
 						Float64("value", command.NewValue).
 						Msg("Setting value ")
-					strValue := strconv.Itoa(int(command.NewValue))
-					_, err := dm.httpClient.get("json/device/setOutputChannelValue?dsid=" + device.Dsid + "&channelvalues=" + c + "=" + strValue + "&applyNow=1")
+
+					var err error
+					if command.Action == Stop {
+						_, err = dm.httpClient.get("json/zone/callAction?application=2&id=" + strconv.Itoa(device.ZoneId) + "&action=app.stop")
+					} else {
+						strValue := strconv.Itoa(int(command.NewValue))
+						_, err = dm.httpClient.get("json/device/setOutputChannelValue?dsid=" + device.Dsid + "&channelvalues=" + c + "=" + strValue + "&applyNow=1")
+					}
 					if utils.CheckNoErrorAndPrint(err) {
 						dm.updateValue(device, command.Channel, command.NewValue)
 					}

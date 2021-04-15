@@ -114,16 +114,29 @@ func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChan
 
 func (dm *DigitalstromMqtt) deviceReceiverHandler(deviceName string, channel string, msg mqtt.Message) {
 	payloadStr := string(msg.Payload())
-	value, err := strconv.ParseFloat(payloadStr, 64)
-	if utils.CheckNoErrorAndPrint(err) {
-		log.Info().Msg("MQTT message to set device '" + deviceName + "' and channel '" + channel + " to '" + payloadStr + "'")
+	log.Info().
+		Str("device", deviceName).
+		Str("channel", channel).
+		Str("payload", payloadStr).
+		Msg("MQTT message received")
+	if strings.ToLower(payloadStr) == "stop" {
 		dm.digitalstrom.SetDeviceValue(digitalstrom.DeviceCommand{
+			Action:     digitalstrom.Stop,
 			DeviceName: deviceName,
 			Channel:    channel,
-			NewValue:   value,
 		})
 	} else {
-		log.Error().Err(err).Str("payload", payloadStr).Msg("Unable to parse payload")
+		value, err := strconv.ParseFloat(payloadStr, 64)
+		if utils.CheckNoErrorAndPrint(err) {
+			dm.digitalstrom.SetDeviceValue(digitalstrom.DeviceCommand{
+				Action:     digitalstrom.Set,
+				DeviceName: deviceName,
+				Channel:    channel,
+				NewValue:   value,
+			})
+		} else {
+			log.Error().Err(err).Str("payload", payloadStr).Msg("Unable to parse payload")
+		}
 	}
 }
 
