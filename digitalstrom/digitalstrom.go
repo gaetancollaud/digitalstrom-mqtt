@@ -25,7 +25,7 @@ func New(config *config.Config) *Digitalstrom {
 	ds.config = config
 	ds.httpClient = NewHttpClient(&config.Digitalstrom)
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
-	ds.devicesManager = NewDevicesManager(ds.httpClient)
+	ds.devicesManager = NewDevicesManager(ds.httpClient, config.InvertBlindsPosition)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
 	return ds
 }

@@ -52,14 +52,16 @@ type Device struct {
 }
 
 type DevicesManager struct {
-	httpClient      *HttpClient
-	devices         []Device
-	deviceStateChan chan DeviceStateChanged
+	httpClient           *HttpClient
+	invertBlindsPosition bool
+	devices              []Device
+	deviceStateChan      chan DeviceStateChanged
 }
 
-func NewDevicesManager(httpClient *HttpClient) *DevicesManager {
+func NewDevicesManager(httpClient *HttpClient, invertBlindsPosition bool) *DevicesManager {
 	dm := new(DevicesManager)
 	dm.httpClient = httpClient
+	dm.invertBlindsPosition = invertBlindsPosition
 	dm.deviceStateChan = make(chan DeviceStateChanged)
 
 	return dm
@@ -167,9 +169,11 @@ func (dm *DevicesManager) updateDevice(device Device) {
 }
 
 func (dm *DevicesManager) updateValue(device Device, channel string, newValue float64) {
+	newValue = dm.invertValueIfNeeded(channel, newValue)
+
 	publishValue := false
 	if oldVal, ok := device.Values[channel]; ok {
-		//do something here
+		//we have an old value
 		if oldVal != newValue {
 			device.Values[channel] = newValue
 			log.Info().
@@ -209,22 +213,24 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 				if c == command.Channel {
 					channelFound = true
 
+					newValue := dm.invertValueIfNeeded(c, command.NewValue)
+
 					log.Info().
 						Str("device", command.DeviceName).
 						Str("channel", command.Channel).
 						Str("action", string(command.Action)).
-						Float64("value", command.NewValue).
+						Float64("value", newValue).
 						Msg("Setting value ")
 
 					var err error
 					if command.Action == Stop {
 						_, err = dm.httpClient.get("json/zone/callAction?application=2&id=" + strconv.Itoa(device.ZoneId) + "&action=app.stop")
 					} else {
-						strValue := strconv.Itoa(int(command.NewValue))
+						strValue := strconv.Itoa(int(newValue))
 						_, err = dm.httpClient.get("json/device/setOutputChannelValue?dsid=" + device.Dsid + "&channelvalues=" + c + "=" + strValue + "&applyNow=1")
 					}
 					if utils.CheckNoErrorAndPrint(err) {
-						dm.updateValue(device, command.Channel, command.NewValue)
+						dm.updateValue(device, command.Channel, newValue)
 					}
 				}
 			}
@@ -237,4 +243,15 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 		return errors.New("No channel '" + command.Channel + "' found on device '" + command.DeviceName + "'")
 	}
 	return nil
+}
+
+func (dm *DevicesManager) invertValueIfNeeded(channel string, value float64) float64 {
+	if dm.invertBlindsPosition {
+		if strings.HasPrefix(strings.ToLower(channel), "shadeposition") {
+			return 100 - value
+		}
+	}
+
+	// nothing to invert
+	return value
 }

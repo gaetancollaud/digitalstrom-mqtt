@@ -59,6 +59,7 @@ variables.
 |   | MQTT_RETAIN | Retain MQTT messages | false | |
 |   | REFRESH_AT_START | should the states be refreshed at start | true | |
 |   | LOG_LEVEL | log level | INFO | TRACE,DEBUG,INFO,WARN,ERROR |
+|   | INVERT_BLINDS_POSITION | 100% is fully close | false |  |
 
 ## Minimal config file
 

@@ -24,10 +24,11 @@ type ConfigMqtt struct {
 	Retain              bool
 }
 type Config struct {
-	Digitalstrom   ConfigDigitalstrom
-	Mqtt           ConfigMqtt
-	RefreshAtStart bool
-	LogLevel       string
+	Digitalstrom         ConfigDigitalstrom
+	Mqtt                 ConfigMqtt
+	RefreshAtStart       bool
+	LogLevel             string
+	InvertBlindsPosition bool
 }
 
 const (
@@ -43,6 +44,7 @@ const (
 	envKeyMqttTopicFormat        string = "MQTT_TOPIC_FORMAT"
 	envKeyMqttNormalizeTopicName string = "MQTT_NORMALIZE_DEVICE_NAME"
 	envKeyMqttRetain             string = "MQTT_RETAIN"
+	envKeyInvertBlindsPosition   string = "INVERT_BLINDS_POSITION"
 	envKeyRefreshAtStart         string = "REFRESH_AT_START"
 	envKeyLogLevel               string = "LOG_LEVEL"
 )
@@ -85,6 +87,7 @@ func FromEnv() *Config {
 		envKeyMqttRetain:             false,
 		envKeyRefreshAtStart:         true,
 		envKeyLogLevel:               "INFO",
+		envKeyInvertBlindsPosition:   false,
 	})
 	check(err)
 
@@ -103,8 +106,9 @@ func FromEnv() *Config {
 			NormalizeDeviceName: v.GetBool(envKeyMqttNormalizeTopicName),
 			Retain:              v.GetBool(envKeyMqttRetain),
 		},
-		RefreshAtStart: v.GetBool(envKeyRefreshAtStart),
-		LogLevel: v.GetString(envKeyLogLevel),
+		RefreshAtStart:       v.GetBool(envKeyRefreshAtStart),
+		LogLevel:             v.GetString(envKeyLogLevel),
+		InvertBlindsPosition: v.GetBool(envKeyInvertBlindsPosition),
 	}
 
 	return c
