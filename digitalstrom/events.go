@@ -34,11 +34,12 @@ func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 	em := new(EventsManager)
 	em.httpClient = httpClient
 	em.events = make(chan Event)
+	em.lastTokenCounter = -1
 	return em
 }
 
 func (em *EventsManager) Start() {
-	log.Info().Msg("Register subscription and listen to events")
+	log.Info().Msg("Starting event manager")
 	em.running = true
 	go em.listeningToevents()
 }
@@ -49,7 +50,7 @@ func (em *EventsManager) Stop() {
 }
 
 func (em *EventsManager) registerSubscription() {
-	log.Debug().Msg("Registering to events")
+	log.Info().Str("SubscriptionId", SUBSCRIPTION_ID).Msg("Registering to events")
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_CALL_SCENE + "&subscriptionID=" + SUBSCRIPTION_ID)
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_BUTTON_CLICK + "&subscriptionID=" + SUBSCRIPTION_ID)
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_MODEL_READY + "&subscriptionID=" + SUBSCRIPTION_ID)
