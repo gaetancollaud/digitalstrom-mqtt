@@ -2,27 +2,33 @@ package digitalstrom
 
 import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
+	"time"
 )
 
 type TokenManager struct {
-	config     *config.ConfigDigitalstrom
-	httpClient *HttpClient
-	token      string
+	config        *config.ConfigDigitalstrom
+	httpClient    *HttpClient
+	token         string
+	lastTokenTime time.Time
+	tokenCounter  int
 }
 
 func NewTokenManager(config *config.ConfigDigitalstrom, httpClient *HttpClient) *TokenManager {
 	tm := new(TokenManager)
 	tm.config = config
 	tm.httpClient = httpClient
-
+	tm.tokenCounter = 0
 	return tm
 }
 
 func (tm *TokenManager) refreshToken() string {
 	response, err := tm.httpClient.getWithoutToken("json/system/login?user=" + tm.config.Username + "&password=" + tm.config.Password)
 
-	utils.CheckNoErrorAndPrint(err)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to refresh token, will wait a bit for next retry")
+		time.Sleep(2 * time.Second)
+	}
 
 	if response.isMap {
 		return response.mapValue["token"].(string)
@@ -31,11 +37,17 @@ func (tm *TokenManager) refreshToken() string {
 }
 
 func (tm *TokenManager) GetToken() string {
+	// no token, or more than 50sec
 	if tm.token == "" {
+		log.Debug().Dur("last token", time.Now().Sub(tm.lastTokenTime)).Msg("Refreshing token")
 		tm.token = tm.refreshToken()
+		tm.lastTokenTime = time.Now()
+		tm.tokenCounter++
 	}
-	// TODO refresh after 50sec
 	return tm.token
 }
 
-//https://192.168.1.50:8080/json/system/login?user=dssadmin&password=m7Phf1Dl2EIvlHUABBeI
+func (tm *TokenManager) InvalidateToken() {
+	tm.token = ""
+	log.Info().Msg("Invalidating token")
+}

@@ -24,9 +24,10 @@ type Event struct {
 }
 
 type EventsManager struct {
-	httpClient *HttpClient
-	events     chan Event
-	running    bool
+	httpClient       *HttpClient
+	events           chan Event
+	running          bool
+	lastTokenCounter int
 }
 
 func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
@@ -39,7 +40,6 @@ func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 func (em *EventsManager) Start() {
 	log.Info().Msg("Register subscription and listen to events")
 	em.running = true
-	em.registerSubscription()
 	go em.listeningToevents()
 }
 
@@ -49,6 +49,7 @@ func (em *EventsManager) Stop() {
 }
 
 func (em *EventsManager) registerSubscription() {
+	log.Debug().Msg("Registering to events")
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_CALL_SCENE + "&subscriptionID=" + SUBSCRIPTION_ID)
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_BUTTON_CLICK + "&subscriptionID=" + SUBSCRIPTION_ID)
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_MODEL_READY + "&subscriptionID=" + SUBSCRIPTION_ID)
@@ -58,6 +59,12 @@ func (em *EventsManager) listeningToevents() {
 	for {
 		if !em.running {
 			return
+		}
+
+		if em.lastTokenCounter < em.httpClient.TokenManager.tokenCounter {
+			// new token ? so new subscription
+			em.registerSubscription()
+			em.lastTokenCounter = em.httpClient.TokenManager.tokenCounter
 		}
 
 		response, err := em.httpClient.get("json/event/get?subscriptionID=" + SUBSCRIPTION_ID)
