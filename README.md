@@ -17,10 +17,8 @@ DigitalSTROM provides a REST api, but it’s not that easy to use since there ar
 groups, areas, …). There is also an event endpoint, so you can react to some events. Unfortunately it’s pretty limited (
 for example you don’t have an event when a device output is changed).
 
-Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. In
-[OpenHAB](https://www.openhab.org/addons/bindings/digitalstrom/), you can set a device value but you will not get
-notified when the output changes when you press on a physical button (for example). So for instance if you have a light
-state, and you press the physical button, the state is not reflected in the app.
+Currently, digitalSTROM integrations with home automation systems are rare and sometimes limited. The intent of this app is
+to solve this issue as all of them support MQTT.
 
 ## Concept
 
