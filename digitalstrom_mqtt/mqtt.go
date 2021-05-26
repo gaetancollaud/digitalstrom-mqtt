@@ -27,10 +27,6 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 		Msg("Message received")
 }
 
-var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	log.Info().Msg("MQTT Connected")
-}
-
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
 	log.Error().
 		Err(err).
@@ -57,7 +53,10 @@ func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.Digitalstrom) *Di
 		opts.SetPassword(config.Password)
 	}
 	opts.SetDefaultPublishHandler(messagePubHandler)
-	opts.OnConnect = connectHandler
+	opts.OnConnect = func(client mqtt.Client) {
+		log.Info().Msg("MQTT Connected")
+		inst.subscribeToAllDevicesCommands()
+	}
 	opts.OnConnectionLost = connectLostHandler
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
