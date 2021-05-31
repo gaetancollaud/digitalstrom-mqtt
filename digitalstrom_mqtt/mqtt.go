@@ -1,6 +1,7 @@
 package digitalstrom_mqtt
 
 import (
+	"encoding/json"
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
@@ -73,10 +74,17 @@ func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.Digitalstrom) *Di
 }
 
 func (dm *DigitalstromMqtt) Start() {
+	go dm.ListenSceneEvent(dm.digitalstrom.GetSceneEventsChannel())
 	go dm.ListenForDeviceState(dm.digitalstrom.GetDeviceChangeChannel())
 	go dm.ListenForCircuitValues(dm.digitalstrom.GetCircuitChangeChannel())
 
 	dm.subscribeToAllDevicesCommands()
+}
+
+func (dm *DigitalstromMqtt) ListenSceneEvent(changes chan digitalstrom.SceneEvent) {
+	for event := range changes {
+		dm.publishSceneEvent(event)
+	}
 }
 
 func (dm *DigitalstromMqtt) ListenForDeviceState(changes chan digitalstrom.DeviceStateChanged) {
@@ -88,6 +96,14 @@ func (dm *DigitalstromMqtt) ListenForDeviceState(changes chan digitalstrom.Devic
 func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.CircuitValueChanged) {
 	for event := range changes {
 		dm.publishCircuit(event)
+	}
+}
+
+func (dm *DigitalstromMqtt) publishSceneEvent(sceneEvent digitalstrom.SceneEvent) {
+	topic := dm.getTopic("scenes", strconv.Itoa(sceneEvent.ZoneId), sceneEvent.ZoneName, strconv.Itoa(sceneEvent.SceneId), "event")
+	json, err := json.Marshal(sceneEvent)
+	if utils.CheckNoErrorAndPrint(err) {
+		dm.client.Publish(topic, 0, dm.config.Retain, json)
 	}
 }
 

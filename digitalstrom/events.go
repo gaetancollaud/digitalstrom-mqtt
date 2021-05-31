@@ -41,7 +41,7 @@ func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 func (em *EventsManager) Start() {
 	log.Info().Msg("Starting event manager")
 	em.running = true
-	go em.listeningToevents()
+	go em.listeningToEvents()
 }
 
 func (em *EventsManager) Stop() {
@@ -56,7 +56,7 @@ func (em *EventsManager) registerSubscription() {
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_MODEL_READY + "&subscriptionID=" + SUBSCRIPTION_ID)
 }
 
-func (em *EventsManager) listeningToevents() {
+func (em *EventsManager) listeningToEvents() {
 	for {
 		if !em.running {
 			return
@@ -73,7 +73,7 @@ func (em *EventsManager) listeningToevents() {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
 
-				//log.Info().Msg("Events received :", events, utils.PrettyPrintArray(events))
+				log.Trace().Str("event", utils.PrettyPrintArray(events)).Msg("Events received :")
 
 				for _, event := range events {
 					m := event.(map[string]interface{})
