@@ -4,9 +4,10 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
 	"strconv"
+	"time"
 )
 
-const SUBSCRIPTION_ID = "42"
+const SUBSCRIPTION_ID = "41"
 
 // https://developer.digitalstrom.org/Architecture/system-interfaces.pdf#1e
 
@@ -21,6 +22,7 @@ const EVENT_DSMETER_READY = "dsMeter_ready"
 type Event struct {
 	ZoneId  int
 	SceneId int
+	GroupId int
 }
 
 type EventsManager struct {
@@ -80,17 +82,28 @@ func (em *EventsManager) listeningToEvents() {
 					source := m["source"].(map[string]interface{})
 					properties := m["properties"].(map[string]interface{})
 					sceneId := -1
+					groupId := -1
 					if scene, ok := properties["sceneID"]; ok {
 						sceneId, err = strconv.Atoi(scene.(string))
 						utils.CheckNoErrorAndPrint(err)
 					}
+					if group, ok := properties["groupID"]; ok {
+						groupId, err = strconv.Atoi(group.(string))
+						utils.CheckNoErrorAndPrint(err)
+					}
 					eventObj := Event{
 						ZoneId:  int(source["zoneID"].(float64)),
+						GroupId: groupId,
 						SceneId: sceneId,
 					}
 					em.events <- eventObj
 				}
+			} else {
+				log.Warn().Msg("No event present")
+				time.Sleep(1000 * time.Millisecond)
 			}
+		}else{
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 }

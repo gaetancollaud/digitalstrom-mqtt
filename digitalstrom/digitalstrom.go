@@ -77,6 +77,7 @@ func (ds *Digitalstrom) eventReceived(events chan Event) {
 	for event := range events {
 		log.Info().
 			Int("SceneId", event.SceneId).
+			Int("GroupId", event.GroupId).
 			Int("ZoneId", event.ZoneId).
 			Msg("Event received, updating devices")
 

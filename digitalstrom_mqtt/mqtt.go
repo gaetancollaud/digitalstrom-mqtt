@@ -100,7 +100,14 @@ func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.Cir
 }
 
 func (dm *DigitalstromMqtt) publishSceneEvent(sceneEvent digitalstrom.SceneEvent) {
-	topic := dm.getTopic("scenes", strconv.Itoa(sceneEvent.ZoneId), sceneEvent.ZoneName, strconv.Itoa(sceneEvent.SceneId), "event")
+	sceneNameOrId := sceneEvent.SceneName
+	if len(sceneNameOrId) == 0 {
+		// no name for the scene we take the id instead
+		sceneNameOrId = strconv.Itoa(sceneEvent.SceneId)
+	}
+
+	topic := dm.getTopic("scenes", strconv.Itoa(sceneEvent.ZoneId), sceneEvent.ZoneName, sceneNameOrId, "event")
+
 	json, err := json.Marshal(sceneEvent)
 	if utils.CheckNoErrorAndPrint(err) {
 		dm.client.Publish(topic, 0, dm.config.Retain, json)

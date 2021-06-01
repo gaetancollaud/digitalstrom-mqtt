@@ -7,14 +7,24 @@ import (
 )
 
 type SceneEvent struct {
-	ZoneId   int
-	ZoneName string
-	SceneId  int
+	ZoneId    int
+	ZoneName  string
+	GroupId   int
+	GroupName string
+	SceneId   int
+	SceneName string
+}
+
+type SceneIdentifier struct {
+	ZoneId  int
+	GroupId int
+	SceneId int
 }
 
 type SceneManager struct {
 	httpClient *HttpClient
 	zonesById  map[int]string
+	sceneById  map[SceneIdentifier]string
 	sceneEvent chan SceneEvent
 }
 
@@ -23,6 +33,7 @@ func NewSceneManager(httpClient *HttpClient) *SceneManager {
 	sm.httpClient = httpClient
 	sm.sceneEvent = make(chan SceneEvent)
 	sm.zonesById = make(map[int]string)
+	sm.sceneById = make(map[SceneIdentifier]string)
 	return sm
 }
 
@@ -44,15 +55,66 @@ func (sm *SceneManager) getZoneName(zoneId int) (string, error) {
 	}
 }
 
+func (sm *SceneManager) getSceneName(zoneId int, groupId int, sceneId int) (string, error) {
+	if groupId == -1 {
+		return "", nil
+	}
+	id := SceneIdentifier{
+		ZoneId:  zoneId,
+		GroupId: groupId,
+		SceneId: sceneId,
+	}
+	name, ok := sm.sceneById[id]
+	if ok {
+		return name, nil
+	} else {
+		response, err := sm.httpClient.get("/json/zone/sceneGetName?id=" + strconv.Itoa(zoneId) + "&groupID=" + strconv.Itoa(groupId) + "&sceneNumber=" + strconv.Itoa(sceneId))
+		if utils.CheckNoErrorAndPrint(err) {
+			name = response.mapValue["name"].(string)
+			sm.sceneById[id] = name
+			return name, nil
+		}
+		return "", err
+	}
+}
+
 func (sm *SceneManager) EventReceived(event Event) {
 	log.Debug().Int("zoneId", event.ZoneId).Int("sceneId", event.SceneId).Msg("New scene event")
-	name, err := sm.getZoneName(event.ZoneId)
-	if err == nil {
+	zoneName, errZone := sm.getZoneName(event.ZoneId)
+	sceneName, errScene := sm.getSceneName(event.ZoneId, event.GroupId, event.SceneId)
+	if errZone == nil && errScene == nil {
 		sceneEvent := SceneEvent{
-			ZoneId:   event.ZoneId,
-			ZoneName: name,
-			SceneId:  event.SceneId,
+			ZoneId:    event.ZoneId,
+			ZoneName:  zoneName,
+			GroupId:   event.GroupId,
+			GroupName: sm.getGroupName(event.GroupId),
+			SceneId:   event.SceneId,
+			SceneName: sceneName,
 		}
 		sm.sceneEvent <- sceneEvent
 	}
+}
+
+func (sm *SceneManager) getGroupName(id int) string {
+	switch id {
+	case 1:
+		return "light"
+	case 2:
+		return "shade"
+	case 3:
+		return "climate"
+	case 4:
+		return "audio"
+	case 5:
+		return "video"
+	case 6:
+		return "safety"
+	case 7:
+		return "access"
+	case 8:
+		return "joker"
+	default:
+		return "unknown"
+	}
+
 }
