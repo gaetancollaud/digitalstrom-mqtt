@@ -1,7 +1,7 @@
 version: '3.0'
 services:
   digitalstrom-mqtt:
-    image: gaetancollaud/digitalstrom-mqtt:latest-amd64
+    image: gaetancollaud/digitalstrom-mqtt:dev
     build: .
     environment:
       - MQTT_URL=tcp://mosquitto:1883

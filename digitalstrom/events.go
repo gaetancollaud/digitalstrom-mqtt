@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const SUBSCRIPTION_ID = "41"
+const SUBSCRIPTION_ID = "42"
 
 // https://developer.digitalstrom.org/Architecture/system-interfaces.pdf#1e
 
