@@ -4,9 +4,10 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
 	"strconv"
+	"time"
 )
 
-const SUBSCRIPTION_ID = "42"
+const SUBSCRIPTION_ID = "41"
 
 // https://developer.digitalstrom.org/Architecture/system-interfaces.pdf#1e
 
@@ -21,6 +22,7 @@ const EVENT_DSMETER_READY = "dsMeter_ready"
 type Event struct {
 	ZoneId  int
 	SceneId int
+	GroupId int
 }
 
 type EventsManager struct {
@@ -41,7 +43,7 @@ func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 func (em *EventsManager) Start() {
 	log.Info().Msg("Starting event manager")
 	em.running = true
-	go em.listeningToevents()
+	go em.listeningToEvents()
 }
 
 func (em *EventsManager) Stop() {
@@ -56,7 +58,7 @@ func (em *EventsManager) registerSubscription() {
 	em.httpClient.get("json/event/subscribe?name=" + EVENT_MODEL_READY + "&subscriptionID=" + SUBSCRIPTION_ID)
 }
 
-func (em *EventsManager) listeningToevents() {
+func (em *EventsManager) listeningToEvents() {
 	for {
 		if !em.running {
 			return
@@ -73,24 +75,35 @@ func (em *EventsManager) listeningToevents() {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
 
-				//log.Info().Msg("Events received :", events, utils.PrettyPrintArray(events))
+				log.Trace().Str("event", utils.PrettyPrintArray(events)).Msg("Events received :")
 
 				for _, event := range events {
 					m := event.(map[string]interface{})
 					source := m["source"].(map[string]interface{})
 					properties := m["properties"].(map[string]interface{})
 					sceneId := -1
+					groupId := -1
 					if scene, ok := properties["sceneID"]; ok {
 						sceneId, err = strconv.Atoi(scene.(string))
 						utils.CheckNoErrorAndPrint(err)
 					}
+					if group, ok := properties["groupID"]; ok {
+						groupId, err = strconv.Atoi(group.(string))
+						utils.CheckNoErrorAndPrint(err)
+					}
 					eventObj := Event{
 						ZoneId:  int(source["zoneID"].(float64)),
+						GroupId: groupId,
 						SceneId: sceneId,
 					}
 					em.events <- eventObj
 				}
+			} else {
+				log.Warn().Msg("No event present")
+				time.Sleep(1000 * time.Millisecond)
 			}
+		}else{
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 }

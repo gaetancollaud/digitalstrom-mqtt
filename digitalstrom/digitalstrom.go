@@ -13,6 +13,7 @@ type Digitalstrom struct {
 	eventsManager  *EventsManager
 	devicesManager *DevicesManager
 	circuitManager *CircuitsManager
+	sceneManager   *SceneManager
 }
 
 type DigitalstromCron struct {
@@ -27,6 +28,7 @@ func New(config *config.Config) *Digitalstrom {
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
 	ds.devicesManager = NewDevicesManager(ds.httpClient, config.InvertBlindsPosition)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
+	ds.sceneManager = NewSceneManager(ds.httpClient)
 	return ds
 }
 
@@ -42,7 +44,7 @@ func (ds *Digitalstrom) Start() {
 
 	go ds.circuitManager.UpdateCircuitsValue()
 
-	go ds.updateDevicesOnEvent(ds.eventsManager.events)
+	go ds.eventReceived(ds.eventsManager.events)
 
 	if ds.config.RefreshAtStart {
 		go ds.refreshAllDevices()
@@ -71,12 +73,15 @@ func (ds *Digitalstrom) digitalstromCron() {
 	}
 }
 
-func (ds *Digitalstrom) updateDevicesOnEvent(events chan Event) {
+func (ds *Digitalstrom) eventReceived(events chan Event) {
 	for event := range events {
 		log.Info().
 			Int("SceneId", event.SceneId).
+			Int("GroupId", event.GroupId).
 			Int("ZoneId", event.ZoneId).
 			Msg("Event received, updating devices")
+
+		ds.sceneManager.EventReceived(event)
 		ds.devicesManager.updateZone(event.ZoneId)
 
 		time.AfterFunc(2*time.Second, func() {
@@ -92,6 +97,10 @@ func (ds *Digitalstrom) GetDeviceChangeChannel() chan DeviceStateChanged {
 
 func (ds *Digitalstrom) GetCircuitChangeChannel() chan CircuitValueChanged {
 	return ds.circuitManager.circuitValuesChan
+}
+
+func (ds *Digitalstrom) GetSceneEventsChannel() chan SceneEvent {
+	return ds.sceneManager.sceneEvent
 }
 
 func (ds *Digitalstrom) SetDeviceValue(command DeviceCommand) error {
