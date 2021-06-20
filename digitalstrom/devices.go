@@ -6,6 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DeviceType string
@@ -56,6 +57,7 @@ type DevicesManager struct {
 	invertBlindsPosition bool
 	devices              []Device
 	deviceStateChan      chan DeviceStateChanged
+	lastDeviceCommand    time.Time
 }
 
 func NewDevicesManager(httpClient *HttpClient, invertBlindsPosition bool) *DevicesManager {
@@ -63,6 +65,7 @@ func NewDevicesManager(httpClient *HttpClient, invertBlindsPosition bool) *Devic
 	dm.httpClient = httpClient
 	dm.invertBlindsPosition = invertBlindsPosition
 	dm.deviceStateChan = make(chan DeviceStateChanged)
+	dm.lastDeviceCommand = time.Now()
 
 	return dm
 }
@@ -204,6 +207,16 @@ func (dm *DevicesManager) updateValue(device Device, channel string, newValue fl
 }
 
 func (dm *DevicesManager) SetValue(command DeviceCommand) error {
+	now := time.Now()
+	duration := now.Sub(dm.lastDeviceCommand)
+	if duration < time.Second {
+		log.Debug().
+			Dur("lastCommand", duration).
+			Msg("Waiting before setting value. DigitalSTROM cannot handle more than 1 change/seconds")
+		time.Sleep(time.Second - duration)
+	}
+	dm.lastDeviceCommand = now
+
 	deviceFound := false
 	channelFound := false
 	for _, device := range dm.devices {
