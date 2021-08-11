@@ -3,6 +3,7 @@ package digitalstrom
 import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
+	"strings"
 )
 
 type CircuitValueChanged struct {
@@ -73,6 +74,11 @@ func (dm *CircuitsManager) supportedCircuit(m map[string]interface{}) bool {
 	name := ""
 	if m["name"] != nil {
 		name = m["name"].(string)
+	}
+	if len(strings.TrimSpace(name)) == 0 {
+		log.Warn().Msg("Circuit not supported because it has no name. Enable debug to see the complete devices")
+		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Circuit not supported because it has no name")
+		return false
 	}
 	if m["dsid"] == nil || len(m["dsid"].(string)) == 0 {
 		log.Info().Str("name", name).Msg("Circuit not supported because it has no dsid. Enable debug to see the complete devices")
