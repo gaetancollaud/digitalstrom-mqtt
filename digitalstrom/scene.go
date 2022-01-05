@@ -48,6 +48,9 @@ func (sm *SceneManager) getZoneName(zoneId int) (string, error) {
 		response, err := sm.httpClient.get("/json/zone/getName?id=" + strconv.Itoa(zoneId))
 		if utils.CheckNoErrorAndPrint(err) {
 			name = response.mapValue["name"].(string)
+			if len(name) == 0 {
+				name = "unnamed-zone"
+			}
 			sm.zonesById[zoneId] = name
 			return name, nil
 		}
@@ -71,6 +74,9 @@ func (sm *SceneManager) getSceneName(zoneId int, groupId int, sceneId int) (stri
 		response, err := sm.httpClient.get("/json/zone/sceneGetName?id=" + strconv.Itoa(zoneId) + "&groupID=" + strconv.Itoa(groupId) + "&sceneNumber=" + strconv.Itoa(sceneId))
 		if utils.CheckNoErrorAndPrint(err) {
 			name = response.mapValue["name"].(string)
+			if len(name) == 0 {
+				name = "unnamed-scene"
+			}
 			sm.sceneById[id] = name
 			return name, nil
 		}
