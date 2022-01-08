@@ -49,7 +49,7 @@ func (sm *SceneManager) getZoneName(zoneId int) (string, error) {
 		if utils.CheckNoErrorAndPrint(err) {
 			name = response.mapValue["name"].(string)
 			if len(name) == 0 {
-				name = "unnamed-zone"
+				name = "unnamed-zone" + strconv.Itoa(zoneId)
 			}
 			sm.zonesById[zoneId] = name
 			return name, nil
@@ -75,7 +75,7 @@ func (sm *SceneManager) getSceneName(zoneId int, groupId int, sceneId int) (stri
 		if utils.CheckNoErrorAndPrint(err) {
 			name = response.mapValue["name"].(string)
 			if len(name) == 0 {
-				name = "unnamed-scene"
+				name = "unnamed-scene-" + strconv.Itoa(sceneId)
 			}
 			sm.sceneById[id] = name
 			return name, nil
