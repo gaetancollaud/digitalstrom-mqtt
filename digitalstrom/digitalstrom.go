@@ -75,13 +75,6 @@ func (ds *Digitalstrom) digitalstromCron() {
 
 func (ds *Digitalstrom) eventReceived(events chan Event) {
 	for event := range events {
-		if event.GroupId == -1 {
-			log.Info().
-				Int("SceneId", event.SceneId).
-				Int("GroupId", event.GroupId).
-				Int("ZoneId", event.ZoneId).
-				Msg("Event ignored, groupId -1 is unknown")
-		} else {
 			log.Info().
 				Int("SceneId", event.SceneId).
 				Int("GroupId", event.GroupId).
@@ -95,7 +88,6 @@ func (ds *Digitalstrom) eventReceived(events chan Event) {
 				// update again because maybe the three was not up to date yet
 				ds.devicesManager.updateZone(event.ZoneId)
 			})
-		}
 	}
 }
 
