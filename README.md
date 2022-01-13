@@ -143,6 +143,7 @@ digitalSTROM-MQTT was tested successfully with these devices:
 * dSS20
 * GE-KM200
 * GE-TKM210
+* GE-UMV200 (see [#22](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/22))
 * SW-TKM200
 * SW-TKM210
 * GR-KL200
