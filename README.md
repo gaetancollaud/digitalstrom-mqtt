@@ -106,6 +106,11 @@ docker run \
   gaetancollaud/digitalstrom-mqtt
 ```
 
+### Home automation integration examples
+
+* [Home Assistant](./docs/home-assistant/README.md)
+* [OpenHAB](./docs/openhab/README.md)
+
 ### MQTT-Explorer
 
 We recommend using https://mqtt-explorer.com/ if you want a simple interface for MQTT.
