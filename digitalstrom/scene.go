@@ -49,7 +49,7 @@ func (sm *SceneManager) getZoneName(zoneId int) (string, error) {
 		if utils.CheckNoErrorAndPrint(err) {
 			name = response.mapValue["name"].(string)
 			if len(name) == 0 {
-				name = "unnamed-zone" + strconv.Itoa(zoneId)
+				name = "unnamed-zone-" + strconv.Itoa(zoneId)
 			}
 			sm.zonesById[zoneId] = name
 			return name, nil
