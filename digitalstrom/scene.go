@@ -1,9 +1,10 @@
 package digitalstrom
 
 import (
+	"strconv"
+
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
-	"strconv"
 )
 
 type SceneEvent struct {

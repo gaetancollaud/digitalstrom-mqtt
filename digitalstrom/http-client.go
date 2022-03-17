@@ -4,13 +4,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
-	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/rs/zerolog/log"
 )
 
 const MAX_RETRIES = 3
@@ -118,4 +119,3 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 	// no value returned
 	return nil, nil
 }
-
