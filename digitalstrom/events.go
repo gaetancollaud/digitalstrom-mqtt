@@ -1,10 +1,11 @@
 package digitalstrom
 
 import (
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
-	"github.com/rs/zerolog/log"
 	"strconv"
 	"time"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 )
 
 const SUBSCRIPTION_ID = "42"
@@ -23,6 +24,10 @@ type Event struct {
 	ZoneId  int
 	SceneId int
 	GroupId int
+
+	IsApartment bool
+	IsDevice    bool
+	IsGroup     bool
 }
 
 type EventsManager struct {
@@ -92,9 +97,12 @@ func (em *EventsManager) listeningToEvents() {
 						utils.CheckNoErrorAndPrint(err)
 					}
 					eventObj := Event{
-						ZoneId:  int(source["zoneID"].(float64)),
-						GroupId: groupId,
-						SceneId: sceneId,
+						ZoneId:      int(source["zoneID"].(float64)),
+						GroupId:     groupId,
+						SceneId:     sceneId,
+						IsApartment: source["isApartment"].(bool),
+						IsDevice:    source["isDevice"].(bool),
+						IsGroup:     source["isGroup"].(bool),
 					}
 					em.events <- eventObj
 				}
@@ -102,7 +110,7 @@ func (em *EventsManager) listeningToEvents() {
 				log.Warn().Msg("No event present")
 				time.Sleep(1000 * time.Millisecond)
 			}
-		}else{
+		} else {
 			time.Sleep(1000 * time.Millisecond)
 		}
 	}
