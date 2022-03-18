@@ -167,6 +167,17 @@ func (dm *DevicesManager) updateZone(zoneId int) {
 	}
 }
 
+func (dm *DevicesManager) updateGroup(groupId int) {
+	for _, device := range dm.devices {
+		for _, gId := range device.Groups {
+			if gId == groupId && len(device.OutputChannels) > 0 {
+				log.Info().Int("Group", groupId).Str("device", device.Name).Msg("Updating device from group")
+				dm.updateDevice(device)
+			}
+		}
+	}
+}
+
 func (dm *DevicesManager) updateDevice(device Device) {
 	// device need to be updated
 	log.Debug().Str("device", device.Name).Msg("Updating device ")
