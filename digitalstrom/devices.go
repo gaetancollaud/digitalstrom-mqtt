@@ -2,11 +2,12 @@ package digitalstrom
 
 import (
 	"errors"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
-	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type DeviceType string

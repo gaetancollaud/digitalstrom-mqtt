@@ -1,9 +1,10 @@
 package digitalstrom
 
 import (
+	"strings"
+
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
-	"strings"
 )
 
 type CircuitValueChanged struct {
