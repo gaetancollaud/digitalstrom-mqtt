@@ -1,10 +1,11 @@
 package digitalstrom
 
 import (
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
-	"github.com/rs/zerolog/log"
 	"strconv"
 	"time"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 )
 
 const SUBSCRIPTION_ID = "42"

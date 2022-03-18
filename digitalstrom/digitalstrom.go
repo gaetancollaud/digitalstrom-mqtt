@@ -1,9 +1,10 @@
 package digitalstrom
 
 import (
+	"time"
+
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
 type Digitalstrom struct {
