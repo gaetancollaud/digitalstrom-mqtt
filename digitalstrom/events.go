@@ -102,7 +102,7 @@ func (em *EventsManager) listeningToEvents() {
 				log.Warn().Msg("No event present")
 				time.Sleep(1000 * time.Millisecond)
 			}
-		}else{
+		} else {
 			time.Sleep(1000 * time.Millisecond)
 		}
 	}

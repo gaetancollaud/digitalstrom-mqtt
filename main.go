@@ -20,7 +20,7 @@ func main() {
 
 	if config.LogLevel == "TRACE" {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	}else if config.LogLevel == "DEBUG" {
+	} else if config.LogLevel == "DEBUG" {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else if config.LogLevel == "INFO" {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)

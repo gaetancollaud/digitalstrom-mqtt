@@ -118,4 +118,3 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 	// no value returned
 	return nil, nil
 }
-
