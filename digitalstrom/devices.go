@@ -2,11 +2,12 @@ package digitalstrom
 
 import (
 	"errors"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
-	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type DeviceType string
@@ -49,6 +50,7 @@ type Device struct {
 	MeterName      string
 	ZoneId         int
 	OutputChannels []string
+	Groups         []int
 	Values         map[string]float64
 }
 
@@ -89,6 +91,7 @@ func (dm *DevicesManager) reloadAllDevices() {
 					MeterDsuid:     m["meterDSUID"].(string),
 					MeterName:      m["meterName"].(string),
 					ZoneId:         int(m["zoneID"].(float64)),
+					Groups:         extractGroups(m),
 					DeviceType:     extractDeviceType(m),
 					OutputChannels: extractOutputChannels(m),
 					Values:         make(map[string]float64),
@@ -107,6 +110,15 @@ func (dm *DevicesManager) supportedDevice(m map[string]interface{}) bool {
 		return false
 	}
 	return true
+}
+
+func extractGroups(data map[string]interface{}) []int {
+	groupsItf := data["groups"].([]interface{})
+	var outputs []int
+	for _, group := range groupsItf {
+		outputs = append(outputs, int(group.(float64)))
+	}
+	return outputs
 }
 
 func extractDeviceType(data map[string]interface{}) DeviceType {
