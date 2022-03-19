@@ -17,19 +17,24 @@ type ConfigDigitalstrom struct {
 	Password string
 }
 type ConfigMqtt struct {
-	MqttUrl                           string
-	Username                          string
-	Password                          string
-	TopicFormat                       string
-	NormalizeDeviceName               bool
-	Retain                            bool
-	HomeAssistantDiscoveryEnabled     bool
-	HomeAssistantDiscoveryPrefix      string
-	HomeAssistantRemoveRegexpFromName string
+	MqttUrl             string
+	Username            string
+	Password            string
+	TopicFormat         string
+	NormalizeDeviceName bool
+	Retain              bool
+}
+type ConfigHomeAssistant struct {
+	DiscoveryEnabled     bool
+	DiscoveryTopicPrefix string
+	RemoveRegexpFromName string
+	DigitalStromHost     string
+	Retain               bool
 }
 type Config struct {
 	Digitalstrom         ConfigDigitalstrom
 	Mqtt                 ConfigMqtt
+	HomeAssistant        ConfigHomeAssistant
 	RefreshAtStart       bool
 	LogLevel             string
 	InvertBlindsPosition bool
@@ -109,15 +114,19 @@ func FromEnv() *Config {
 			Password: v.GetString(envKeyDigitalstromPassword),
 		},
 		Mqtt: ConfigMqtt{
-			MqttUrl:                           v.GetString(envKeyMqttUrl),
-			Username:                          v.GetString(envKeyMqttUsername),
-			Password:                          v.GetString(envKeyMqttPassword),
-			TopicFormat:                       v.GetString(envKeyMqttTopicFormat),
-			NormalizeDeviceName:               v.GetBool(envKeyMqttNormalizeTopicName),
-			Retain:                            v.GetBool(envKeyMqttRetain),
-			HomeAssistantDiscoveryEnabled:     v.GetBool(envKeyHomeAssistantDiscoveryEnabled),
-			HomeAssistantDiscoveryPrefix:      v.GetString(envKeyHomeAssistantDiscoveryPrefix),
-			HomeAssistantRemoveRegexpFromName: v.GetString(envKeyHomeAssistantRemoveRegexpFromName),
+			MqttUrl:             v.GetString(envKeyMqttUrl),
+			Username:            v.GetString(envKeyMqttUsername),
+			Password:            v.GetString(envKeyMqttPassword),
+			TopicFormat:         v.GetString(envKeyMqttTopicFormat),
+			NormalizeDeviceName: v.GetBool(envKeyMqttNormalizeTopicName),
+			Retain:              v.GetBool(envKeyMqttRetain),
+		},
+		HomeAssistant: ConfigHomeAssistant{
+			DiscoveryEnabled:     v.GetBool(envKeyHomeAssistantDiscoveryEnabled),
+			DiscoveryTopicPrefix: v.GetString(envKeyHomeAssistantDiscoveryPrefix),
+			RemoveRegexpFromName: v.GetString(envKeyHomeAssistantRemoveRegexpFromName),
+			DigitalStromHost:     v.GetString(envKeyDigitalstromHost),
+			Retain:               v.GetBool(envKeyMqttRetain),
 		},
 		RefreshAtStart:       v.GetBool(envKeyRefreshAtStart),
 		LogLevel:             v.GetString(envKeyLogLevel),

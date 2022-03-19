@@ -36,7 +36,7 @@ func main() {
 	log.Info().Msg("String digitalstrom MQTT!")
 
 	ds := digitalstrom.New(config)
-	mqtt := digitalstrom_mqtt.New(&config.Mqtt, &config.Digitalstrom, ds)
+	mqtt := digitalstrom_mqtt.New(config, ds)
 
 	ds.Start()
 	mqtt.Start()
