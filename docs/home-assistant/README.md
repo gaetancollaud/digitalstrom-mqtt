@@ -6,9 +6,17 @@
 HOME_ASSISTANT_DISCOVERY_ENABLED: true
 # You can also customize the prefix for the MQTT discovery topic:
 HOME_ASSISTANT_DISCOVERY_PREFIX: "homeassistant"
+# In case you would like to remove some parts of the name that gets published
+# into Home Assistant, there is an option to provice a regex that will be use
+# to remove it from the entity name. This way "Location Light" could be
+# translated in Home Assistant as `light.location` rather than
+# `light.location_light`.
+HOME_ASSISTANT_REMOVE_REGEXP_FROM_NAME: "(light|cover|blind)"
 ```
 
 ## Example of configuration
+
+If you still want to configure manually the entities, here there is an example:
 
 ```yaml
 - platform: mqtt
