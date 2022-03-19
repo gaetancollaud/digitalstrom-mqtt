@@ -14,16 +14,16 @@ type DeviceType string
 
 const (
 	Light   DeviceType = "GE"
-	Blind              = "GR"
-	Joker              = "SW"
-	Unknown            = "Unknown"
+	Blind   DeviceType = "GR"
+	Joker   DeviceType = "SW"
+	Unknown DeviceType = "Unknown"
 )
 
 type DeviceAction string
 
 const (
 	Set  DeviceAction = "set"
-	Stop              = "stop"
+	Stop DeviceAction = "stop"
 )
 
 type DeviceStateChanged struct {
