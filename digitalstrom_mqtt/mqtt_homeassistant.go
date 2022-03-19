@@ -119,6 +119,23 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 			"payload_off": "0.00",
 			"qos":         0,
 		}
+		if device.Properties.Dimmable {
+			message["on_command_type"] = "brightness"
+			message["brightness_scale"] = 100
+			message["brightness_state_topic"] = hass.mqtt.getTopic(
+				"devices",
+				device.Dsid,
+				device.Name,
+				device.OutputChannels[0],
+				"state")
+			message["brightness_command_topic"] = hass.mqtt.getTopic(
+				"devices",
+				device.Dsid,
+				device.Name,
+				device.OutputChannels[0],
+				"command")
+
+		}
 	} else if device.DeviceType == digitalstrom.Blind {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/cover.mqtt/
