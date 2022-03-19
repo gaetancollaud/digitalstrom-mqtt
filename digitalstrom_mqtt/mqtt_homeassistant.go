@@ -3,6 +3,7 @@ package digitalstrom_mqtt
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
@@ -166,7 +167,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 			"qos":               0,
 		}
 		// In case the cover supports tilting.
-		if len(device.OutputChannels) > 1 {
+		if len(device.OutputChannels) > 1 && strings.Contains(device.OutputChannels[1], "Angle") {
 			message["tilt_status_topic"] = hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
