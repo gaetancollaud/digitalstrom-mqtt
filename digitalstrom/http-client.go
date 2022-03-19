@@ -30,7 +30,6 @@ type DigitalStromResponse struct {
 }
 
 func NewHttpClient(config *config.ConfigDigitalstrom) *HttpClient {
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient := new(HttpClient)
 	httpClient.client = &http.Client{
 		Transport: &http.Transport{

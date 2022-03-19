@@ -226,6 +226,7 @@ func (dm *DigitalstromMqtt) getTopic(deviceType string, deviceId string, deviceN
 
 // Returns MQTT topic to publish the Server status.
 func (dm *DigitalstromMqtt) getStatusTopic() string {
+	// FIXME: use a topic prefix for all digitalstrom-mqtt messages.
 	root_topic := strings.Split(dm.config.TopicFormat, "/")[0]
 	return root_topic + "/server/state"
 }
@@ -280,8 +281,8 @@ func (dm *DigitalstromMqtt) deviceToHomeAssistantDiscoveryMessage(device digital
 			"payload_not_available": Offline,
 		},
 	}
-	message := map[string]interface{}{}
-	topic := ""
+	var message map[string]interface{}
+	var topic string
 	if device.DeviceType == digitalstrom.Light {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/light.mqtt/
@@ -370,7 +371,7 @@ func (dm *DigitalstromMqtt) deviceToHomeAssistantDiscoveryMessage(device digital
 			message["tilt_status_template"] = "{{ value | int }}"
 		}
 	} else {
-		// raise error
+		return nil, fmt.Errorf("device type is not supported to be announce to Home Assistant discovery")
 	}
 	json, err := json.Marshal(message)
 	if err != nil {
@@ -448,7 +449,7 @@ func (dm *DigitalstromMqtt) circuitToHomeAssistantDiscoveryMessage(circuit digit
 		"state_class":         "total_increasing",
 		// Convert the vaue from Ws to kWh which is the default energy unit in
 		// Home Assistant
-		"value_template": "{{ value | float / (3600*1000) | round(3) }}",
+		"value_template": "{{ (value | float / (3600*1000)) | round(3) }}",
 		"icon":           "mdi:lightning-bolt",
 		"qos":            0,
 	}
