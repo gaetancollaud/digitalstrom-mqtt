@@ -139,6 +139,27 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 	} else if device.DeviceType == digitalstrom.Blind {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/cover.mqtt/
+
+		// Covers expose up to two output channels:
+		// * to control the position, and
+		// * to control the tilt
+		// For that reason let's extract the correspondent channel for each
+		// action.
+		positionChannel := ""
+		tiltChannel := ""
+		for _, channelName := range device.OutputChannels {
+			if strings.Contains(channelName, "Angle") {
+				tiltChannel = channelName
+			}
+			if strings.Contains(channelName, "Position") {
+				positionChannel = channelName
+			}
+		}
+		// If position channel has not been found raise error.
+		if positionChannel == "" {
+			return nil, fmt.Errorf("position channel could not be found for device " + device.Name)
+		}
+
 		nodeId := "cover"
 		topic = hass.discoveryTopic(Cover, device.Dsid, nodeId)
 		message = map[string]interface{}{
@@ -155,7 +176,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				positionChannel,
 				"state"),
 			"state_closed": "0.00",
 			"state_open":   "100.00",
@@ -163,7 +184,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				positionChannel,
 				"command"),
 			"payload_close": "0.00",
 			"payload_open":  "100.00",
@@ -172,30 +193,30 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				positionChannel,
 				"state"),
 			"set_position_topic": hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				positionChannel,
 				"command"),
 			"position_template": "{{ value | int }}",
 			"qos":               0,
 		}
 		// In case the cover supports tilting.
-		if len(device.OutputChannels) > 1 && strings.Contains(device.OutputChannels[1], "Angle") {
+		if tiltChannel != "" {
 			message["tilt_status_topic"] = hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[1],
+				tiltChannel,
 				"state")
 			message["tilt_command_topic"] = hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[1],
+				tiltChannel,
 				"command")
 			message["tilt_status_template"] = "{{ value | int }}"
 		}
