@@ -17,14 +17,15 @@ type ConfigDigitalstrom struct {
 	Password string
 }
 type ConfigMqtt struct {
-	MqttUrl                       string
-	Username                      string
-	Password                      string
-	TopicFormat                   string
-	NormalizeDeviceName           bool
-	Retain                        bool
-	HomeAssistantDiscoveryEnabled bool
-	HomeAssistantDiscoveryPrefix  string
+	MqttUrl                           string
+	Username                          string
+	Password                          string
+	TopicFormat                       string
+	NormalizeDeviceName               bool
+	Retain                            bool
+	HomeAssistantDiscoveryEnabled     bool
+	HomeAssistantDiscoveryPrefix      string
+	HomeAssistantRemoveRegexpFromName string
 }
 type Config struct {
 	Digitalstrom         ConfigDigitalstrom
@@ -35,23 +36,24 @@ type Config struct {
 }
 
 const (
-	Undefined                           string = ""
-	configFile                          string = "config.yaml"
-	envKeyDigitalstromHost              string = "DIGITALSTROM_HOST"
-	envKeyDigitalstromPort              string = "DIGITALSTROM_PORT"
-	envKeyDigitalstromUsername          string = "DIGITALSTROM_USERNAME"
-	envKeyDigitalstromPassword          string = "DIGITALSTROM_PASSWORD"
-	envKeyMqttUrl                       string = "MQTT_URL"
-	envKeyMqttUsername                  string = "MQTT_USERNAME"
-	envKeyMqttPassword                  string = "MQTT_PASSWORD"
-	envKeyMqttTopicFormat               string = "MQTT_TOPIC_FORMAT"
-	envKeyMqttNormalizeTopicName        string = "MQTT_NORMALIZE_DEVICE_NAME"
-	envKeyMqttRetain                    string = "MQTT_RETAIN"
-	envKeyInvertBlindsPosition          string = "INVERT_BLINDS_POSITION"
-	envKeyRefreshAtStart                string = "REFRESH_AT_START"
-	envKeyLogLevel                      string = "LOG_LEVEL"
-	envKeyHomeAssistantDiscoveryEnabled string = "HOME_ASSISTANT_DISCOVERY_ENABLED"
-	envKeyHomeAssistantDiscoveryPrefix  string = "HOME_ASSISTANT_DISCOVERY_PREFIX"
+	Undefined                               string = ""
+	configFile                              string = "config.yaml"
+	envKeyDigitalstromHost                  string = "DIGITALSTROM_HOST"
+	envKeyDigitalstromPort                  string = "DIGITALSTROM_PORT"
+	envKeyDigitalstromUsername              string = "DIGITALSTROM_USERNAME"
+	envKeyDigitalstromPassword              string = "DIGITALSTROM_PASSWORD"
+	envKeyMqttUrl                           string = "MQTT_URL"
+	envKeyMqttUsername                      string = "MQTT_USERNAME"
+	envKeyMqttPassword                      string = "MQTT_PASSWORD"
+	envKeyMqttTopicFormat                   string = "MQTT_TOPIC_FORMAT"
+	envKeyMqttNormalizeTopicName            string = "MQTT_NORMALIZE_DEVICE_NAME"
+	envKeyMqttRetain                        string = "MQTT_RETAIN"
+	envKeyInvertBlindsPosition              string = "INVERT_BLINDS_POSITION"
+	envKeyRefreshAtStart                    string = "REFRESH_AT_START"
+	envKeyLogLevel                          string = "LOG_LEVEL"
+	envKeyHomeAssistantDiscoveryEnabled     string = "HOME_ASSISTANT_DISCOVERY_ENABLED"
+	envKeyHomeAssistantDiscoveryPrefix      string = "HOME_ASSISTANT_DISCOVERY_PREFIX"
+	envKeyHomeAssistantRemoveRegexpFromName string = "HOME_ASSISTANT_REMOVE_REGEXP_FROM_NAME"
 )
 
 func check(e error) {
@@ -80,21 +82,22 @@ func readConfig(defaults map[string]interface{}) (*viper.Viper, error) {
 // FromEnv returns a Config from env variables
 func FromEnv() *Config {
 	v, err := readConfig(map[string]interface{}{
-		envKeyDigitalstromHost:              Undefined,
-		envKeyDigitalstromPort:              8080,
-		envKeyDigitalstromUsername:          Undefined,
-		envKeyDigitalstromPassword:          Undefined,
-		envKeyMqttUrl:                       Undefined,
-		envKeyMqttUsername:                  Undefined,
-		envKeyMqttPassword:                  Undefined,
-		envKeyMqttTopicFormat:               "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
-		envKeyMqttNormalizeTopicName:        true,
-		envKeyMqttRetain:                    false,
-		envKeyRefreshAtStart:                true,
-		envKeyLogLevel:                      "INFO",
-		envKeyInvertBlindsPosition:          false,
-		envKeyHomeAssistantDiscoveryEnabled: false,
-		envKeyHomeAssistantDiscoveryPrefix:  "homeassistant",
+		envKeyDigitalstromHost:                  Undefined,
+		envKeyDigitalstromPort:                  8080,
+		envKeyDigitalstromUsername:              Undefined,
+		envKeyDigitalstromPassword:              Undefined,
+		envKeyMqttUrl:                           Undefined,
+		envKeyMqttUsername:                      Undefined,
+		envKeyMqttPassword:                      Undefined,
+		envKeyMqttTopicFormat:                   "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
+		envKeyMqttNormalizeTopicName:            true,
+		envKeyMqttRetain:                        false,
+		envKeyRefreshAtStart:                    true,
+		envKeyLogLevel:                          "INFO",
+		envKeyInvertBlindsPosition:              false,
+		envKeyHomeAssistantDiscoveryEnabled:     false,
+		envKeyHomeAssistantDiscoveryPrefix:      "homeassistant",
+		envKeyHomeAssistantRemoveRegexpFromName: "",
 	})
 	check(err)
 
@@ -106,14 +109,15 @@ func FromEnv() *Config {
 			Password: v.GetString(envKeyDigitalstromPassword),
 		},
 		Mqtt: ConfigMqtt{
-			MqttUrl:                       v.GetString(envKeyMqttUrl),
-			Username:                      v.GetString(envKeyMqttUsername),
-			Password:                      v.GetString(envKeyMqttPassword),
-			TopicFormat:                   v.GetString(envKeyMqttTopicFormat),
-			NormalizeDeviceName:           v.GetBool(envKeyMqttNormalizeTopicName),
-			Retain:                        v.GetBool(envKeyMqttRetain),
-			HomeAssistantDiscoveryEnabled: v.GetBool(envKeyHomeAssistantDiscoveryEnabled),
-			HomeAssistantDiscoveryPrefix:  v.GetString(envKeyHomeAssistantDiscoveryPrefix),
+			MqttUrl:                           v.GetString(envKeyMqttUrl),
+			Username:                          v.GetString(envKeyMqttUsername),
+			Password:                          v.GetString(envKeyMqttPassword),
+			TopicFormat:                       v.GetString(envKeyMqttTopicFormat),
+			NormalizeDeviceName:               v.GetBool(envKeyMqttNormalizeTopicName),
+			Retain:                            v.GetBool(envKeyMqttRetain),
+			HomeAssistantDiscoveryEnabled:     v.GetBool(envKeyHomeAssistantDiscoveryEnabled),
+			HomeAssistantDiscoveryPrefix:      v.GetString(envKeyHomeAssistantDiscoveryPrefix),
+			HomeAssistantRemoveRegexpFromName: v.GetString(envKeyHomeAssistantRemoveRegexpFromName),
 		},
 		RefreshAtStart:       v.GetBool(envKeyRefreshAtStart),
 		LogLevel:             v.GetString(envKeyLogLevel),

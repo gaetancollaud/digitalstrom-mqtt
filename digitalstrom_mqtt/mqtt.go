@@ -288,8 +288,10 @@ func (dm *DigitalstromMqtt) deviceToHomeAssistantDiscoveryMessage(device digital
 		// https://www.home-assistant.io/integrations/light.mqtt/
 		topic = dm.config.HomeAssistantDiscoveryPrefix + "/light/" + device.Dsid + "/light/config"
 		message = map[string]interface{}{
-			"device":            device_config,
-			"name":              utils.RemoveRegexp(device.Name, "light"),
+			"device": device_config,
+			"name": utils.RemoveRegexp(
+				device.Name,
+				dm.config.HomeAssistantRemoveRegexpFromName),
 			"unique_id":         device.Dsid + "_light",
 			"retain":            dm.config.Retain,
 			"availability":      availability,
@@ -315,8 +317,10 @@ func (dm *DigitalstromMqtt) deviceToHomeAssistantDiscoveryMessage(device digital
 		// https://www.home-assistant.io/integrations/cover.mqtt/
 		topic = dm.config.HomeAssistantDiscoveryPrefix + "/cover/" + device.Dsid + "/cover/config"
 		message = map[string]interface{}{
-			"device":            device_config,
-			"name":              utils.RemoveRegexp(device.Name, "cover"),
+			"device": device_config,
+			"name": utils.RemoveRegexp(
+				device.Name,
+				dm.config.HomeAssistantRemoveRegexpFromName),
 			"unique_id":         device.Dsid + "_cover",
 			"device_class":      "blind",
 			"retain":            dm.config.Retain,
