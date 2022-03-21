@@ -26,7 +26,7 @@ jobs:
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
-          version: 1.6.3
+          version: latest
           args: release --rm-dist --snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

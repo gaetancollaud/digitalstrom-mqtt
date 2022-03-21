@@ -4,7 +4,6 @@ env:
 builds:
   - goos:
       - linux
-      - darwin
       - windows
     goarch:
       - 386
@@ -22,7 +21,7 @@ dockers:
   - image_templates:
       - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-amd64"
       - "gaetancollaud/digitalstrom-mqtt:latest-amd64"
-    use_buildx: true
+    use: buildx
     dockerfile: Dockerfile
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -31,7 +30,7 @@ dockers:
   - image_templates:
       - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm"
       - "gaetancollaud/digitalstrom-mqtt:latest-arm"
-    use_buildx: true
+    use: buildx
     goarch: arm
     goarm: 6
     dockerfile: Dockerfile
@@ -42,7 +41,7 @@ dockers:
   - image_templates:
       - "gaetancollaud/digitalstrom-mqtt:{{ .Version }}-arm64v8"
       - "gaetancollaud/digitalstrom-mqtt:latest-arm64v8"
-    use_buildx: true
+    use: buildx
     goarch: arm64
     dockerfile: Dockerfile
     build_flag_templates:
