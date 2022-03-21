@@ -133,3 +133,7 @@ func (ds *Digitalstrom) refreshAllDevices() {
 func (ds *Digitalstrom) GetAllDevices() []Device {
 	return ds.devicesManager.devices
 }
+
+func (ds *Digitalstrom) GetAllCircuits() []Circuit {
+	return ds.circuitManager.circuits
+}

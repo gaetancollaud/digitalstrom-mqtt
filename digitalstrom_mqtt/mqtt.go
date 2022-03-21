@@ -3,22 +3,29 @@ package digitalstrom_mqtt
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	"strconv"
-	"strings"
-	"time"
+)
+
+const (
+	Online            string = "online"
+	Offline           string = "offline"
+	DisconnectTimeout uint   = 1000 // 1 second
 )
 
 type DigitalstromMqtt struct {
-	config *config.ConfigMqtt
-	client mqtt.Client
-
-	digitalstrom *digitalstrom.Digitalstrom
+	config         *config.ConfigMqtt
+	client         mqtt.Client
+	digitalstrom   *digitalstrom.Digitalstrom
+	home_assistant *HomeAssistantMqtt
 }
 
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -35,23 +42,27 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 	time.Sleep(5 * time.Second)
 }
 
-func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.Digitalstrom) *DigitalstromMqtt {
+func New(config *config.Config, digitalstrom *digitalstrom.Digitalstrom) *DigitalstromMqtt {
 	inst := new(DigitalstromMqtt)
-	inst.config = config
+	inst.config = &config.Mqtt
 	u, err := uuid.NewRandom()
 	clientPostfix := "-"
 	if utils.CheckNoErrorAndPrint(err) {
 		clientPostfix = "-" + u.String()
 	}
+	inst.home_assistant = &HomeAssistantMqtt{
+		mqtt:   inst,
+		config: &config.HomeAssistant,
+	}
 
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf(config.MqttUrl))
+	opts.AddBroker(fmt.Sprintf(config.Mqtt.MqttUrl))
 	opts.SetClientID("digitalstrom-mqtt" + clientPostfix)
-	if len(config.Username) > 0 {
-		opts.SetUsername(config.Username)
+	if len(config.Mqtt.Username) > 0 {
+		opts.SetUsername(config.Mqtt.Username)
 	}
-	if len(config.Password) > 0 {
-		opts.SetPassword(config.Password)
+	if len(config.Mqtt.Password) > 0 {
+		opts.SetPassword(config.Mqtt.Password)
 	}
 	opts.SetDefaultPublishHandler(messagePubHandler)
 	opts.OnConnect = func(client mqtt.Client) {
@@ -63,7 +74,7 @@ func New(config *config.ConfigMqtt, digitalstrom *digitalstrom.Digitalstrom) *Di
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		log.Panic().
 			Err(token.Error()).
-			Str("url", config.MqttUrl).
+			Str("url", config.Mqtt.MqttUrl).
 			Msg("Unable to connect to the mqtt broken")
 	}
 
@@ -78,7 +89,20 @@ func (dm *DigitalstromMqtt) Start() {
 	go dm.ListenForDeviceState(dm.digitalstrom.GetDeviceChangeChannel())
 	go dm.ListenForCircuitValues(dm.digitalstrom.GetCircuitChangeChannel())
 
+	// Notify that digitalstrom-mqtt is connected and online.
+	dm.publishServerStatus(Online)
+	dm.home_assistant.Start()
 	dm.subscribeToAllDevicesCommands()
+}
+
+// Perform cleanup operations when Stopping DigitalstromMqtt.
+func (dm *DigitalstromMqtt) Stop() {
+	// Notify that difitalstrom-mqtt is not longer online.
+	dm.publishServerStatus(Offline)
+	// Gracefully close the connection to the MQTT server.
+	log.Info().Msg("Stopping MQTT client.")
+	dm.client.Disconnect(DisconnectTimeout)
+	log.Info().Msg("Disconnected from MQTT server.")
 }
 
 func (dm *DigitalstromMqtt) ListenSceneEvent(changes chan digitalstrom.SceneEvent) {
@@ -97,6 +121,13 @@ func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.Cir
 	for event := range changes {
 		dm.publishCircuit(event)
 	}
+}
+
+// Publish the current binary status into the MQTT topic.
+func (dm *DigitalstromMqtt) publishServerStatus(message string) {
+	topic := dm.getStatusTopic()
+	log.Info().Str("status", message).Str("topic", topic).Msg("Updating server status topic")
+	dm.client.Publish(topic, 0, dm.config.Retain, message)
 }
 
 func (dm *DigitalstromMqtt) publishSceneEvent(sceneEvent digitalstrom.SceneEvent) {
@@ -192,6 +223,13 @@ func (dm *DigitalstromMqtt) getTopic(deviceType string, deviceId string, deviceN
 	topic = strings.ReplaceAll(topic, "{commandState}", commandState)
 
 	return topic
+}
+
+// Returns MQTT topic to publish the Server status.
+func (dm *DigitalstromMqtt) getStatusTopic() string {
+	// FIXME: use a topic prefix for all digitalstrom-mqtt messages.
+	root_topic := strings.Split(dm.config.TopicFormat, "/")[0]
+	return root_topic + "/server/state"
 }
 
 func normalizeForTopicName(item string) string {

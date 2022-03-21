@@ -1,8 +1,9 @@
 package digitalstrom_mqtt
 
 import (
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"testing"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 )
 
 func TestTopicGeneration(t *testing.T) {

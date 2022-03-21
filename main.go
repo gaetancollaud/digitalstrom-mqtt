@@ -1,13 +1,16 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom_mqtt"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"os"
-	"time"
 )
 
 func main() {
@@ -20,7 +23,7 @@ func main() {
 
 	if config.LogLevel == "TRACE" {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	}else if config.LogLevel == "DEBUG" {
+	} else if config.LogLevel == "DEBUG" {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else if config.LogLevel == "INFO" {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -33,10 +36,16 @@ func main() {
 	log.Info().Msg("String digitalstrom MQTT!")
 
 	ds := digitalstrom.New(config)
-	mqtt := digitalstrom_mqtt.New(&config.Mqtt, ds)
+	mqtt := digitalstrom_mqtt.New(config, ds)
 
 	ds.Start()
 	mqtt.Start()
 
-	time.Sleep(100 * 365 * 24 * time.Hour)
+	// Subscribe for interruption happening during execution.
+	exitSignal := make(chan os.Signal)
+	signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
+	<-exitSignal
+
+	// Gracefulle stop the connections.
+	mqtt.Stop()
 }

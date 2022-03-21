@@ -14,16 +14,16 @@ type DeviceType string
 
 const (
 	Light   DeviceType = "GE"
-	Blind              = "GR"
-	Joker              = "SW"
-	Unknown            = "Unknown"
+	Blind   DeviceType = "GR"
+	Joker   DeviceType = "SW"
+	Unknown DeviceType = "Unknown"
 )
 
 type DeviceAction string
 
 const (
 	Set  DeviceAction = "set"
-	Stop              = "stop"
+	Stop DeviceAction = "stop"
 )
 
 type DeviceStateChanged struct {
@@ -39,6 +39,10 @@ type DeviceCommand struct {
 	NewValue   float64
 }
 
+type DeviceProperties struct {
+	Dimmable bool
+}
+
 type Device struct {
 	Name           string
 	Dsid           string
@@ -52,6 +56,7 @@ type Device struct {
 	OutputChannels []string
 	Groups         []int
 	Values         map[string]float64
+	Properties     DeviceProperties
 }
 
 type DevicesManager struct {
@@ -95,6 +100,11 @@ func (dm *DevicesManager) reloadAllDevices() {
 					DeviceType:     extractDeviceType(m),
 					OutputChannels: extractOutputChannels(m),
 					Values:         make(map[string]float64),
+					Properties: DeviceProperties{
+						// outputMode is set to 22 for GE devices where the
+						// output is configure to be "dimmed".
+						Dimmable: m["outputMode"].(float64) == 22,
+					},
 				})
 			}
 		}

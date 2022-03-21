@@ -4,18 +4,20 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
-	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/rs/zerolog/log"
 )
 
 const MAX_RETRIES = 3
 
 type HttpClient struct {
+	client       *http.Client
 	config       *config.ConfigDigitalstrom
 	TokenManager *TokenManager
 }
@@ -28,46 +30,54 @@ type DigitalStromResponse struct {
 }
 
 func NewHttpClient(config *config.ConfigDigitalstrom) *HttpClient {
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient := new(HttpClient)
+	httpClient.client = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 	httpClient.config = config
 	httpClient.TokenManager = NewTokenManager(config, httpClient)
 	return httpClient
 }
 
 func (httpClient *HttpClient) get(path string) (*DigitalStromResponse, error) {
-	return httpClient.getInternal(path, 0)
-}
-
-func (httpClient *HttpClient) getInternal(path string, retryCount int) (*DigitalStromResponse, error) {
-	if retryCount >= MAX_RETRIES {
-		return nil, errors.New("unable to refresh token after " + strconv.Itoa(retryCount) + " retries")
-	} else {
-		if retryCount > 0 {
-			// this is a retry, wait a bit before we retry to avoid loops
-			time.Sleep(2 * time.Second)
-		}
+	for i := 1; i <= MAX_RETRIES; i++ {
 		token := httpClient.TokenManager.GetToken()
-
-		if strings.Index(path, "?") == -1 {
+		if !strings.Contains(path, "?") {
 			path = path + "?token=" + token
 		} else {
 			path = path + "&token=" + token
 		}
 		response, err := httpClient.getWithoutToken(path)
-		if err != nil && strings.Contains(err.Error(), "not logged in") {
-			// issue with token, invalidate the old one before retrying
-			httpClient.TokenManager.InvalidateToken()
-			return httpClient.getInternal(path, retryCount+1)
+		if err == nil {
+			return response, err
+		} else {
+			log.Warn().Err(err).Msg("Failed GET request")
 		}
-		return response, err
+		if strings.Contains(err.Error(), "not logged in") {
+			// Issue with token, invalidate the old one before retrying.
+			httpClient.TokenManager.InvalidateToken()
+		} else {
+			// Don't retry in case its not an authetication error.
+			return nil, err
+		}
+		// This is a retry, wait a bit before we retry to avoid loops.
+		time.Sleep(2 * time.Second)
 	}
+	return nil, errors.New("unable to refresh token after " + strconv.Itoa(MAX_RETRIES) + " retries")
 }
 
 func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromResponse, error) {
 	url := "https://" + httpClient.config.Host + ":" + strconv.Itoa(httpClient.config.Port) + "/" + path
 
-	resp, err := http.Get(url)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := httpClient.client.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -91,10 +101,10 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 
 	if val, ok := jsonValue["ok"]; ok {
 		if !val.(bool) {
-			return nil, errors.New("Error with digitalstrom API: " + jsonValue["message"].(string))
+			return nil, errors.New("error with DigitalStrom API: " + jsonValue["message"].(string))
 		}
 	} else {
-		return nil, errors.New("No 'ok' field present, cannot check request")
+		return nil, errors.New("no 'ok' field present, cannot check request")
 	}
 
 	if val, ok := jsonValue["result"]; ok {
@@ -113,9 +123,8 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 			res.arrayValue = arrayValue
 			return res, nil
 		}
-		return nil, errors.New("Unknown return type")
+		return nil, errors.New("unknown return type")
 	}
 	// no value returned
 	return nil, nil
 }
-
