@@ -210,26 +210,23 @@ func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 }
 
 func (dm *DigitalstromMqtt) getTopic(deviceType string, deviceId string, deviceName string, channel string, commandState string) string {
-	topic := dm.config.TopicFormat
+	topic := dm.config.TopicPrefix
 
 	if dm.config.NormalizeDeviceName {
 		deviceName = normalizeForTopicName(deviceName)
 	}
 
-	topic = strings.ReplaceAll(topic, "{deviceType}", deviceType)
-	topic = strings.ReplaceAll(topic, "{deviceId}", deviceId)
-	topic = strings.ReplaceAll(topic, "{deviceName}", deviceName)
-	topic = strings.ReplaceAll(topic, "{channel}", channel)
-	topic = strings.ReplaceAll(topic, "{commandState}", commandState)
+	topic += "/"+deviceType
+	topic += "/"+deviceName
+	topic += "/"+channel
+	topic += "/"+commandState
 
 	return topic
 }
 
 // Returns MQTT topic to publish the Server status.
 func (dm *DigitalstromMqtt) getStatusTopic() string {
-	// FIXME: use a topic prefix for all digitalstrom-mqtt messages.
-	root_topic := strings.Split(dm.config.TopicFormat, "/")[0]
-	return root_topic + "/server/state"
+	return dm.config.TopicPrefix + "/server/state"
 }
 
 func normalizeForTopicName(item string) string {

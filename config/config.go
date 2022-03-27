@@ -21,6 +21,7 @@ type ConfigMqtt struct {
 	Username            string
 	Password            string
 	TopicFormat         string
+	TopicPrefix         string
 	NormalizeDeviceName bool
 	Retain              bool
 }
@@ -51,6 +52,7 @@ const (
 	envKeyMqttUsername                      string = "MQTT_USERNAME"
 	envKeyMqttPassword                      string = "MQTT_PASSWORD"
 	envKeyMqttTopicFormat                   string = "MQTT_TOPIC_FORMAT"
+	envKeyMqttTopicPrefix                   string = "MQTT_TOPIC_PREFIX"
 	envKeyMqttNormalizeTopicName            string = "MQTT_NORMALIZE_DEVICE_NAME"
 	envKeyMqttRetain                        string = "MQTT_RETAIN"
 	envKeyInvertBlindsPosition              string = "INVERT_BLINDS_POSITION"
@@ -94,7 +96,8 @@ func FromEnv() *Config {
 		envKeyMqttUrl:                           Undefined,
 		envKeyMqttUsername:                      Undefined,
 		envKeyMqttPassword:                      Undefined,
-		envKeyMqttTopicFormat:                   "digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState}",
+		envKeyMqttTopicPrefix:                   "digitalstrom",
+		envKeyMqttTopicFormat:                   "deprecated",
 		envKeyMqttNormalizeTopicName:            true,
 		envKeyMqttRetain:                        false,
 		envKeyRefreshAtStart:                    true,
@@ -118,6 +121,7 @@ func FromEnv() *Config {
 			Username:            v.GetString(envKeyMqttUsername),
 			Password:            v.GetString(envKeyMqttPassword),
 			TopicFormat:         v.GetString(envKeyMqttTopicFormat),
+			TopicPrefix:         v.GetString(envKeyMqttTopicPrefix),
 			NormalizeDeviceName: v.GetBool(envKeyMqttNormalizeTopicName),
 			Retain:              v.GetBool(envKeyMqttRetain),
 		},

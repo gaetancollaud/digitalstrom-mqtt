@@ -33,6 +33,11 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 	}
 
+	if config.Mqtt.TopicFormat != "deprecated" {
+		log.Fatal().Msg("MQTT_TOPIC_FORMAT is deprecated and cannot be used anymore, please use MQTT_TOPIC_PREFIX instead")
+		os.Exit(1)
+	}
+
 	log.Info().Msg("String digitalstrom MQTT!")
 
 	ds := digitalstrom.New(config)
