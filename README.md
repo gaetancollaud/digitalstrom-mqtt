@@ -52,7 +52,7 @@ variables.
 | * | MQTT_URL | MQTT url | | tcp://192.168.1.20:1883 |
 |   | MQTT_USERNAME | MQTT username |  | myUser |
 |   | MQTT_PASSWORD | MQTT password |  | 9TyVg74e5S |
-|   | MQTT_TOPIC_FORMAT | Topic format | digitalstrom/{deviceType}/{deviceName}/{channel}/{commandState} | |
+|   | MQTT_TOPIC_PREFIX | Topic prefix | digitalstrom | |
 |   | MQTT_NORMALIZE_DEVICE_NAME | Remove special chars from device name | true | |
 |   | MQTT_RETAIN | Retain MQTT messages | false | |
 |   | REFRESH_AT_START | should the states be refreshed at start | true | |
@@ -73,17 +73,33 @@ DIGITALSTROM_PASSWORD: XXX
 MQTT_URL: tcp://192.168.1.X:1883
 ```
 
-### MQTT topic format variable
+### MQTT topic format
 
-Those are the variable available for the configuration `MQTT_TOPIC_FORMAT`.
+The topic format is as follows for the devices:
+
+`{prefix}/devices/{deviceName}/{channel}/{commandState}`
+
+The topic format is as follows for the circuits:
+
+`{prefix}/circuits/{deviceName}/{channel}/state`
+
+The topic format is as follows for the scenes:
+
+`{prefix}/scenes/{zoneName}/{sceneName}/event`
+
+The server status topic is
+
+`{prefix}/server/state`
 
 | variable | description | example |
 | --- | --- | --- |
+| {prefix} |  | Defined by `MQTT_TOPIC_PREFIX` |
 | {deviceType} |  | `circuit` or `device` |
 | {deviceName} | Device or Circuit name | `light_bathroom` |
-| {deviceId} | Dsid of the device | `302de89f43f00e40000120b3` |
 | {channel} | DS channel |  |
 | {commandState} |  | `command` or `state` |
+| {zoneName} | Zone name | `bathroom` |
+| {sceneName} | Scene name | `double_press` |
 
 ## How to run
 
