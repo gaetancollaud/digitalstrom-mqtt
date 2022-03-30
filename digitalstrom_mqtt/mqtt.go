@@ -71,12 +71,6 @@ func New(config *config.Config, digitalstrom *digitalstrom.Digitalstrom) *Digita
 	}
 	opts.OnConnectionLost = connectLostHandler
 	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Panic().
-			Err(token.Error()).
-			Str("url", config.Mqtt.MqttUrl).
-			Msg("Unable to connect to the mqtt broken")
-	}
 
 	inst.client = client
 	inst.digitalstrom = digitalstrom
@@ -85,6 +79,13 @@ func New(config *config.Config, digitalstrom *digitalstrom.Digitalstrom) *Digita
 }
 
 func (dm *DigitalstromMqtt) Start() {
+	if token := dm.client.Connect(); token.Wait() && token.Error() != nil {
+		log.Panic().
+			Err(token.Error()).
+			Str("url", dm.config.MqttUrl).
+			Msg("Unable to connect to the mqtt broken")
+	}
+
 	go dm.ListenSceneEvent(dm.digitalstrom.GetSceneEventsChannel())
 	go dm.ListenForDeviceState(dm.digitalstrom.GetDeviceChangeChannel())
 	go dm.ListenForCircuitValues(dm.digitalstrom.GetCircuitChangeChannel())
