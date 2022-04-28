@@ -65,11 +65,11 @@ func New(config *config.Config, digitalstrom *digitalstrom.Digitalstrom) *Digita
 		opts.SetPassword(config.Mqtt.Password)
 	}
 	opts.SetDefaultPublishHandler(messagePubHandler)
-	opts.OnConnect = func(client mqtt.Client) {
+	opts.SetOnConnectHandler(func(client mqtt.Client) {
 		log.Info().Msg("MQTT Connected")
 		inst.subscribeToAllDevicesCommands()
-	}
-	opts.OnConnectionLost = connectLostHandler
+	})
+	opts.SetConnectionLostHandler(connectLostHandler)
 	client := mqtt.NewClient(opts)
 
 	inst.client = client
@@ -217,10 +217,10 @@ func (dm *DigitalstromMqtt) getTopic(deviceType string, deviceId string, deviceN
 		deviceName = normalizeForTopicName(deviceName)
 	}
 
-	topic += "/"+deviceType
-	topic += "/"+deviceName
-	topic += "/"+channel
-	topic += "/"+commandState
+	topic += "/" + deviceType
+	topic += "/" + deviceName
+	topic += "/" + channel
+	topic += "/" + commandState
 
 	return topic
 }
