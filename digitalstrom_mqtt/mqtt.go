@@ -58,6 +58,9 @@ func New(config *config.Config, digitalstrom *digitalstrom.Digitalstrom) *Digita
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf(config.Mqtt.MqttUrl))
 	opts.SetClientID("digitalstrom-mqtt" + clientPostfix)
+	// Set the recommended value as we don't care about the order of the
+	// messages received from the broker.
+	opts.SetOrderMatters(false)
 	if len(config.Mqtt.Username) > 0 {
 		opts.SetUsername(config.Mqtt.Username)
 	}
