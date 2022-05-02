@@ -38,7 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Info().Msg("String digitalstrom MQTT!")
+	log.Info().Msg("Starting DigitalStrom MQTT!")
 
 	ds := digitalstrom.New(config)
 	mqtt := digitalstrom_mqtt.New(config, ds)
@@ -47,10 +47,11 @@ func main() {
 	mqtt.Start()
 
 	// Subscribe for interruption happening during execution.
-	exitSignal := make(chan os.Signal)
+	exitSignal := make(chan os.Signal, 2)
 	signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
 	<-exitSignal
 
 	// Gracefulle stop the connections.
+	ds.Stop()
 	mqtt.Stop()
 }
