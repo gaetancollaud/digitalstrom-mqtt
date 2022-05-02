@@ -4,4 +4,4 @@ dist/
 tests/
 
 .env
-config.yaml
+/config.yaml

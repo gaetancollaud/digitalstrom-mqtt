@@ -19,7 +19,10 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	config := config.FromEnv()
+	config, err := config.ReadConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error found when reading the config.")
+	}
 
 	if config.LogLevel == "TRACE" {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
@@ -31,11 +34,6 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.WarnLevel)
 	} else if config.LogLevel == "ERROR" {
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	}
-
-	if config.Mqtt.TopicFormat != "deprecated" {
-		log.Fatal().Msg("MQTT_TOPIC_FORMAT is deprecated and cannot be used anymore, please use MQTT_TOPIC_PREFIX instead")
-		os.Exit(1)
 	}
 
 	log.Info().Msg("Starting DigitalStrom MQTT!")
