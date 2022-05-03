@@ -14,13 +14,11 @@ type CircuitValueChanged struct {
 }
 
 type Circuit struct {
-	Name         string
-	Dsid         string
-	HwName       string
-	HasMetering  bool
-	IsValid      bool
-	consumptionW int64
-	energyWs     int64
+	Name        string
+	Dsid        string
+	HwName      string
+	HasMetering bool
+	IsValid     bool
 }
 
 type CircuitsManager struct {
@@ -54,13 +52,11 @@ func (dm *CircuitsManager) reloadAllCircuits() {
 			m := s.(map[string]interface{})
 			if dm.supportedCircuit(m) {
 				dm.circuits = append(dm.circuits, Circuit{
-					Dsid:         m["dsid"].(string),
-					Name:         m["name"].(string),
-					HwName:       m["hwName"].(string),
-					HasMetering:  m["hasMetering"].(bool),
-					IsValid:      m["isValid"].(bool),
-					consumptionW: -1,
-					energyWs:     -1,
+					Dsid:        m["dsid"].(string),
+					Name:        m["name"].(string),
+					HwName:      m["hwName"].(string),
+					HasMetering: m["hasMetering"].(bool),
+					IsValid:     m["isValid"].(bool),
 				})
 			}
 		}
@@ -121,6 +117,4 @@ func (dm *CircuitsManager) updateValue(circuit Circuit, newConsumptionW int64, n
 		ConsumptionW: newConsumptionW,
 		EnergyWs:     newEnergyWs,
 	}
-	circuit.consumptionW = newConsumptionW
-	circuit.energyWs = newEnergyWs
 }
