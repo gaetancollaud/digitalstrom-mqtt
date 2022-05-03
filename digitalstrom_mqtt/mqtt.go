@@ -178,7 +178,7 @@ func (dm *DigitalstromMqtt) deviceReceiverHandler(deviceName string, channel str
 		Msg("MQTT message received")
 	if strings.ToLower(payloadStr) == "stop" {
 		dm.digitalstrom.SetDeviceValue(digitalstrom.DeviceCommand{
-			Action:     digitalstrom.Stop,
+			Action:     digitalstrom.CommandStop,
 			DeviceName: deviceName,
 			Channel:    channel,
 		})
@@ -186,7 +186,7 @@ func (dm *DigitalstromMqtt) deviceReceiverHandler(deviceName string, channel str
 		value, err := strconv.ParseFloat(payloadStr, 64)
 		if utils.CheckNoErrorAndPrint(err) {
 			dm.digitalstrom.SetDeviceValue(digitalstrom.DeviceCommand{
-				Action:     digitalstrom.Set,
+				Action:     digitalstrom.CommandSet,
 				DeviceName: deviceName,
 				Channel:    channel,
 				NewValue:   value,

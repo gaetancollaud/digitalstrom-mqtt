@@ -22,8 +22,8 @@ const (
 type DeviceAction string
 
 const (
-	Set  DeviceAction = "set"
-	Stop DeviceAction = "stop"
+	CommandSet  DeviceAction = "set"
+	CommandStop DeviceAction = "stop"
 )
 
 type DeviceStateChanged struct {
@@ -82,7 +82,7 @@ func (dm *DevicesManager) Start() {
 }
 
 func (dm *DevicesManager) reloadAllDevices() {
-	response, err := dm.httpClient.get("json/apartment/getDevices")
+	response, err := dm.httpClient.ApartmentGetDevices()
 	if utils.CheckNoErrorAndPrint(err) {
 		for _, s := range response.arrayValue {
 			m := s.(map[string]interface{})
@@ -160,15 +160,6 @@ func extractOutputChannels(data map[string]interface{}) []string {
 	return outputs
 }
 
-func (dm *DevicesManager) getTreeFloat(path string) (float64, error) {
-	response, err := dm.httpClient.get("json/property/getFloating?path=" + path)
-	if err == nil {
-		return response.mapValue["value"].(float64), nil
-	}
-	return 0, err
-
-}
-
 func (dm *DevicesManager) updateZone(zoneId int) {
 	for _, device := range dm.devices {
 		if device.ZoneId == zoneId && len(device.OutputChannels) > 0 {
@@ -192,7 +183,7 @@ func (dm *DevicesManager) updateDevice(device Device) {
 	// device need to be updated
 	log.Debug().Str("device", device.Name).Msg("Updating device ")
 	for _, channel := range device.OutputChannels {
-		newValue, err := dm.getTreeFloat("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
+		newValue, err := dm.httpClient.PropertyGetFloating("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
 		if err == nil {
 			dm.updateValue(device, channel, newValue)
 		} else {
@@ -269,11 +260,10 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 						Msg("Setting value ")
 
 					var err error
-					if command.Action == Stop {
-						_, err = dm.httpClient.get("json/zone/callAction?application=2&id=" + strconv.Itoa(device.ZoneId) + "&action=app.stop")
+					if command.Action == CommandStop {
+						_, err = dm.httpClient.ZoneCallAction(device.ZoneId, Stop)
 					} else {
-						strValue := strconv.Itoa(int(newValue))
-						_, err = dm.httpClient.get("json/device/setOutputChannelValue?dsid=" + device.Dsid + "&channelvalues=" + c + "=" + strValue + "&applyNow=1")
+						_, err = dm.httpClient.DeviceSetOutputChannelValue(device.Dsid, map[string]int{c: int(newValue)})
 					}
 					if utils.CheckNoErrorAndPrint(err) {
 						dm.updateValue(device, command.Channel, newValue)

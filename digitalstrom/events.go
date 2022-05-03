@@ -8,7 +8,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const SUBSCRIPTION_ID = "42"
+// TODO: Make this to be randomly generated on each run so parallel instances
+// do not reuse the same subscription ID.
+const SUBSCRIPTION_ID = 42
 
 // https://developer.digitalstrom.org/Architecture/system-interfaces.pdf#1e
 
@@ -57,10 +59,10 @@ func (em *EventsManager) Stop() {
 }
 
 func (em *EventsManager) registerSubscription() {
-	log.Info().Str("SubscriptionId", SUBSCRIPTION_ID).Msg("Registering to events")
-	em.httpClient.get("json/event/subscribe?name=" + EVENT_CALL_SCENE + "&subscriptionID=" + SUBSCRIPTION_ID)
-	em.httpClient.get("json/event/subscribe?name=" + EVENT_BUTTON_CLICK + "&subscriptionID=" + SUBSCRIPTION_ID)
-	em.httpClient.get("json/event/subscribe?name=" + EVENT_MODEL_READY + "&subscriptionID=" + SUBSCRIPTION_ID)
+	log.Info().Str("SubscriptionId", strconv.Itoa(SUBSCRIPTION_ID)).Msg("Registering to events")
+	em.httpClient.EventSubscribe(EVENT_CALL_SCENE, SUBSCRIPTION_ID)
+	em.httpClient.EventSubscribe(EVENT_BUTTON_CLICK, SUBSCRIPTION_ID)
+	em.httpClient.EventSubscribe(EVENT_MODEL_READY, SUBSCRIPTION_ID)
 }
 
 func (em *EventsManager) listeningToEvents() {
@@ -75,7 +77,7 @@ func (em *EventsManager) listeningToEvents() {
 			em.lastTokenCounter = em.httpClient.TokenManager.tokenCounter
 		}
 
-		response, err := em.httpClient.get("json/event/get?subscriptionID=" + SUBSCRIPTION_ID)
+		response, err := em.httpClient.EventGet(SUBSCRIPTION_ID)
 		if utils.CheckNoErrorAndPrint(err) {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
@@ -108,7 +110,6 @@ func (em *EventsManager) listeningToEvents() {
 				}
 			} else {
 				log.Warn().Msg("No event present")
-				time.Sleep(1000 * time.Millisecond)
 			}
 		} else {
 			time.Sleep(1000 * time.Millisecond)

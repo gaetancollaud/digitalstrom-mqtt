@@ -43,7 +43,7 @@ func (dm *CircuitsManager) Start() {
 
 func (dm *CircuitsManager) reloadAllCircuits() {
 	log.Info().Msg("Reloading circuits")
-	response, err := dm.httpClient.get("json/apartment/getCircuits")
+	response, err := dm.httpClient.ApartmentGetCircuits()
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -100,12 +100,12 @@ func (dm *CircuitsManager) UpdateCircuitsValue() {
 			consumptionW := int64(-1)
 			energyWs := int64(-1)
 
-			response, err := dm.httpClient.get("json/circuit/getConsumption?id=" + circuit.Dsid)
+			response, err := dm.httpClient.CircuitGetConsumption(circuit.Dsid)
 			if utils.CheckNoErrorAndPrint(err) {
 				consumptionW = int64(response.mapValue["consumption"].(float64))
 			}
 
-			response, err = dm.httpClient.get("json/circuit/getEnergyMeterValue?id=" + circuit.Dsid)
+			response, err = dm.httpClient.CircuitGetEnergyMeterValue(circuit.Dsid)
 			if utils.CheckNoErrorAndPrint(err) {
 				energyWs = int64(response.mapValue["meterValue"].(float64))
 			}
