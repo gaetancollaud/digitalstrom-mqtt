@@ -2,6 +2,7 @@ package digitalstrom
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -81,6 +82,10 @@ func (dm *DevicesManager) Start() {
 }
 
 func (dm *DevicesManager) reloadAllDevices() {
+	responseV2, err := dm.httpClient.ApartmentGetDevicesV2()
+	if utils.CheckNoErrorAndPrint(err) {
+		fmt.Printf("Devices: %+v", responseV2)
+	}
 	response, err := dm.httpClient.ApartmentGetDevices()
 	if utils.CheckNoErrorAndPrint(err) {
 		for _, s := range response.arrayValue {

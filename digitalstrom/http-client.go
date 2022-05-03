@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
 )
 
@@ -148,12 +149,36 @@ const (
 	Hue        ChannelType = "hue"
 )
 
-func (httpClient *HttpClient) ApartmentGetCircuits() (*DigitalStromResponse, error) {
-	return httpClient.get("json/apartment/getCircuits", url.Values{})
+func (httpClient *HttpClient) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
+	response, err := httpClient.get("json/apartment/getCircuits", url.Values{})
+	if err != nil {
+		return nil, err
+	}
+	res := new(ApartmentGetCircuitsResponse)
+	err = mapstructure.Decode(response.mapValue, &res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+	// res, ok := response.mapValue.(ApartmentGetCircuitsResponse)
 }
 
 func (httpClient *HttpClient) ApartmentGetDevices() (*DigitalStromResponse, error) {
 	return httpClient.get("json/apartment/getDevices", url.Values{})
+}
+
+func (httpClient *HttpClient) ApartmentGetDevicesV2() (*ApartmentGetDevicesResponse, error) {
+	response, err := httpClient.get("json/apartment/getDevices", url.Values{})
+	if err != nil {
+		return nil, err
+	}
+	res := new(ApartmentGetDevicesResponse)
+	err = mapstructure.Decode(response.arrayValue, &res)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding response: %w", err)
+	}
+	fmt.Printf("Devices: %+v", res)
+	return res, nil
 }
 
 func (httpClient *HttpClient) CircuitGetConsumption(dsid string) (*DigitalStromResponse, error) {

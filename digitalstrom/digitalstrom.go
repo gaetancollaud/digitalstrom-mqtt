@@ -35,7 +35,7 @@ func New(config *config.Config) *Digitalstrom {
 
 func (ds *Digitalstrom) Start() {
 	log.Info().Msg("Staring digitalstrom")
-	ds.cron.ticker = time.NewTicker(30 * time.Second)
+	ds.cron.ticker = time.NewTicker(3000 * time.Second)
 	ds.cron.tickerDone = make(chan bool)
 	go ds.digitalstromCron()
 

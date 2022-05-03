@@ -13,13 +13,13 @@ type CircuitValueChanged struct {
 	EnergyWs     int64
 }
 
-type Circuit struct {
-	Name        string
-	Dsid        string
-	HwName      string
-	HasMetering bool
-	IsValid     bool
-}
+// type Circuit struct {
+// 	Name        string
+// 	Dsid        string
+// 	HwName      string
+// 	HasMetering bool
+// 	IsValid     bool
+// }
 
 type CircuitsManager struct {
 	httpClient        *HttpClient
@@ -47,19 +47,21 @@ func (dm *CircuitsManager) reloadAllCircuits() {
 			Err(err).
 			Msg("Unable to load circuit list")
 	} else {
-		circuits := response.mapValue["circuits"].([]interface{})
-		for _, s := range circuits {
-			m := s.(map[string]interface{})
-			if dm.supportedCircuit(m) {
-				dm.circuits = append(dm.circuits, Circuit{
-					Dsid:        m["dsid"].(string),
-					Name:        m["name"].(string),
-					HwName:      m["hwName"].(string),
-					HasMetering: m["hasMetering"].(bool),
-					IsValid:     m["isValid"].(bool),
-				})
-			}
-		}
+		// circuits := response.Circuits
+		copy(dm.circuits, response.Circuits)
+		// circuits := response.mapValue["circuits"].([]interface{})
+		// for _, s := range circuits {
+		// 	m := s.(map[string]interface{})
+		// 	if dm.supportedCircuit(m) {
+		// 		dm.circuits = append(dm.circuits, Circuit{
+		// 			Dsid:        m["dsid"].(string),
+		// 			Name:        m["name"].(string),
+		// 			HwName:      m["hwName"].(string),
+		// 			HasMetering: m["hasMetering"].(bool),
+		// 			IsValid:     m["isValid"].(bool),
+		// 		})
+		// 	}
+		// }
 
 		log.Debug().
 			Str("circuits", utils.PrettyPrintArray(dm.circuits)).
