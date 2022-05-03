@@ -192,15 +192,19 @@ func (httpClient *HttpClient) ZoneCallAction(zoneId int, action Action) (*Digita
 	return httpClient.get("json/zone/callAction", params)
 }
 
-// func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int) (*DigitalStromResponse, error) {
-// }
-
 func (httpClient *HttpClient) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*DigitalStromResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
 	return httpClient.get("json/zone/sceneGetName", params)
+}
+
+func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int, groupId int) (*DigitalStromResponse, error) {
+	params := url.Values{}
+	params.Set("id", strconv.Itoa(zoneId))
+	params.Set("groupID", strconv.Itoa(groupId))
+	return httpClient.get("json/zone/getReachableScenes", params)
 }
 
 func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) (*DigitalStromResponse, error) {
