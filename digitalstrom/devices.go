@@ -2,7 +2,6 @@ package digitalstrom
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -148,7 +147,7 @@ func extractDeviceType(data map[string]interface{}) DeviceType {
 func extractOutputChannels(data map[string]interface{}) []string {
 	outputChannels := data["outputChannels"].([]interface{})
 
-	var outputs []string
+	outputs := []string{}
 
 	for _, outputChannel := range outputChannels {
 		chanObj := outputChannel.(map[string]interface{})
@@ -162,7 +161,7 @@ func extractOutputChannels(data map[string]interface{}) []string {
 
 func (dm *DevicesManager) updateZone(zoneId int) {
 	for _, device := range dm.devices {
-		if device.ZoneId == zoneId && len(device.OutputChannels) > 0 {
+		if device.ZoneId == zoneId {
 			dm.updateDevice(device)
 		}
 	}
@@ -171,7 +170,7 @@ func (dm *DevicesManager) updateZone(zoneId int) {
 func (dm *DevicesManager) updateGroup(groupId int) {
 	for _, device := range dm.devices {
 		for _, gId := range device.Groups {
-			if gId == groupId && len(device.OutputChannels) > 0 {
+			if gId == groupId {
 				log.Info().Int("Group", groupId).Str("device", device.Name).Msg("Updating device from group")
 				dm.updateDevice(device)
 			}
@@ -181,16 +180,25 @@ func (dm *DevicesManager) updateGroup(groupId int) {
 
 func (dm *DevicesManager) updateDevice(device Device) {
 	// device need to be updated
-	log.Debug().Str("device", device.Name).Msg("Updating device ")
-	for _, channel := range device.OutputChannels {
-		newValue, err := dm.httpClient.PropertyGetFloating("/apartment/zones/zone" + strconv.Itoa(device.ZoneId) + "/devices/" + device.Dsuid + "/status/outputs/" + channel + "/targetValue")
-		if err == nil {
-			dm.updateValue(device, channel, newValue)
-		} else {
-			log.Warn().
-				Str("device", device.Name).
-				Err(err).
-				Msg("Unable to update device")
+	if len(device.OutputChannels) == 0 {
+		log.Debug().Str("device", device.Name).Msg("Skipping update. No output channels.")
+		return
+	}
+	log.Debug().
+		Str("device", device.Name).
+		Str("outputChannels", strings.Join(device.OutputChannels, ";")).
+		Msg("Updating device")
+	response, err := dm.httpClient.DeviceGetOutputChannelValue(device.Dsid, device.OutputChannels)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("device", device.Name).
+			Msg("Unable to update device")
+	} else {
+		channels := response.mapValue["channels"].([]interface{})
+		for _, channel := range channels {
+			channelMap := channel.(map[string]interface{})
+			dm.updateValue(device, channelMap["channel"].(string), channelMap["value"].(float64))
 		}
 	}
 }

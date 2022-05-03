@@ -141,6 +141,13 @@ const (
 	Stop          Action = "app.stop"
 )
 
+type ChannelType string
+
+const (
+	Brightness ChannelType = "brightness"
+	Hue        ChannelType = "hue"
+)
+
 func (httpClient *HttpClient) ApartmentGetCircuits() (*DigitalStromResponse, error) {
 	return httpClient.get("json/apartment/getCircuits", url.Values{})
 }
@@ -185,6 +192,9 @@ func (httpClient *HttpClient) ZoneCallAction(zoneId int, action Action) (*Digita
 	return httpClient.get("json/zone/callAction", params)
 }
 
+// func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int) (*DigitalStromResponse, error) {
+// }
+
 func (httpClient *HttpClient) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*DigitalStromResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
@@ -203,6 +213,13 @@ func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelVa
 	params.Set("channelvalues", strings.Join(channelValuesParam, ";"))
 	params.Set("applyNow", "1")
 	return httpClient.get("json/device/setOutputChannelValue", params)
+}
+
+func (httpClient *HttpClient) DeviceGetOutputChannelValue(dsid string, channels []string) (*DigitalStromResponse, error) {
+	params := url.Values{}
+	params.Set("dsid", dsid)
+	params.Set("channels", strings.Join(channels, ";"))
+	return httpClient.get("json/device/getOutputChannelValue", params)
 }
 
 func (httpClient *HttpClient) EventSubscribe(event string, subscriptionId int) (*DigitalStromResponse, error) {
