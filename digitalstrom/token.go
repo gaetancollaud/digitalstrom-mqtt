@@ -40,7 +40,7 @@ func (tm *TokenManager) refreshToken() string {
 func (tm *TokenManager) GetToken() string {
 	// no token, or more than 50sec
 	if tm.token == "" {
-		log.Debug().Dur("last token", time.Now().Sub(tm.lastTokenTime)).Msg("Refreshing token")
+		log.Debug().Dur("last token", time.Since(tm.lastTokenTime)).Msg("Refreshing token")
 		tm.token = tm.refreshToken()
 		tm.lastTokenTime = time.Now()
 		tm.tokenCounter++
