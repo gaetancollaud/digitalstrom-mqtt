@@ -56,6 +56,10 @@ func (em *EventsManager) Start() {
 func (em *EventsManager) Stop() {
 	log.Info().Msg("Stopping events")
 	em.running = false
+	em.httpClient.EventUnsubscribe(EVENT_CALL_SCENE, SUBSCRIPTION_ID)
+	em.httpClient.EventUnsubscribe(EVENT_BUTTON_CLICK, SUBSCRIPTION_ID)
+	em.httpClient.EventUnsubscribe(EVENT_MODEL_READY, SUBSCRIPTION_ID)
+	log.Info().Str("SubscriptionId", strconv.Itoa(SUBSCRIPTION_ID)).Msg("Unregistering from events")
 }
 
 func (em *EventsManager) registerSubscription() {

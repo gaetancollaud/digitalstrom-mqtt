@@ -212,6 +212,13 @@ func (httpClient *HttpClient) EventSubscribe(event string, subscriptionId int) (
 	return httpClient.get("json/event/subscribe", params)
 }
 
+func (httpClient *HttpClient) EventUnsubscribe(event string, subscriptionId int) (*DigitalStromResponse, error) {
+	params := url.Values{}
+	params.Set("name", event)
+	params.Set("subscriptionID", strconv.Itoa(subscriptionId))
+	return httpClient.get("json/event/unsubscribe", params)
+}
+
 func (httpClient *HttpClient) EventGet(subscriptionId int) (*DigitalStromResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(subscriptionId))
