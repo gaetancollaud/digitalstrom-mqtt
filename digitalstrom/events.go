@@ -1,6 +1,7 @@
 package digitalstrom
 
 import (
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 
 // TODO: Make this to be randomly generated on each run so parallel instances
 // do not reuse the same subscription ID.
-const SUBSCRIPTION_ID = 42
+// const SUBSCRIPTION_ID = 42
 
 // https://developer.digitalstrom.org/Architecture/system-interfaces.pdf#1e
 
@@ -37,6 +38,7 @@ type EventsManager struct {
 	events           chan Event
 	running          bool
 	lastTokenCounter int
+	subscriptionId   int
 }
 
 func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
@@ -44,6 +46,10 @@ func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
 	em.httpClient = httpClient
 	em.events = make(chan Event)
 	em.lastTokenCounter = -1
+	// Random generate subscriptionId in order to not have collisions of
+	// multiple instances running at the same time.
+	rand.Seed(time.Now().UnixNano())
+	em.subscriptionId = int(rand.Int31n(1 << 20))
 	return em
 }
 
@@ -56,17 +62,17 @@ func (em *EventsManager) Start() {
 func (em *EventsManager) Stop() {
 	log.Info().Msg("Stopping events")
 	em.running = false
-	em.httpClient.EventUnsubscribe(EVENT_CALL_SCENE, SUBSCRIPTION_ID)
-	em.httpClient.EventUnsubscribe(EVENT_BUTTON_CLICK, SUBSCRIPTION_ID)
-	em.httpClient.EventUnsubscribe(EVENT_MODEL_READY, SUBSCRIPTION_ID)
-	log.Info().Str("SubscriptionId", strconv.Itoa(SUBSCRIPTION_ID)).Msg("Unregistering from events")
+	em.httpClient.EventUnsubscribe(EVENT_CALL_SCENE, em.subscriptionId)
+	em.httpClient.EventUnsubscribe(EVENT_BUTTON_CLICK, em.subscriptionId)
+	em.httpClient.EventUnsubscribe(EVENT_MODEL_READY, em.subscriptionId)
+	log.Info().Str("SubscriptionId", strconv.Itoa(em.subscriptionId)).Msg("Unregistering from events")
 }
 
 func (em *EventsManager) registerSubscription() {
-	log.Info().Str("SubscriptionId", strconv.Itoa(SUBSCRIPTION_ID)).Msg("Registering to events")
-	em.httpClient.EventSubscribe(EVENT_CALL_SCENE, SUBSCRIPTION_ID)
-	em.httpClient.EventSubscribe(EVENT_BUTTON_CLICK, SUBSCRIPTION_ID)
-	em.httpClient.EventSubscribe(EVENT_MODEL_READY, SUBSCRIPTION_ID)
+	log.Info().Str("SubscriptionId", strconv.Itoa(em.subscriptionId)).Msg("Registering to events")
+	em.httpClient.EventSubscribe(EVENT_CALL_SCENE, em.subscriptionId)
+	em.httpClient.EventSubscribe(EVENT_BUTTON_CLICK, em.subscriptionId)
+	em.httpClient.EventSubscribe(EVENT_MODEL_READY, em.subscriptionId)
 }
 
 func (em *EventsManager) listeningToEvents() {
@@ -81,7 +87,7 @@ func (em *EventsManager) listeningToEvents() {
 			em.lastTokenCounter = em.httpClient.TokenManager.tokenCounter
 		}
 
-		response, err := em.httpClient.EventGet(SUBSCRIPTION_ID)
+		response, err := em.httpClient.EventGet(em.subscriptionId)
 		if utils.CheckNoErrorAndPrint(err) {
 			if ret, ok := response.mapValue["events"]; ok {
 				events := ret.([]interface{})
