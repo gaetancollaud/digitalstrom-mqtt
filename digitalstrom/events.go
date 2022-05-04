@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,16 +21,6 @@ const EVENT_DEVICE_SENSOR_EVENT = "deviceSensorEvent"
 const EVENT_RUNNING = "running"
 const EVENT_MODEL_READY = "model_ready"
 const EVENT_DSMETER_READY = "dsMeter_ready"
-
-type Event struct {
-	ZoneId  int
-	SceneId int
-	GroupId int
-
-	IsApartment bool
-	IsDevice    bool
-	IsGroup     bool
-}
 
 type EventsManager struct {
 	httpClient       *HttpClient
@@ -87,42 +76,14 @@ func (em *EventsManager) listeningToEvents() {
 			em.lastTokenCounter = em.httpClient.TokenManager.tokenCounter
 		}
 
-		response, err := em.httpClient.EventGet(em.subscriptionId)
-		if utils.CheckNoErrorAndPrint(err) {
-			if ret, ok := response.mapValue["events"]; ok {
-				events := ret.([]interface{})
-
-				log.Trace().Str("event", utils.PrettyPrintArray(events)).Msg("Events received :")
-
-				for _, event := range events {
-					m := event.(map[string]interface{})
-					source := m["source"].(map[string]interface{})
-					properties := m["properties"].(map[string]interface{})
-					sceneId := -1
-					groupId := -1
-					if scene, ok := properties["sceneID"]; ok {
-						sceneId, err = strconv.Atoi(scene.(string))
-						utils.CheckNoErrorAndPrint(err)
-					}
-					if group, ok := properties["groupID"]; ok {
-						groupId, err = strconv.Atoi(group.(string))
-						utils.CheckNoErrorAndPrint(err)
-					}
-					eventObj := Event{
-						ZoneId:      int(source["zoneID"].(float64)),
-						GroupId:     groupId,
-						SceneId:     sceneId,
-						IsApartment: source["isApartment"].(bool),
-						IsDevice:    source["isDevice"].(bool),
-						IsGroup:     source["isGroup"].(bool),
-					}
-					em.events <- eventObj
-				}
-			} else {
-				log.Warn().Msg("No event present")
-			}
-		} else {
-			time.Sleep(1000 * time.Millisecond)
+		eventsResponse, err := em.httpClient.EventGet(em.subscriptionId)
+		if err != nil {
+			log.Error().Err(err).Msg("Error getting the event")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		for _, event := range eventsResponse.Events {
+			em.events <- event
 		}
 	}
 }

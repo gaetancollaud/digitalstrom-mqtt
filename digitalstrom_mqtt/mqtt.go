@@ -159,12 +159,12 @@ func (dm *DigitalstromMqtt) publishCircuit(changed digitalstrom.CircuitValueChan
 	//log.Info().Msg("Updating meter", changed.Circuit.Name, changed.ConsumptionW, changed.EnergyWs)
 
 	if changed.ConsumptionW != -1 {
-		topic := dm.getTopic("circuits", changed.Circuit.Dsid, changed.Circuit.Name, "consumptionW", "state")
+		topic := dm.getTopic("circuits", changed.Circuit.DsId, changed.Circuit.Name, "consumptionW", "state")
 		dm.client.Publish(topic, 0, dm.config.Retain, fmt.Sprintf("%d", changed.ConsumptionW))
 	}
 
 	if changed.EnergyWs != -1 {
-		topic := dm.getTopic("circuits", changed.Circuit.Dsid, changed.Circuit.Name, "EnergyWs", "state")
+		topic := dm.getTopic("circuits", changed.Circuit.DsId, changed.Circuit.Name, "EnergyWs", "state")
 		dm.client.Publish(topic, 0, dm.config.Retain, fmt.Sprintf("%d", changed.EnergyWs))
 	}
 }
@@ -200,9 +200,9 @@ func (dm *DigitalstromMqtt) deviceReceiverHandler(deviceName string, channel str
 func (dm *DigitalstromMqtt) subscribeToAllDevicesCommands() {
 	for _, device := range dm.digitalstrom.GetAllDevices() {
 		for _, channel := range device.OutputChannels {
-			deviceName := device.Name // deep copy
-			deviceId := device.Dsid   // deep copy
-			channelCopy := channel    // deep copy
+			deviceName := device.Name   // deep copy
+			deviceId := device.Dsid     // deep copy
+			channelCopy := channel.Name // deep copy
 			topic := dm.getTopic("devices", deviceId, deviceName, channelCopy, "command")
 			log.Trace().Str("topic", topic).Str("deviceName", deviceName).Str("channel", channelCopy).Msg("Subscribing for topic")
 			dm.client.Subscribe(topic, 0, func(client mqtt.Client, message mqtt.Message) {

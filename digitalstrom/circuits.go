@@ -1,8 +1,6 @@
 package digitalstrom
 
 import (
-	"strings"
-
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
 )
@@ -12,14 +10,6 @@ type CircuitValueChanged struct {
 	ConsumptionW int64
 	EnergyWs     int64
 }
-
-// type Circuit struct {
-// 	Name        string
-// 	Dsid        string
-// 	HwName      string
-// 	HasMetering bool
-// 	IsValid     bool
-// }
 
 type CircuitsManager struct {
 	httpClient        *HttpClient
@@ -47,49 +37,11 @@ func (dm *CircuitsManager) reloadAllCircuits() {
 			Err(err).
 			Msg("Unable to load circuit list")
 	} else {
-		// circuits := response.Circuits
-		copy(dm.circuits, response.Circuits)
-		// circuits := response.mapValue["circuits"].([]interface{})
-		// for _, s := range circuits {
-		// 	m := s.(map[string]interface{})
-		// 	if dm.supportedCircuit(m) {
-		// 		dm.circuits = append(dm.circuits, Circuit{
-		// 			Dsid:        m["dsid"].(string),
-		// 			Name:        m["name"].(string),
-		// 			HwName:      m["hwName"].(string),
-		// 			HasMetering: m["hasMetering"].(bool),
-		// 			IsValid:     m["isValid"].(bool),
-		// 		})
-		// 	}
-		// }
-
+		dm.circuits = response.Circuits
 		log.Debug().
-			Str("circuits", utils.PrettyPrintArray(dm.circuits)).
+			Str("circuits", utils.PrettyPrint(dm.circuits)).
 			Msg("Circuits loaded")
 	}
-}
-
-func (dm *CircuitsManager) supportedCircuit(m map[string]interface{}) bool {
-	name := ""
-	if m["name"] != nil {
-		name = m["name"].(string)
-	}
-	if len(strings.TrimSpace(name)) == 0 {
-		log.Warn().Msg("Circuit not supported because it has no name. Enable debug to see the complete devices")
-		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Circuit not supported because it has no name")
-		return false
-	}
-	if m["dsid"] == nil || len(m["dsid"].(string)) == 0 {
-		log.Info().Str("name", name).Msg("Circuit not supported because it has no dsid. Enable debug to see the complete devices")
-		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Circuit not supported because it has no dsid")
-		return false
-	}
-	if !m["isValid"].(bool) {
-		log.Info().Str("name", name).Msg("Circuit is not valid. Enable debug to see the complete devices")
-		log.Debug().Str("device", utils.PrettyPrintMap(m)).Msg("Circuit is not valid")
-		return false
-	}
-	return true
 }
 
 func (dm *CircuitsManager) UpdateCircuitsValue() {
@@ -98,14 +50,14 @@ func (dm *CircuitsManager) UpdateCircuitsValue() {
 			consumptionW := int64(-1)
 			energyWs := int64(-1)
 
-			response, err := dm.httpClient.CircuitGetConsumption(circuit.Dsid)
+			powerResponse, err := dm.httpClient.CircuitGetConsumption(circuit.DsId)
 			if utils.CheckNoErrorAndPrint(err) {
-				consumptionW = int64(response.mapValue["consumption"].(float64))
+				consumptionW = int64(powerResponse.Consumption)
 			}
 
-			response, err = dm.httpClient.CircuitGetEnergyMeterValue(circuit.Dsid)
+			energyResponse, err := dm.httpClient.CircuitGetEnergyMeterValue(circuit.DsId)
 			if utils.CheckNoErrorAndPrint(err) {
-				energyWs = int64(response.mapValue["meterValue"].(float64))
+				energyWs = int64(energyResponse.MeterValue)
 			}
 
 			dm.updateValue(circuit, consumptionW, energyWs)

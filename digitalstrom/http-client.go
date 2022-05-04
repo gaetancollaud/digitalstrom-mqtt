@@ -25,13 +25,6 @@ type HttpClient struct {
 	TokenManager *TokenManager
 }
 
-type DigitalStromResponse struct {
-	isMap      bool
-	mapValue   map[string]interface{}
-	isArray    bool
-	arrayValue []interface{}
-}
-
 func NewHttpClient(config *config.ConfigDigitalstrom) *HttpClient {
 	httpClient := new(HttpClient)
 	httpClient.client = &http.Client{
@@ -46,11 +39,11 @@ func NewHttpClient(config *config.ConfigDigitalstrom) *HttpClient {
 	return httpClient
 }
 
-func (httpClient *HttpClient) get(path string, params url.Values) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) getRequestWithToken(path string, params url.Values) (interface{}, error) {
 	for i := 1; i <= MAX_RETRIES; i++ {
 		token := httpClient.TokenManager.GetToken()
 		params.Set("token", token)
-		response, err := httpClient.getWithoutToken(path + "?" + params.Encode())
+		response, err := httpClient.getRequest(path, params)
 		if err == nil {
 			return response, err
 		} else {
@@ -69,8 +62,11 @@ func (httpClient *HttpClient) get(path string, params url.Values) (*DigitalStrom
 	return nil, errors.New("unable to refresh token after " + strconv.Itoa(MAX_RETRIES) + " retries")
 }
 
-func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromResponse, error) {
-	url := "https://" + httpClient.config.Host + ":" + strconv.Itoa(httpClient.config.Port) + "/" + path
+func (httpClient *HttpClient) getRequest(path string, params url.Values) (interface{}, error) {
+	url := "https://" + httpClient.config.Host +
+		":" + strconv.Itoa(httpClient.config.Port) +
+		"/" + path +
+		"?" + params.Encode()
 
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -108,25 +104,33 @@ func (httpClient *HttpClient) getWithoutToken(path string) (*DigitalStromRespons
 	}
 
 	if val, ok := jsonValue["result"]; ok {
-		res := new(DigitalStromResponse)
-		mapValue, ok := val.(map[string]interface{})
-		if ok {
-			res.isMap = true
-			res.isArray = false
-			res.mapValue = mapValue
-			return res, nil
-		}
-		arrayValue, ok := val.([]interface{})
-		if ok {
-			res.isMap = false
-			res.isArray = true
-			res.arrayValue = arrayValue
-			return res, nil
-		}
-		return nil, errors.New("unknown return type")
+		return val, nil
 	}
-	// no value returned
 	return nil, nil
+}
+
+func wrapApiResponse[T any](response interface{}, err error) (*T, error) {
+	// Handle original error coming from the response.
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode the response into the given struct type.
+	res := new(T)
+	config := &mapstructure.DecoderConfig{
+		Metadata:         nil,
+		Result:           res,
+		WeaklyTypedInput: true,
+		ErrorUnset:       true,
+	}
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return nil, fmt.Errorf("error building decored: %w", err)
+	}
+	if err = decoder.Decode(response); err != nil {
+		return nil, fmt.Errorf("error decoding response: %w", err)
+	}
+	return res, nil
 }
 
 // Methods for the specific endpoints called in DigitalStrom API.
@@ -149,90 +153,79 @@ const (
 	Hue        ChannelType = "hue"
 )
 
+func (httpClient *HttpClient) SystemLogin(user string, password string) (*TokenResponse, error) {
+	params := url.Values{}
+	params.Set("user", user)
+	params.Set("password", password)
+	response, err := httpClient.getRequest("json/system/login", params)
+	return wrapApiResponse[TokenResponse](response, err)
+}
+
 func (httpClient *HttpClient) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
-	response, err := httpClient.get("json/apartment/getCircuits", url.Values{})
-	if err != nil {
-		return nil, err
-	}
-	res := new(ApartmentGetCircuitsResponse)
-	err = mapstructure.Decode(response.mapValue, &res)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-	// res, ok := response.mapValue.(ApartmentGetCircuitsResponse)
+	response, err := httpClient.getRequestWithToken("json/apartment/getCircuits", url.Values{})
+	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
 }
 
-func (httpClient *HttpClient) ApartmentGetDevices() (*DigitalStromResponse, error) {
-	return httpClient.get("json/apartment/getDevices", url.Values{})
+func (httpClient *HttpClient) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
+	response, err := httpClient.getRequestWithToken("json/apartment/getDevices", url.Values{})
+	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
 }
 
-func (httpClient *HttpClient) ApartmentGetDevicesV2() (*ApartmentGetDevicesResponse, error) {
-	response, err := httpClient.get("json/apartment/getDevices", url.Values{})
-	if err != nil {
-		return nil, err
-	}
-	res := new(ApartmentGetDevicesResponse)
-	err = mapstructure.Decode(response.arrayValue, &res)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding response: %w", err)
-	}
-	fmt.Printf("Devices: %+v", res)
-	return res, nil
-}
-
-func (httpClient *HttpClient) CircuitGetConsumption(dsid string) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
-	return httpClient.get("json/circuit/getConsumption", params)
+	response, err := httpClient.getRequestWithToken("json/circuit/getConsumption", params)
+	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
 }
 
-func (httpClient *HttpClient) CircuitGetEnergyMeterValue(dsid string) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
-	return httpClient.get("json/circuit/getEnergyMeterValue", params)
+	response, err := httpClient.getRequestWithToken("json/circuit/getEnergyMeterValue", params)
+	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
 }
 
-func (httpClient *HttpClient) PropertyGetFloating(path string) (float64, error) {
+func (httpClient *HttpClient) PropertyGetFloating(path string) (*FloatValue, error) {
 	params := url.Values{}
 	params.Set("path", path)
-	response, err := httpClient.get("json/property/getFloating", params)
-	if err != nil {
-		return 0, fmt.Errorf("error calling GetTreeFloat: %w", err)
-	}
-	return response.mapValue["value"].(float64), nil
+	response, err := httpClient.getRequestWithToken("json/property/getFloating", params)
+	return wrapApiResponse[FloatValue](response, err)
 }
 
-func (httpClient *HttpClient) ZoneGetName(zoneId int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) ZoneGetName(zoneId int) (*ZoneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
-	return httpClient.get("json/zone/getName", params)
+	response, err := httpClient.getRequestWithToken("json/zone/getName", params)
+	return wrapApiResponse[ZoneGetNameResponse](response, err)
 }
 
-func (httpClient *HttpClient) ZoneCallAction(zoneId int, action Action) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) ZoneCallAction(zoneId int, action Action) error {
 	params := url.Values{}
 	params.Set("application", "2")
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("action", string(action))
-	return httpClient.get("json/zone/callAction", params)
+	_, err := httpClient.getRequestWithToken("json/zone/callAction", params)
+	return err
 }
 
-func (httpClient *HttpClient) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
-	return httpClient.get("json/zone/sceneGetName", params)
+	response, err := httpClient.getRequestWithToken("json/zone/sceneGetName", params)
+	return wrapApiResponse[ZoneSceneGetNameResponse](response, err)
 }
 
-func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int, groupId int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
-	return httpClient.get("json/zone/getReachableScenes", params)
+	response, err := httpClient.getRequestWithToken("json/zone/getReachableScenes", params)
+	return wrapApiResponse[ZoneGetReachableScenesResponse](response, err)
 }
 
-func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error {
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	var channelValuesParam []string
@@ -241,32 +234,37 @@ func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelVa
 	}
 	params.Set("channelvalues", strings.Join(channelValuesParam, ";"))
 	params.Set("applyNow", "1")
-	return httpClient.get("json/device/setOutputChannelValue", params)
+	_, err := httpClient.getRequestWithToken("json/device/setOutputChannelValue", params)
+	return err
 }
 
-func (httpClient *HttpClient) DeviceGetOutputChannelValue(dsid string, channels []string) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	params.Set("channels", strings.Join(channels, ";"))
-	return httpClient.get("json/device/getOutputChannelValue", params)
+	response, err := httpClient.getRequestWithToken("json/device/getOutputChannelValue", params)
+	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
 }
 
-func (httpClient *HttpClient) EventSubscribe(event string, subscriptionId int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) EventSubscribe(event string, subscriptionId int) error {
 	params := url.Values{}
 	params.Set("name", event)
 	params.Set("subscriptionID", strconv.Itoa(subscriptionId))
-	return httpClient.get("json/event/subscribe", params)
+	_, err := httpClient.getRequestWithToken("json/event/subscribe", params)
+	return err
 }
 
-func (httpClient *HttpClient) EventUnsubscribe(event string, subscriptionId int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) EventUnsubscribe(event string, subscriptionId int) error {
 	params := url.Values{}
 	params.Set("name", event)
 	params.Set("subscriptionID", strconv.Itoa(subscriptionId))
-	return httpClient.get("json/event/unsubscribe", params)
+	_, err := httpClient.getRequestWithToken("json/event/unsubscribe", params)
+	return err
 }
 
-func (httpClient *HttpClient) EventGet(subscriptionId int) (*DigitalStromResponse, error) {
+func (httpClient *HttpClient) EventGet(subscriptionId int) (*EventGetResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(subscriptionId))
-	return httpClient.get("json/event/get", params)
+	response, err := httpClient.getRequestWithToken("json/event/get", params)
+	return wrapApiResponse[EventGetResponse](response, err)
 }

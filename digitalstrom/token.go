@@ -24,17 +24,14 @@ func NewTokenManager(config *config.ConfigDigitalstrom, httpClient *HttpClient) 
 }
 
 func (tm *TokenManager) refreshToken() string {
-	response, err := tm.httpClient.getWithoutToken("json/system/login?user=" + tm.config.Username + "&password=" + tm.config.Password)
+	response, err := tm.httpClient.SystemLogin(tm.config.Username, tm.config.Password)
 
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to refresh token, will wait a bit for next retry")
 		time.Sleep(2 * time.Second)
+		return ""
 	}
-
-	if response.isMap {
-		return response.mapValue["token"].(string)
-	}
-	return ""
+	return response.Token
 }
 
 func (tm *TokenManager) GetToken() string {

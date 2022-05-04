@@ -70,8 +70,8 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 	if device.Name == "" {
 		return nil, fmt.Errorf("empty device name, skipping discovery message")
 	}
-	if (device.DeviceType != digitalstrom.Light) && (device.DeviceType != digitalstrom.Blind) {
-		return nil, fmt.Errorf("device type not supported %s", device.DeviceType)
+	if (device.DeviceType() != digitalstrom.Light) && (device.DeviceType() != digitalstrom.Blind) {
+		return nil, fmt.Errorf("device type not supported %s", device.DeviceType())
 	}
 	deviceConfig := map[string]interface{}{
 		"configuration_url": "https://" + hass.config.DigitalStromHost,
@@ -89,7 +89,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 	}
 	var message map[string]interface{}
 	var topic string
-	if device.DeviceType == digitalstrom.Light {
+	if device.DeviceType() == digitalstrom.Light {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/light.mqtt/
 		nodeId := "light"
@@ -107,36 +107,36 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				device.OutputChannels[0].Name,
 				"command"),
 			"state_topic": hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				device.OutputChannels[0].Name,
 				"state"),
 			"payload_on":  "100.00",
 			"payload_off": "0.00",
 			"qos":         0,
 		}
-		if device.Properties.Dimmable {
+		if device.Properties().Dimmable {
 			message["on_command_type"] = "brightness"
 			message["brightness_scale"] = 100
 			message["brightness_state_topic"] = hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				device.OutputChannels[0].Name,
 				"state")
 			message["brightness_command_topic"] = hass.mqtt.getTopic(
 				"devices",
 				device.Dsid,
 				device.Name,
-				device.OutputChannels[0],
+				device.OutputChannels[0].Name,
 				"command")
 
 		}
-	} else if device.DeviceType == digitalstrom.Blind {
+	} else if device.DeviceType() == digitalstrom.Blind {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/cover.mqtt/
 
@@ -147,7 +147,8 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 		// action.
 		positionChannel := ""
 		tiltChannel := ""
-		for _, channelName := range device.OutputChannels {
+		for _, channel := range device.OutputChannels {
+			channelName := channel.Name
 			if strings.Contains(channelName, "Angle") {
 				tiltChannel = channelName
 			}
@@ -240,7 +241,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit digitalstrom.Circuit) ([]HassDiscoveryMessage, error) {
 	deviceConfig := map[string]interface{}{
 		"configuration_url": "https://" + hass.config.DigitalStromHost,
-		"identifiers":       []interface{}{circuit.Dsid},
+		"identifiers":       []interface{}{circuit.DsId},
 		"manufacturer":      "DigitalStrom",
 		"model":             circuit.HwName,
 		"name":              circuit.Name,
@@ -257,17 +258,17 @@ func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit di
 	// Define sensor for power consumption. This is a straightforward
 	// definition.
 	powerNodeId := "power"
-	powerTopic := hass.discoveryTopic(Sensor, circuit.Dsid, powerNodeId)
+	powerTopic := hass.discoveryTopic(Sensor, circuit.DsId, powerNodeId)
 	powerMessage := map[string]interface{}{
 		"device":            deviceConfig,
 		"name":              "Power " + circuit.Name,
-		"unique_id":         circuit.Dsid + "_" + powerNodeId,
+		"unique_id":         circuit.DsId + "_" + powerNodeId,
 		"retain":            hass.config.Retain,
 		"availability":      availability,
 		"availability_mode": "all",
 		"state_topic": hass.mqtt.getTopic(
 			"circuits",
-			circuit.Dsid,
+			circuit.DsId,
 			circuit.Name,
 			"consumptionW",
 			"state"),
@@ -282,17 +283,17 @@ func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit di
 	// MQTT topic, to kWh which is the default unit of measurement of energy in
 	// Home Assistant.
 	energyNodeId := "power"
-	energyTopic := hass.discoveryTopic(Sensor, circuit.Dsid, energyNodeId)
+	energyTopic := hass.discoveryTopic(Sensor, circuit.DsId, energyNodeId)
 	energyMessage := map[string]interface{}{
 		"device":            deviceConfig,
 		"name":              "Energy " + circuit.Name,
-		"unique_id":         circuit.Dsid + "_" + energyNodeId,
+		"unique_id":         circuit.DsId + "_" + energyNodeId,
 		"retain":            hass.config.Retain,
 		"availability":      availability,
 		"availability_mode": "all",
 		"state_topic": hass.mqtt.getTopic(
 			"circuits",
-			circuit.Dsid,
+			circuit.DsId,
 			circuit.Name,
 			"EnergyWs",
 			"state"),

@@ -35,7 +35,7 @@ func New(config *config.Config) *Digitalstrom {
 
 func (ds *Digitalstrom) Start() {
 	log.Info().Msg("Staring digitalstrom")
-	ds.cron.ticker = time.NewTicker(3000 * time.Second)
+	ds.cron.ticker = time.NewTicker(30 * time.Second)
 	ds.cron.tickerDone = make(chan bool)
 	go ds.digitalstromCron()
 
@@ -77,29 +77,29 @@ func (ds *Digitalstrom) digitalstromCron() {
 func (ds *Digitalstrom) eventReceived(events chan Event) {
 	for event := range events {
 		log.Info().
-			Int("SceneId", event.SceneId).
-			Int("GroupId", event.GroupId).
-			Int("ZoneId", event.ZoneId).
-			Bool("isApartment", event.IsApartment).
-			Bool("isDevice", event.IsDevice).
-			Bool("isGroup", event.IsGroup).
+			Int("SceneId", event.Properties.SceneId).
+			Int("GroupId", event.Properties.GroupId).
+			Int("ZoneId", event.Properties.ZoneId).
+			Bool("isApartment", event.Source.IsApartment).
+			Bool("isDevice", event.Source.IsDevice).
+			Bool("isGroup", event.Source.IsGroup).
 			Msg("Event received, updating devices")
 
 		ds.sceneManager.EventReceived(event)
 
-		ds.devicesManager.updateZone(event.ZoneId)
+		ds.devicesManager.updateZone(event.Properties.ZoneId)
 
-		if event.IsGroup && event.GroupId >= 10 {
+		if event.Source.IsGroup && event.Properties.GroupId >= 10 {
 			// event is from a group, and it's not a build in groups
-			ds.devicesManager.updateGroup(event.GroupId)
+			ds.devicesManager.updateGroup(event.Properties.GroupId)
 		}
 
 		time.AfterFunc(2*time.Second, func() {
 			// update again because maybe the three was not up to date yet
-			ds.devicesManager.updateZone(event.ZoneId)
+			ds.devicesManager.updateZone(event.Properties.ZoneId)
 
-			if event.IsGroup && event.GroupId >= 10 {
-				ds.devicesManager.updateGroup(event.GroupId)
+			if event.Source.IsGroup && event.Properties.GroupId >= 10 {
+				ds.devicesManager.updateGroup(event.Properties.GroupId)
 			}
 		})
 	}

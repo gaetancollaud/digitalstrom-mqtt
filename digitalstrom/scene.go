@@ -48,7 +48,7 @@ func (sm *SceneManager) getZoneName(zoneId int) (string, error) {
 	} else {
 		response, err := sm.httpClient.ZoneGetName(zoneId)
 		if utils.CheckNoErrorAndPrint(err) {
-			name = response.mapValue["name"].(string)
+			name = response.Name
 			if len(name) == 0 {
 				name = "unnamed-zone-" + strconv.Itoa(zoneId)
 			}
@@ -74,7 +74,7 @@ func (sm *SceneManager) getSceneName(zoneId int, groupId int, sceneId int) (stri
 	} else {
 		response, err := sm.httpClient.ZoneSceneGetName(zoneId, groupId, sceneId)
 		if utils.CheckNoErrorAndPrint(err) {
-			name = response.mapValue["name"].(string)
+			name = response.Name
 			if len(name) == 0 {
 				name = "unnamed-scene-" + strconv.Itoa(sceneId)
 			}
@@ -86,16 +86,16 @@ func (sm *SceneManager) getSceneName(zoneId int, groupId int, sceneId int) (stri
 }
 
 func (sm *SceneManager) EventReceived(event Event) {
-	log.Debug().Int("zoneId", event.ZoneId).Int("sceneId", event.SceneId).Msg("New scene event")
-	zoneName, errZone := sm.getZoneName(event.ZoneId)
-	sceneName, errScene := sm.getSceneName(event.ZoneId, event.GroupId, event.SceneId)
+	log.Debug().Int("zoneId", event.Properties.ZoneId).Int("sceneId", event.Properties.SceneId).Msg("New scene event")
+	zoneName, errZone := sm.getZoneName(event.Properties.ZoneId)
+	sceneName, errScene := sm.getSceneName(event.Properties.ZoneId, event.Properties.GroupId, event.Properties.SceneId)
 	if errZone == nil && errScene == nil {
 		sceneEvent := SceneEvent{
-			ZoneId:    event.ZoneId,
+			ZoneId:    event.Properties.ZoneId,
 			ZoneName:  zoneName,
-			GroupId:   event.GroupId,
-			GroupName: sm.getGroupName(event.GroupId),
-			SceneId:   event.SceneId,
+			GroupId:   event.Properties.GroupId,
+			GroupName: sm.getGroupName(event.Properties.GroupId),
+			SceneId:   event.Properties.SceneId,
 			SceneName: sceneName,
 		}
 		sm.sceneEvent <- sceneEvent
