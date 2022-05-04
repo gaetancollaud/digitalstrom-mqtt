@@ -1,4 +1,4 @@
-package digitalstrom
+package client
 
 import (
 	"crypto/tls"
@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
 )
@@ -135,71 +136,53 @@ func wrapApiResponse[T any](response interface{}, err error) (*T, error) {
 
 // Methods for the specific endpoints called in DigitalStrom API.
 
-type Action string
-
-const (
-	MoveUp        Action = "app.moveUp"
-	MoveDown      Action = "app.moveDown"
-	StepUp        Action = "app.stepUp"
-	StepDown      Action = "app.stepDown"
-	SunProtection Action = "app.sunProtection"
-	Stop          Action = "app.stop"
-)
-
-type ChannelType string
-
-const (
-	Brightness ChannelType = "brightness"
-	Hue        ChannelType = "hue"
-)
-
-func (httpClient *HttpClient) SystemLogin(user string, password string) (*TokenResponse, error) {
+func (httpClient *HttpClient) SystemLogin(user string, password string) (*api.TokenResponse, error) {
 	params := url.Values{}
 	params.Set("user", user)
 	params.Set("password", password)
 	response, err := httpClient.getRequest("json/system/login", params)
-	return wrapApiResponse[TokenResponse](response, err)
+	return wrapApiResponse[api.TokenResponse](response, err)
 }
 
-func (httpClient *HttpClient) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
+func (httpClient *HttpClient) ApartmentGetCircuits() (*api.ApartmentGetCircuitsResponse, error) {
 	response, err := httpClient.getRequestWithToken("json/apartment/getCircuits", url.Values{})
-	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
+	return wrapApiResponse[api.ApartmentGetCircuitsResponse](response, err)
 }
 
-func (httpClient *HttpClient) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
+func (httpClient *HttpClient) ApartmentGetDevices() (*api.ApartmentGetDevicesResponse, error) {
 	response, err := httpClient.getRequestWithToken("json/apartment/getDevices", url.Values{})
-	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
+	return wrapApiResponse[api.ApartmentGetDevicesResponse](response, err)
 }
 
-func (httpClient *HttpClient) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
+func (httpClient *HttpClient) CircuitGetConsumption(dsid string) (*api.CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
 	response, err := httpClient.getRequestWithToken("json/circuit/getConsumption", params)
-	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
+	return wrapApiResponse[api.CircuitGetConsumptionResponse](response, err)
 }
 
-func (httpClient *HttpClient) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
+func (httpClient *HttpClient) CircuitGetEnergyMeterValue(dsid string) (*api.CircuitGetEnergyMeterValueResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
 	response, err := httpClient.getRequestWithToken("json/circuit/getEnergyMeterValue", params)
-	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
+	return wrapApiResponse[api.CircuitGetEnergyMeterValueResponse](response, err)
 }
 
-func (httpClient *HttpClient) PropertyGetFloating(path string) (*FloatValue, error) {
+func (httpClient *HttpClient) PropertyGetFloating(path string) (*api.FloatValue, error) {
 	params := url.Values{}
 	params.Set("path", path)
 	response, err := httpClient.getRequestWithToken("json/property/getFloating", params)
-	return wrapApiResponse[FloatValue](response, err)
+	return wrapApiResponse[api.FloatValue](response, err)
 }
 
-func (httpClient *HttpClient) ZoneGetName(zoneId int) (*ZoneGetNameResponse, error) {
+func (httpClient *HttpClient) ZoneGetName(zoneId int) (*api.ZoneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	response, err := httpClient.getRequestWithToken("json/zone/getName", params)
-	return wrapApiResponse[ZoneGetNameResponse](response, err)
+	return wrapApiResponse[api.ZoneGetNameResponse](response, err)
 }
 
-func (httpClient *HttpClient) ZoneCallAction(zoneId int, action Action) error {
+func (httpClient *HttpClient) ZoneCallAction(zoneId int, action api.Action) error {
 	params := url.Values{}
 	params.Set("application", "2")
 	params.Set("id", strconv.Itoa(zoneId))
@@ -208,21 +191,21 @@ func (httpClient *HttpClient) ZoneCallAction(zoneId int, action Action) error {
 	return err
 }
 
-func (httpClient *HttpClient) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error) {
+func (httpClient *HttpClient) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*api.ZoneSceneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
 	response, err := httpClient.getRequestWithToken("json/zone/sceneGetName", params)
-	return wrapApiResponse[ZoneSceneGetNameResponse](response, err)
+	return wrapApiResponse[api.ZoneSceneGetNameResponse](response, err)
 }
 
-func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error) {
+func (httpClient *HttpClient) ZoneGetReachableScenes(zoneId int, groupId int) (*api.ZoneGetReachableScenesResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	response, err := httpClient.getRequestWithToken("json/zone/getReachableScenes", params)
-	return wrapApiResponse[ZoneGetReachableScenesResponse](response, err)
+	return wrapApiResponse[api.ZoneGetReachableScenesResponse](response, err)
 }
 
 func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error {
@@ -238,12 +221,12 @@ func (httpClient *HttpClient) DeviceSetOutputChannelValue(dsid string, channelVa
 	return err
 }
 
-func (httpClient *HttpClient) DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error) {
+func (httpClient *HttpClient) DeviceGetOutputChannelValue(dsid string, channels []string) (*api.DeviceGetOutputChannelValueResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	params.Set("channels", strings.Join(channels, ";"))
 	response, err := httpClient.getRequestWithToken("json/device/getOutputChannelValue", params)
-	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
+	return wrapApiResponse[api.DeviceGetOutputChannelValueResponse](response, err)
 }
 
 func (httpClient *HttpClient) EventSubscribe(event string, subscriptionId int) error {
@@ -262,9 +245,9 @@ func (httpClient *HttpClient) EventUnsubscribe(event string, subscriptionId int)
 	return err
 }
 
-func (httpClient *HttpClient) EventGet(subscriptionId int) (*EventGetResponse, error) {
+func (httpClient *HttpClient) EventGet(subscriptionId int) (*api.EventGetResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(subscriptionId))
 	response, err := httpClient.getRequestWithToken("json/event/get", params)
-	return wrapApiResponse[EventGetResponse](response, err)
+	return wrapApiResponse[api.EventGetResponse](response, err)
 }

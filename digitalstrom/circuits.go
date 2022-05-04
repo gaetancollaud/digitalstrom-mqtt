@@ -1,23 +1,25 @@
 package digitalstrom
 
 import (
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
 )
 
 type CircuitValueChanged struct {
-	Circuit      Circuit
+	Circuit      api.Circuit
 	ConsumptionW int64
 	EnergyWs     int64
 }
 
 type CircuitsManager struct {
-	httpClient        *HttpClient
-	circuits          []Circuit
+	httpClient        *client.HttpClient
+	circuits          []api.Circuit
 	circuitValuesChan chan CircuitValueChanged
 }
 
-func NewCircuitManager(httpClient *HttpClient) *CircuitsManager {
+func NewCircuitManager(httpClient *client.HttpClient) *CircuitsManager {
 	dm := new(CircuitsManager)
 	dm.httpClient = httpClient
 	dm.circuitValuesChan = make(chan CircuitValueChanged)
@@ -65,7 +67,7 @@ func (dm *CircuitsManager) UpdateCircuitsValue() {
 	}
 }
 
-func (dm *CircuitsManager) updateValue(circuit Circuit, newConsumptionW int64, newEnergyWs int64) {
+func (dm *CircuitsManager) updateValue(circuit api.Circuit, newConsumptionW int64, newEnergyWs int64) {
 	dm.circuitValuesChan <- CircuitValueChanged{
 		Circuit:      circuit,
 		ConsumptionW: newConsumptionW,

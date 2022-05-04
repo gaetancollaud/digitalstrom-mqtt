@@ -4,13 +4,15 @@ import (
 	"time"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/rs/zerolog/log"
 )
 
 type Digitalstrom struct {
 	config         *config.Config
 	cron           DigitalstromCron
-	httpClient     *HttpClient
+	httpClient     *client.HttpClient
 	eventsManager  *EventsManager
 	devicesManager *DevicesManager
 	circuitManager *CircuitsManager
@@ -25,7 +27,7 @@ type DigitalstromCron struct {
 func New(config *config.Config) *Digitalstrom {
 	ds := new(Digitalstrom)
 	ds.config = config
-	ds.httpClient = NewHttpClient(&config.Digitalstrom)
+	ds.httpClient = client.NewHttpClient(&config.Digitalstrom)
 	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
 	ds.devicesManager = NewDevicesManager(ds.httpClient, config.InvertBlindsPosition)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
@@ -74,7 +76,7 @@ func (ds *Digitalstrom) digitalstromCron() {
 	}
 }
 
-func (ds *Digitalstrom) eventReceived(events chan Event) {
+func (ds *Digitalstrom) eventReceived(events chan api.Event) {
 	for event := range events {
 		log.Info().
 			Int("SceneId", event.Properties.SceneId).
@@ -130,10 +132,10 @@ func (ds *Digitalstrom) refreshAllDevices() {
 	}
 }
 
-func (ds *Digitalstrom) GetAllDevices() []Device {
+func (ds *Digitalstrom) GetAllDevices() []api.Device {
 	return ds.devicesManager.devices
 }
 
-func (ds *Digitalstrom) GetAllCircuits() []Circuit {
+func (ds *Digitalstrom) GetAllCircuits() []api.Circuit {
 	return ds.circuitManager.circuits
 }

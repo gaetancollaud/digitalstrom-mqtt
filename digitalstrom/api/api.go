@@ -1,6 +1,33 @@
-package digitalstrom
+package api
 
 import "strings"
+
+type DeviceType string
+
+const (
+	Light   DeviceType = "GE"
+	Blind   DeviceType = "GR"
+	Joker   DeviceType = "SW"
+	Unknown DeviceType = "Unknown"
+)
+
+type Action string
+
+const (
+	MoveUp        Action = "app.moveUp"
+	MoveDown      Action = "app.moveDown"
+	StepUp        Action = "app.stepUp"
+	StepDown      Action = "app.stepDown"
+	SunProtection Action = "app.sunProtection"
+	Stop          Action = "app.stop"
+)
+
+type ChannelType string
+
+const (
+	Brightness ChannelType = "brightness"
+	Hue        ChannelType = "hue"
+)
 
 // A Device is the smallest entity represented in the DigitalStrom system and
 // represents a input/output physical device that can receive human input

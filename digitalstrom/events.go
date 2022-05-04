@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/rs/zerolog/log"
 )
 
@@ -23,17 +25,17 @@ const EVENT_MODEL_READY = "model_ready"
 const EVENT_DSMETER_READY = "dsMeter_ready"
 
 type EventsManager struct {
-	httpClient       *HttpClient
-	events           chan Event
+	httpClient       *client.HttpClient
+	events           chan api.Event
 	running          bool
 	lastTokenCounter int
 	subscriptionId   int
 }
 
-func NewDigitalstromEvents(httpClient *HttpClient) *EventsManager {
+func NewDigitalstromEvents(httpClient *client.HttpClient) *EventsManager {
 	em := new(EventsManager)
 	em.httpClient = httpClient
-	em.events = make(chan Event)
+	em.events = make(chan api.Event)
 	em.lastTokenCounter = -1
 	// Random generate subscriptionId in order to not have collisions of
 	// multiple instances running at the same time.
@@ -70,10 +72,10 @@ func (em *EventsManager) listeningToEvents() {
 			return
 		}
 
-		if em.lastTokenCounter < em.httpClient.TokenManager.tokenCounter {
+		if em.lastTokenCounter < em.httpClient.TokenManager.TokenCounter {
 			// new token ? so new subscription
 			em.registerSubscription()
-			em.lastTokenCounter = em.httpClient.TokenManager.tokenCounter
+			em.lastTokenCounter = em.httpClient.TokenManager.TokenCounter
 		}
 
 		eventsResponse, err := em.httpClient.EventGet(em.subscriptionId)

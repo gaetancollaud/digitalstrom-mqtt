@@ -6,17 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
-)
-
-type DeviceType string
-
-const (
-	Light   DeviceType = "GE"
-	Blind   DeviceType = "GR"
-	Joker   DeviceType = "SW"
-	Unknown DeviceType = "Unknown"
 )
 
 type DeviceAction string
@@ -27,7 +20,7 @@ const (
 )
 
 type DeviceStateChanged struct {
-	Device   Device
+	Device   api.Device
 	Channel  string
 	NewValue float64
 }
@@ -40,14 +33,14 @@ type DeviceCommand struct {
 }
 
 type DevicesManager struct {
-	httpClient           *HttpClient
+	httpClient           *client.HttpClient
 	invertBlindsPosition bool
-	devices              []Device
+	devices              []api.Device
 	deviceStateChan      chan DeviceStateChanged
 	lastDeviceCommand    time.Time
 }
 
-func NewDevicesManager(httpClient *HttpClient, invertBlindsPosition bool) *DevicesManager {
+func NewDevicesManager(httpClient *client.HttpClient, invertBlindsPosition bool) *DevicesManager {
 	dm := new(DevicesManager)
 	dm.httpClient = httpClient
 	dm.invertBlindsPosition = invertBlindsPosition
@@ -100,7 +93,7 @@ func (dm *DevicesManager) updateGroup(groupId int) {
 	}
 }
 
-func (dm *DevicesManager) updateDevice(device Device) {
+func (dm *DevicesManager) updateDevice(device api.Device) {
 	// device need to be updated
 	if len(device.OutputChannels) == 0 {
 		log.Debug().Str("device", device.Name).Msg("Skipping update. No output channels.")
@@ -124,7 +117,7 @@ func (dm *DevicesManager) updateDevice(device Device) {
 	}
 }
 
-func (dm *DevicesManager) updateValue(device Device, channel string, newValue float64) {
+func (dm *DevicesManager) updateValue(device api.Device, channel string, newValue float64) {
 	newValue = dm.invertValueIfNeeded(channel, newValue)
 
 	// Always send new updated value to the channel. If the current value is not
@@ -168,7 +161,7 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 
 					var err error
 					if command.Action == CommandStop {
-						err = dm.httpClient.ZoneCallAction(device.ZoneId, Stop)
+						err = dm.httpClient.ZoneCallAction(device.ZoneId, api.Stop)
 					} else {
 						err = dm.httpClient.DeviceSetOutputChannelValue(device.Dsid, map[string]int{c.Name: int(newValue)})
 					}

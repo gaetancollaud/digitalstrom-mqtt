@@ -1,4 +1,4 @@
-package digitalstrom
+package client
 
 import (
 	"time"
@@ -12,14 +12,14 @@ type TokenManager struct {
 	httpClient    *HttpClient
 	token         string
 	lastTokenTime time.Time
-	tokenCounter  int
+	TokenCounter  int
 }
 
 func NewTokenManager(config *config.ConfigDigitalstrom, httpClient *HttpClient) *TokenManager {
 	tm := new(TokenManager)
 	tm.config = config
 	tm.httpClient = httpClient
-	tm.tokenCounter = 0
+	tm.TokenCounter = 0
 	return tm
 }
 
@@ -40,7 +40,7 @@ func (tm *TokenManager) GetToken() string {
 		log.Debug().Dur("last token", time.Since(tm.lastTokenTime)).Msg("Refreshing token")
 		tm.token = tm.refreshToken()
 		tm.lastTokenTime = time.Now()
-		tm.tokenCounter++
+		tm.TokenCounter++
 	}
 	return tm.token
 }
