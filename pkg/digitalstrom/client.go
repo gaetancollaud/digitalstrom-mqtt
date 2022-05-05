@@ -1,4 +1,4 @@
-package client
+package digitalstrom
 
 import (
 	"crypto/tls"
@@ -29,9 +29,9 @@ const (
 	connected    uint32 = 2
 )
 
-// DigitalStromClient is the interface definition as used by this library, the
+// Client is the interface definition as used by this library, the
 // interface is primarly to allow mocking tests.
-type DigitalStromClient interface {
+type Client interface {
 	// Connect will perform login on the DigitalStrom server.
 	Connect() error
 	// Disconnect from the server by closing all idle connections, closing the
@@ -85,7 +85,7 @@ type client struct {
 // NewClient will create a DigitalStrom client with all the options specified in
 // the provided ClientOptions. The client must have the Connect() method called
 // on it before it may be used.
-func NewClient(options *ClientOptions) DigitalStromClient {
+func NewClient(options *ClientOptions) Client {
 	return &client{
 		status: disconnected,
 		httpClient: &http.Client{

@@ -1,11 +1,11 @@
-package client
+package digitalstrom
 
 import (
 	"math/rand"
 	"time"
 )
 
-type EventHandler func(DigitalStromClient, Event)
+type EventHandler func(Client, Event)
 
 type EventType string
 

@@ -1,4 +1,4 @@
-package client
+package digitalstrom
 
 import "strings"
 

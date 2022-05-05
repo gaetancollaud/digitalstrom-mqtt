@@ -104,7 +104,7 @@ func (dm *DigitalstromMqtt) Stop() {
 	// Notify that difitalstrom-mqtt is not longer online.
 	dm.publishServerStatus(Offline)
 	// Gracefully close the connection to the MQTT server.
-	log.Info().Msg("Stopping MQTT client.")
+	log.Info().Msg("Stopping MQTT digitalstrom.")
 	dm.client.Disconnect(DisconnectTimeout)
 	log.Info().Msg("Disconnected from MQTT server.")
 }

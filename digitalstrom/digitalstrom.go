@@ -3,15 +3,15 @@ package digitalstrom
 import (
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"github.com/rs/zerolog/log"
 )
 
 type Digitalstrom struct {
 	config         *config.Config
 	cron           DigitalstromCron
-	httpClient     client.DigitalStromClient
+	httpClient     digitalstrom.Client
 	eventsManager  *EventsManager
 	devicesManager *DevicesManager
 	circuitManager *CircuitsManager
@@ -27,24 +27,24 @@ func New(config *config.Config) *Digitalstrom {
 	ds := new(Digitalstrom)
 	ds.config = config
 	// First create the event manager in order to create a good callback for
-	// events in the DigitalStrom client.
+	// events in the DigitalStrom digitalstrom.
 	ds.eventsManager = NewDigitalstromEvents()
-	clientOptions := client.NewClientOptions().
+	clientOptions := digitalstrom.NewClientOptions().
 		SetHost(config.Digitalstrom.Host).
 		SetPort(config.Digitalstrom.Port).
 		SetUsername(config.Digitalstrom.Username).
 		SetPassword(config.Digitalstrom.Password).
-		SetEventsToSubscribe([]client.EventType{
-			client.EventCallScene,
-			client.EventButtonClick,
-			client.EventModelReady,
+		SetEventsToSubscribe([]digitalstrom.EventType{
+			digitalstrom.EventCallScene,
+			digitalstrom.EventButtonClick,
+			digitalstrom.EventModelReady,
 		}).
-		SetOnEventHandler(func(c client.DigitalStromClient, event client.Event) {
+		SetOnEventHandler(func(c digitalstrom.Client, event digitalstrom.Event) {
 			ds.eventsManager.events <- event
 		})
-	ds.httpClient = client.NewClient(clientOptions)
+	ds.httpClient = digitalstrom.NewClient(clientOptions)
 	ds.httpClient.Connect()
-	// ds.httpClient = client.NewDigitalStromClient(&config.Digitalstrom)
+	// ds.httpClient = digitalstrom.NewDigitalStromClient(&config.Digitalstrom)
 	ds.devicesManager = NewDevicesManager(ds.httpClient, config.InvertBlindsPosition)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
 	ds.sceneManager = NewSceneManager(ds.httpClient)
@@ -91,7 +91,7 @@ func (ds *Digitalstrom) digitalstromCron() {
 	}
 }
 
-func (ds *Digitalstrom) eventReceived(events chan client.Event) {
+func (ds *Digitalstrom) eventReceived(events chan digitalstrom.Event) {
 	for event := range events {
 		log.Info().
 			Int("SceneId", event.Properties.SceneId).
@@ -147,10 +147,10 @@ func (ds *Digitalstrom) refreshAllDevices() {
 	}
 }
 
-func (ds *Digitalstrom) GetAllDevices() []client.Device {
+func (ds *Digitalstrom) GetAllDevices() []digitalstrom.Device {
 	return ds.devicesManager.devices
 }
 
-func (ds *Digitalstrom) GetAllCircuits() []client.Circuit {
+func (ds *Digitalstrom) GetAllCircuits() []digitalstrom.Circuit {
 	return ds.circuitManager.circuits
 }
