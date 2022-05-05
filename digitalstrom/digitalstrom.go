@@ -12,7 +12,7 @@ import (
 type Digitalstrom struct {
 	config         *config.Config
 	cron           DigitalstromCron
-	httpClient     *client.HttpClient
+	httpClient     client.DigitalStromClient
 	eventsManager  *EventsManager
 	devicesManager *DevicesManager
 	circuitManager *CircuitsManager
@@ -27,8 +27,25 @@ type DigitalstromCron struct {
 func New(config *config.Config) *Digitalstrom {
 	ds := new(Digitalstrom)
 	ds.config = config
-	ds.httpClient = client.NewHttpClient(&config.Digitalstrom)
-	ds.eventsManager = NewDigitalstromEvents(ds.httpClient)
+	// First create the event manager in order to create a good callback for
+	// events in the DigitalStrom client.
+	ds.eventsManager = NewDigitalstromEvents()
+	clientOptions := client.NewClientOptions().
+		SetHost(config.Digitalstrom.Host).
+		SetPort(config.Digitalstrom.Port).
+		SetUsername(config.Digitalstrom.Username).
+		SetPassword(config.Digitalstrom.Password).
+		SetEventsToSubscribe([]client.EventType{
+			client.EventCallScene,
+			client.EventButtonClick,
+			client.EventModelReady,
+		}).
+		SetOnEventHandler(func(c client.DigitalStromClient, event api.Event) {
+			ds.eventsManager.events <- event
+		})
+	ds.httpClient = client.NewClient(clientOptions)
+	ds.httpClient.Connect()
+	// ds.httpClient = client.NewDigitalStromClient(&config.Digitalstrom)
 	ds.devicesManager = NewDevicesManager(ds.httpClient, config.InvertBlindsPosition)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)
 	ds.sceneManager = NewSceneManager(ds.httpClient)
@@ -41,7 +58,6 @@ func (ds *Digitalstrom) Start() {
 	ds.cron.tickerDone = make(chan bool)
 	go ds.digitalstromCron()
 
-	ds.eventsManager.Start()
 	ds.circuitManager.Start()
 	ds.devicesManager.Start()
 
@@ -61,7 +77,7 @@ func (ds *Digitalstrom) Stop() {
 		ds.cron.tickerDone <- true
 		ds.cron.ticker = nil
 	}
-	ds.eventsManager.Stop()
+	ds.httpClient.Disconnect()
 }
 
 func (ds *Digitalstrom) digitalstromCron() {

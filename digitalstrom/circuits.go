@@ -14,12 +14,12 @@ type CircuitValueChanged struct {
 }
 
 type CircuitsManager struct {
-	httpClient        *client.HttpClient
+	httpClient        client.DigitalStromClient
 	circuits          []api.Circuit
 	circuitValuesChan chan CircuitValueChanged
 }
 
-func NewCircuitManager(httpClient *client.HttpClient) *CircuitsManager {
+func NewCircuitManager(httpClient client.DigitalStromClient) *CircuitsManager {
 	dm := new(CircuitsManager)
 	dm.httpClient = httpClient
 	dm.circuitValuesChan = make(chan CircuitValueChanged)

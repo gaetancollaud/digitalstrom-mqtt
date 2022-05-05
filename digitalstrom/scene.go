@@ -25,13 +25,13 @@ type SceneIdentifier struct {
 }
 
 type SceneManager struct {
-	httpClient *client.HttpClient
+	httpClient client.DigitalStromClient
 	zonesById  map[int]string
 	sceneById  map[SceneIdentifier]string
 	sceneEvent chan SceneEvent
 }
 
-func NewSceneManager(httpClient *client.HttpClient) *SceneManager {
+func NewSceneManager(httpClient client.DigitalStromClient) *SceneManager {
 	sm := new(SceneManager)
 	sm.httpClient = httpClient
 	sm.sceneEvent = make(chan SceneEvent)

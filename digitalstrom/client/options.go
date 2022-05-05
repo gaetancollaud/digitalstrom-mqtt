@@ -9,6 +9,18 @@ import (
 
 type EventHandler func(DigitalStromClient, api.Event)
 
+type EventType string
+
+const (
+	EventCallScene    EventType = "callScene"
+	EventUndoScene    EventType = "undoScene"
+	EventButtonClick  EventType = "buttonClick"
+	EventDeviceSensor EventType = "deviceSensorEvent"
+	EventRunning      EventType = "running"
+	EventModelReady   EventType = "model_ready"
+	EventDsMeterReady EventType = "dsMeter_ready"
+)
+
 // ClientOptions contains configurable options for a DigitalStrom Client.
 type ClientOptions struct {
 	Host                string
@@ -18,6 +30,7 @@ type ClientOptions struct {
 	MaxRetries          int
 	RetryDuration       time.Duration
 	EventSubscriptionId int
+	EventsToSubscribe   []EventType
 	RunEventLoop        bool
 	EventRequestTimeout time.Duration
 	OnEventHandler      EventHandler
@@ -94,6 +107,13 @@ func (o *ClientOptions) SetRetryDuration(duration time.Duration) *ClientOptions 
 // instances that are subscribing to events on the same DigitalStrom server.
 func (o *ClientOptions) SetEventSubscriptionId(id int) *ClientOptions {
 	o.EventSubscriptionId = id
+	return o
+}
+
+// SetEventsToSubscribe will define the events the client will be subscribe to
+// receive.
+func (o *ClientOptions) SetEventsToSubscribe(events []EventType) *ClientOptions {
+	o.EventsToSubscribe = events
 	return o
 }
 

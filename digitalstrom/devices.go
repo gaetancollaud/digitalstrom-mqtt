@@ -33,14 +33,14 @@ type DeviceCommand struct {
 }
 
 type DevicesManager struct {
-	httpClient           *client.HttpClient
+	httpClient           client.DigitalStromClient
 	invertBlindsPosition bool
 	devices              []api.Device
 	deviceStateChan      chan DeviceStateChanged
 	lastDeviceCommand    time.Time
 }
 
-func NewDevicesManager(httpClient *client.HttpClient, invertBlindsPosition bool) *DevicesManager {
+func NewDevicesManager(httpClient client.DigitalStromClient, invertBlindsPosition bool) *DevicesManager {
 	dm := new(DevicesManager)
 	dm.httpClient = httpClient
 	dm.invertBlindsPosition = invertBlindsPosition
