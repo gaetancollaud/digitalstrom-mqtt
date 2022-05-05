@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
+	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 )
@@ -65,12 +65,12 @@ func (hass *HomeAssistantMqtt) discoveryTopic(component Component, deviceId stri
 }
 
 // Return the definition of the light and cover entities coming from a device.
-func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device api.Device) ([]HassDiscoveryMessage, error) {
+func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device client.Device) ([]HassDiscoveryMessage, error) {
 	// Check for device instances where the discovery message can not be created.
 	if device.Name == "" {
 		return nil, fmt.Errorf("empty device name, skipping discovery message")
 	}
-	if (device.DeviceType() != api.Light) && (device.DeviceType() != api.Blind) {
+	if (device.DeviceType() != client.Light) && (device.DeviceType() != client.Blind) {
 		return nil, fmt.Errorf("device type not supported %s", device.DeviceType())
 	}
 	deviceConfig := map[string]interface{}{
@@ -89,7 +89,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device api.
 	}
 	var message map[string]interface{}
 	var topic string
-	if device.DeviceType() == api.Light {
+	if device.DeviceType() == client.Light {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/light.mqtt/
 		nodeId := "light"
@@ -136,7 +136,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device api.
 				"command")
 
 		}
-	} else if device.DeviceType() == api.Blind {
+	} else if device.DeviceType() == client.Blind {
 		// Setup configuration for a MQTT Cover in Home Assistant:
 		// https://www.home-assistant.io/integrations/cover.mqtt/
 
@@ -238,7 +238,7 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device api.
 
 // Return the definition of the power and energy sensors coming from the circuit
 // devices.
-func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit api.Circuit) ([]HassDiscoveryMessage, error) {
+func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit client.Circuit) ([]HassDiscoveryMessage, error) {
 	deviceConfig := map[string]interface{}{
 		"configuration_url": "https://" + hass.config.DigitalStromHost,
 		"identifiers":       []interface{}{circuit.DsId},

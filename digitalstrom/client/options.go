@@ -3,11 +3,9 @@ package client
 import (
 	"math/rand"
 	"time"
-
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 )
 
-type EventHandler func(DigitalStromClient, api.Event)
+type EventHandler func(DigitalStromClient, Event)
 
 type EventType string
 

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
@@ -20,7 +19,7 @@ const (
 )
 
 type DeviceStateChanged struct {
-	Device   api.Device
+	Device   client.Device
 	Channel  string
 	NewValue float64
 }
@@ -35,7 +34,7 @@ type DeviceCommand struct {
 type DevicesManager struct {
 	httpClient           client.DigitalStromClient
 	invertBlindsPosition bool
-	devices              []api.Device
+	devices              []client.Device
 	deviceStateChan      chan DeviceStateChanged
 	lastDeviceCommand    time.Time
 }
@@ -93,7 +92,7 @@ func (dm *DevicesManager) updateGroup(groupId int) {
 	}
 }
 
-func (dm *DevicesManager) updateDevice(device api.Device) {
+func (dm *DevicesManager) updateDevice(device client.Device) {
 	// device need to be updated
 	if len(device.OutputChannels) == 0 {
 		log.Debug().Str("device", device.Name).Msg("Skipping update. No output channels.")
@@ -117,7 +116,7 @@ func (dm *DevicesManager) updateDevice(device api.Device) {
 	}
 }
 
-func (dm *DevicesManager) updateValue(device api.Device, channel string, newValue float64) {
+func (dm *DevicesManager) updateValue(device client.Device, channel string, newValue float64) {
 	newValue = dm.invertValueIfNeeded(channel, newValue)
 
 	// Always send new updated value to the channel. If the current value is not
@@ -161,7 +160,7 @@ func (dm *DevicesManager) SetValue(command DeviceCommand) error {
 
 					var err error
 					if command.Action == CommandStop {
-						err = dm.httpClient.ZoneCallAction(device.ZoneId, api.Stop)
+						err = dm.httpClient.ZoneCallAction(device.ZoneId, client.Stop)
 					} else {
 						err = dm.httpClient.DeviceSetOutputChannelValue(device.Dsid, map[string]int{c.Name: int(newValue)})
 					}

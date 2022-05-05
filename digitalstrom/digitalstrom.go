@@ -3,7 +3,6 @@ package digitalstrom
 import (
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/rs/zerolog/log"
@@ -40,7 +39,7 @@ func New(config *config.Config) *Digitalstrom {
 			client.EventButtonClick,
 			client.EventModelReady,
 		}).
-		SetOnEventHandler(func(c client.DigitalStromClient, event api.Event) {
+		SetOnEventHandler(func(c client.DigitalStromClient, event client.Event) {
 			ds.eventsManager.events <- event
 		})
 	ds.httpClient = client.NewClient(clientOptions)
@@ -92,7 +91,7 @@ func (ds *Digitalstrom) digitalstromCron() {
 	}
 }
 
-func (ds *Digitalstrom) eventReceived(events chan api.Event) {
+func (ds *Digitalstrom) eventReceived(events chan client.Event) {
 	for event := range events {
 		log.Info().
 			Int("SceneId", event.Properties.SceneId).
@@ -148,10 +147,10 @@ func (ds *Digitalstrom) refreshAllDevices() {
 	}
 }
 
-func (ds *Digitalstrom) GetAllDevices() []api.Device {
+func (ds *Digitalstrom) GetAllDevices() []client.Device {
 	return ds.devicesManager.devices
 }
 
-func (ds *Digitalstrom) GetAllCircuits() []api.Circuit {
+func (ds *Digitalstrom) GetAllCircuits() []client.Circuit {
 	return ds.circuitManager.circuits
 }

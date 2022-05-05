@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
@@ -42,15 +41,15 @@ type DigitalStromClient interface {
 	// Start of the API calls to DigitalStrom.
 
 	// Get the list of circuits in the apartment.
-	ApartmentGetCircuits() (*api.ApartmentGetCircuitsResponse, error)
+	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
 	// Get the list of devices in the apartment.
-	ApartmentGetDevices() (*api.ApartmentGetDevicesResponse, error)
+	ApartmentGetDevices() (*ApartmentGetDevicesResponse, error)
 	// Get the power consumption from a given circuit.
-	CircuitGetConsumption(dsid string) (*api.CircuitGetConsumptionResponse, error)
+	CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error)
 	// Get the energy meter value from a given circuit.
-	CircuitGetEnergyMeterValue(dsid string) (*api.CircuitGetEnergyMeterValueResponse, error)
+	CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error)
 	// Get the values for the channels in the given device.
-	DeviceGetOutputChannelValue(dsid string, channels []string) (*api.DeviceGetOutputChannelValueResponse, error)
+	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
 	// Sets the values for the channels in the given device.
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
 	// Get the latest event from the server. Note that you must be subscribed to
@@ -58,17 +57,17 @@ type DigitalStromClient interface {
 	// available. This can be used when has been specified that the event loop
 	// does not run and therefore is responsibility of the client to retrieve
 	// the events manually using this call.
-	EventGet() (*api.EventGetResponse, error)
+	EventGet() (*EventGetResponse, error)
 	// Get the floating value for the given property path.
-	PropertyGetFloating(path string) (*api.FloatValue, error)
+	PropertyGetFloating(path string) (*FloatValue, error)
 	// Call action in a specified zone.
-	ZoneCallAction(zoneId int, action api.Action) error
+	ZoneCallAction(zoneId int, action Action) error
 	// Get the zone name.
-	ZoneGetName(zoneId int) (*api.ZoneGetNameResponse, error)
+	ZoneGetName(zoneId int) (*ZoneGetNameResponse, error)
 	// Get the list of scenes that are available at a given zone.
-	ZoneGetReachableScenes(zoneId int, groupId int) (*api.ZoneGetReachableScenesResponse, error)
+	ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error)
 	// Get the scene name.
-	ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*api.ZoneSceneGetNameResponse, error)
+	ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error)
 }
 
 // client implements the DigitalStrom interface.
@@ -123,7 +122,7 @@ func (c *client) Connect() error {
 	return nil
 }
 
-// Disconnect stops all work on the client. It stops any running event loop,
+// Disconnect stops all work on the  It stops any running event loop,
 // unsubscribe from any event in the server and closes any idle connection.
 func (c *client) Disconnect() error {
 	if c.status == disconnected {
@@ -148,45 +147,45 @@ func (c *client) Disconnect() error {
 	return nil
 }
 
-func (c *client) ApartmentGetCircuits() (*api.ApartmentGetCircuitsResponse, error) {
+func (c *client) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
 	response, err := c.apiCall("json/apartment/getCircuits", url.Values{})
-	return wrapApiResponse[api.ApartmentGetCircuitsResponse](response, err)
+	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
 }
 
-func (c *client) ApartmentGetDevices() (*api.ApartmentGetDevicesResponse, error) {
+func (c *client) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
 	response, err := c.apiCall("json/apartment/getDevices", url.Values{})
-	return wrapApiResponse[api.ApartmentGetDevicesResponse](response, err)
+	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
 }
 
-func (c *client) CircuitGetConsumption(dsid string) (*api.CircuitGetConsumptionResponse, error) {
+func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
 	response, err := c.apiCall("json/circuit/getConsumption", params)
-	return wrapApiResponse[api.CircuitGetConsumptionResponse](response, err)
+	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
 }
 
-func (c *client) CircuitGetEnergyMeterValue(dsid string) (*api.CircuitGetEnergyMeterValueResponse, error) {
+func (c *client) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
 	response, err := c.apiCall("json/circuit/getEnergyMeterValue", params)
-	return wrapApiResponse[api.CircuitGetEnergyMeterValueResponse](response, err)
+	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
 }
 
-func (c *client) PropertyGetFloating(path string) (*api.FloatValue, error) {
+func (c *client) PropertyGetFloating(path string) (*FloatValue, error) {
 	params := url.Values{}
 	params.Set("path", path)
 	response, err := c.apiCall("json/property/getFloating", params)
-	return wrapApiResponse[api.FloatValue](response, err)
+	return wrapApiResponse[FloatValue](response, err)
 }
 
-func (c *client) ZoneGetName(zoneId int) (*api.ZoneGetNameResponse, error) {
+func (c *client) ZoneGetName(zoneId int) (*ZoneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	response, err := c.apiCall("json/zone/getName", params)
-	return wrapApiResponse[api.ZoneGetNameResponse](response, err)
+	return wrapApiResponse[ZoneGetNameResponse](response, err)
 }
 
-func (c *client) ZoneCallAction(zoneId int, action api.Action) error {
+func (c *client) ZoneCallAction(zoneId int, action Action) error {
 	params := url.Values{}
 	params.Set("application", "2")
 	params.Set("id", strconv.Itoa(zoneId))
@@ -195,21 +194,21 @@ func (c *client) ZoneCallAction(zoneId int, action api.Action) error {
 	return err
 }
 
-func (c *client) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*api.ZoneSceneGetNameResponse, error) {
+func (c *client) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
 	response, err := c.apiCall("json/zone/sceneGetName", params)
-	return wrapApiResponse[api.ZoneSceneGetNameResponse](response, err)
+	return wrapApiResponse[ZoneSceneGetNameResponse](response, err)
 }
 
-func (c *client) ZoneGetReachableScenes(zoneId int, groupId int) (*api.ZoneGetReachableScenesResponse, error) {
+func (c *client) ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	response, err := c.apiCall("json/zone/getReachableScenes", params)
-	return wrapApiResponse[api.ZoneGetReachableScenesResponse](response, err)
+	return wrapApiResponse[ZoneGetReachableScenesResponse](response, err)
 }
 
 func (c *client) DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error {
@@ -225,12 +224,12 @@ func (c *client) DeviceSetOutputChannelValue(dsid string, channelValues map[stri
 	return err
 }
 
-func (c *client) DeviceGetOutputChannelValue(dsid string, channels []string) (*api.DeviceGetOutputChannelValueResponse, error) {
+func (c *client) DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	params.Set("channels", strings.Join(channels, ";"))
 	response, err := c.apiCall("json/device/getOutputChannelValue", params)
-	return wrapApiResponse[api.DeviceGetOutputChannelValueResponse](response, err)
+	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
 }
 
 func (c *client) eventSubscribe(event EventType) error {
@@ -249,12 +248,12 @@ func (c *client) eventUnsubscribe(event EventType) error {
 	return err
 }
 
-func (c *client) EventGet() (*api.EventGetResponse, error) {
+func (c *client) EventGet() (*EventGetResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
 	params.Set("timeout", strconv.Itoa(int(c.options.EventRequestTimeout.Milliseconds())))
 	response, err := c.apiCall("json/event/get", params)
-	return wrapApiResponse[api.EventGetResponse](response, err)
+	return wrapApiResponse[EventGetResponse](response, err)
 }
 
 // getToken will retrieve the token of the current connection into the server.
@@ -270,7 +269,7 @@ func (c *client) getToken() (string, error) {
 	params.Set("user", c.options.Username)
 	params.Set("password", c.options.Password)
 	response, err := c.getRequest("json/system/login", params)
-	res, err := wrapApiResponse[api.TokenResponse](response, err)
+	res, err := wrapApiResponse[TokenResponse](response, err)
 	if err != nil {
 		return "", fmt.Errorf("error on login request: %w", err)
 	}

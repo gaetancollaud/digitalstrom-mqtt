@@ -1,8 +1,6 @@
 package digitalstrom
 
-import (
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
-)
+import "github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 
 // TODO: Make this to be randomly generated on each run so parallel instances
 // do not reuse the same subscription ID.
@@ -19,11 +17,11 @@ const EVENT_MODEL_READY = "model_ready"
 const EVENT_DSMETER_READY = "dsMeter_ready"
 
 type EventsManager struct {
-	events chan api.Event
+	events chan client.Event
 }
 
 func NewDigitalstromEvents() *EventsManager {
 	em := new(EventsManager)
-	em.events = make(chan api.Event)
+	em.events = make(chan client.Event)
 	return em
 }

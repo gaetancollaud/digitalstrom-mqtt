@@ -3,7 +3,6 @@ package digitalstrom
 import (
 	"strconv"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
 	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
 	"github.com/rs/zerolog/log"
@@ -87,7 +86,7 @@ func (sm *SceneManager) getSceneName(zoneId int, groupId int, sceneId int) (stri
 	}
 }
 
-func (sm *SceneManager) EventReceived(event api.Event) {
+func (sm *SceneManager) EventReceived(event client.Event) {
 	log.Debug().Int("zoneId", event.Properties.ZoneId).Int("sceneId", event.Properties.SceneId).Msg("New scene event")
 	zoneName, errZone := sm.getZoneName(event.Properties.ZoneId)
 	sceneName, errScene := sm.getSceneName(event.Properties.ZoneId, event.Properties.GroupId, event.Properties.SceneId)
