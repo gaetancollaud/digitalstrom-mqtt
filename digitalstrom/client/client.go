@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
@@ -82,7 +81,6 @@ type client struct {
 	token      string
 
 	eventLoopDone chan void
-	eventLoop     sync.WaitGroup
 }
 
 // NewClient will create a DigitalStrom client with all the options specified in
@@ -393,16 +391,13 @@ func (c *client) startEventLoop() {
 		return
 	}
 
-	c.eventLoop.Add(1)
 	c.eventLoopDone = make(chan void)
 
 	go func() {
 		log.Info().Msg("Starting event loop.")
-		defer c.eventLoop.Done()
 		for {
 			select {
 			case <-c.eventLoopDone:
-				log.Info().Msg("Stopping event loop.")
 				return
 			default:
 				response, err := c.EventGet()
@@ -431,14 +426,15 @@ func (c *client) stopEventLoop() {
 	if !c.options.RunEventLoop || len(c.options.EventsToSubscribe) == 0 {
 		return
 	}
+	log.Info().Msg("Stopping event loop. Waiting for remaining event requests...")
 	// Send signal to terminate the event loop.
-	c.eventLoopDone <- done
-	// Wait until the event loop is actually stopped which comes determined by
+	// Waits until the event loop is actually stopped which comes determined by
 	// the timeout of the event get request.
-	c.eventLoop.Wait()
+	c.eventLoopDone <- done
 
 	// Closing all channels.
 	close(c.eventLoopDone)
+	log.Info().Msg("Event loop stopped.")
 }
 
 // wrapApiResponse takes a generic response interface and maps it to the given
