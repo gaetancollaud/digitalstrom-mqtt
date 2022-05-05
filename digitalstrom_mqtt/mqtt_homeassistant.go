@@ -7,7 +7,7 @@ import (
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/utils"
 )
 
 // Define Home Assistant components.

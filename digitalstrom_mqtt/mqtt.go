@@ -10,7 +10,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/utils"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )

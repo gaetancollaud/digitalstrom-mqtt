@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
 )

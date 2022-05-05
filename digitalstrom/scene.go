@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
-	"github.com/gaetancollaud/digitalstrom-mqtt/utils"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/utils"
 	"github.com/rs/zerolog/log"
 )
 
