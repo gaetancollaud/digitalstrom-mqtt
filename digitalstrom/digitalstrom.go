@@ -3,9 +3,9 @@ package digitalstrom
 import (
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/api"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom/client"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/rs/zerolog/log"
 )
 

@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom_mqtt"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
