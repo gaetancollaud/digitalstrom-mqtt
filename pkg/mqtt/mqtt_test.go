@@ -1,4 +1,4 @@
-package digitalstrom_mqtt
+package mqtt
 
 import (
 	"testing"

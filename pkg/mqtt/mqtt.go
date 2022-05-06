@@ -1,4 +1,4 @@
-package digitalstrom_mqtt
+package mqtt
 
 import (
 	"encoding/json"
@@ -16,9 +16,7 @@ import (
 )
 
 const (
-	Online            string = "online"
-	Offline           string = "offline"
-	DisconnectTimeout uint   = 1000 // 1 second
+	DisconnectTimeout uint = 1000 // 1 second
 )
 
 type DigitalstromMqtt struct {
@@ -231,17 +229,4 @@ func (dm *DigitalstromMqtt) getTopic(deviceType string, deviceId string, deviceN
 // Returns MQTT topic to publish the Server status.
 func (dm *DigitalstromMqtt) getStatusTopic() string {
 	return dm.config.TopicPrefix + "/server/state"
-}
-
-func normalizeForTopicName(item string) string {
-	output := ""
-	for i := 0; i < len(item); i++ {
-		c := item[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' {
-			output += string(c)
-		} else if c == ' ' || c == '/' {
-			output += "_"
-		}
-	}
-	return output
 }

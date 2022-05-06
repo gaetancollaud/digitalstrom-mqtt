@@ -38,6 +38,10 @@ func New(config *config.Config) *Digitalstrom {
 			digitalstrom.EventCallScene,
 			digitalstrom.EventButtonClick,
 			digitalstrom.EventModelReady,
+			digitalstrom.EventUndoScene,
+			digitalstrom.EventDeviceSensor,
+			digitalstrom.EventRunning,
+			digitalstrom.EventDsMeterReady,
 		}).
 		SetOnEventHandler(func(c digitalstrom.Client, event digitalstrom.Event) {
 			ds.eventsManager.events <- event

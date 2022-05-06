@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom"
-	"github.com/gaetancollaud/digitalstrom-mqtt/digitalstrom_mqtt"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
+	mqtt "github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -39,7 +39,7 @@ func main() {
 	log.Info().Msg("Starting DigitalStrom MQTT!")
 
 	ds := digitalstrom.New(config)
-	mqtt := digitalstrom_mqtt.New(config, ds)
+	mqtt := mqtt.New(config, ds)
 
 	ds.Start()
 	mqtt.Start()

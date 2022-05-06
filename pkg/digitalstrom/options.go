@@ -7,18 +7,6 @@ import (
 
 type EventHandler func(Client, Event)
 
-type EventType string
-
-const (
-	EventCallScene    EventType = "callScene"
-	EventUndoScene    EventType = "undoScene"
-	EventButtonClick  EventType = "buttonClick"
-	EventDeviceSensor EventType = "deviceSensorEvent"
-	EventRunning      EventType = "running"
-	EventModelReady   EventType = "model_ready"
-	EventDsMeterReady EventType = "dsMeter_ready"
-)
-
 // ClientOptions contains configurable options for a DigitalStrom Client.
 type ClientOptions struct {
 	Host                string

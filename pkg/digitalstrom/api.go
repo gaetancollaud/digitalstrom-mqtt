@@ -29,6 +29,18 @@ const (
 	Hue        ChannelType = "hue"
 )
 
+type EventType string
+
+const (
+	EventCallScene    EventType = "callScene"
+	EventUndoScene    EventType = "undoScene"
+	EventButtonClick  EventType = "buttonClick"
+	EventDeviceSensor EventType = "deviceSensorEvent"
+	EventRunning      EventType = "running"
+	EventModelReady   EventType = "model_ready"
+	EventDsMeterReady EventType = "dsMeter_ready"
+)
+
 // A Device is the smallest entity represented in the DigitalStrom system and
 // represents a input/output physical device that can receive human input
 // (button push) or can actuate (open light).
