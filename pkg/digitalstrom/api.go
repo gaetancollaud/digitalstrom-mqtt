@@ -127,7 +127,7 @@ type ChannelValue struct {
 
 // Event that registers a change in the DigitalStrom system.
 type Event struct {
-	Name       string          `mapstructure:"name"`
+	Name       EventType       `mapstructure:"name"`
 	Properties EventProperties `mapstructure:"properties"`
 	Source     EventSource     `mapstructure:"source"`
 }
@@ -140,15 +140,18 @@ type EventProperties struct {
 	SceneId     int    `mapstructure:"sceneID"`
 	GroupId     int    `mapstructure:"groupId"`
 	CallOrigin  string `mapstructure:"callOrigin"`
+	ButtonIndex int    `mapstructure:"buttonIndex"`
+	ClickType   int    `mapstructure:"clickType"`
 }
 
 // Information about the source of the event responsible to fire it.
 type EventSource struct {
-	ZoneId      int  `mapstructure:"zoneID"`
-	GroupId     int  `mapstructure:"groupId"`
-	IsApartment bool `mapstructure:"isApartment"`
-	IsGroup     bool `mapstructure:"isGroup"`
-	IsDevice    bool `mapstructure:"isDevice"`
+	Dsid        string `mapstructure:"dsid"`
+	ZoneId      int    `mapstructure:"zoneID"`
+	GroupId     int    `mapstructure:"groupId"`
+	IsApartment bool   `mapstructure:"isApartment"`
+	IsGroup     bool   `mapstructure:"isGroup"`
+	IsDevice    bool   `mapstructure:"isDevice"`
 }
 
 // Structure to hold a scene number and name pair.

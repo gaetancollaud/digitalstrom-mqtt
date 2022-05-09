@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/utils"
@@ -28,6 +29,8 @@ const (
 	connecting   uint32 = 1
 	connected    uint32 = 2
 )
+
+type EventCallback func(Client, Event) error
 
 // Client is the interface definition as used by this library, the
 // interface is primarly to allow mocking tests.
@@ -52,6 +55,11 @@ type Client interface {
 	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
 	// Sets the values for the channels in the given device.
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
+	// Subscribe to an event and run the given callback when an event of the
+	// given types is received.
+	EventSubscribe(event EventType, eventCallback EventCallback) error
+	// Unsubscribe to the given event type.
+	EventUnsubscribe(event EventType) error
 	// Get the latest event from the server. Note that you must be subscribed to
 	// at least one event and the call is blocking until a new event is
 	// available. This can be used when has been specified that the event loop
@@ -79,7 +87,9 @@ type client struct {
 	options    ClientOptions
 	token      string
 
-	eventLoopDone chan void
+	eventsSubscribedCallbacks map[EventType]EventCallback
+	eventLoopDone             chan void
+	eventMutex                sync.Mutex
 }
 
 // NewClient will create a DigitalStrom client with all the options specified in
@@ -95,8 +105,9 @@ func NewClient(options *ClientOptions) Client {
 				},
 			},
 		},
-		options: *options,
-		token:   "",
+		options:                   *options,
+		token:                     "",
+		eventsSubscribedCallbacks: map[EventType]EventCallback{},
 	}
 }
 
@@ -111,12 +122,6 @@ func (c *client) Connect() error {
 		return err
 	}
 
-	// Subscribe to events.
-	for _, event := range c.options.EventsToSubscribe {
-		if err := c.eventSubscribe(event); err != nil {
-			return fmt.Errorf("error unsubscribing from event '%s': %w", event, err)
-		}
-	}
 	c.startEventLoop()
 	c.status = connected
 	return nil
@@ -132,8 +137,8 @@ func (c *client) Disconnect() error {
 	c.stopEventLoop()
 
 	// Unsubscribe from events.
-	for _, event := range c.options.EventsToSubscribe {
-		if err := c.eventUnsubscribe(event); err != nil {
+	for event, _ := range c.eventsSubscribedCallbacks {
+		if err := c.EventUnsubscribe(event); err != nil {
 			return fmt.Errorf("error unsubscribing from event '%s': %w", event, err)
 		}
 	}
@@ -232,20 +237,35 @@ func (c *client) DeviceGetOutputChannelValue(dsid string, channels []string) (*D
 	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
 }
 
-func (c *client) eventSubscribe(event EventType) error {
+func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) error {
+	c.eventMutex.Lock()
+	defer c.eventMutex.Unlock()
+
 	params := url.Values{}
 	params.Set("name", string(event))
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
 	_, err := c.apiCall("json/event/subscribe", params)
-	return err
+	if err != nil {
+		return err
+	}
+
+	c.eventsSubscribedCallbacks[event] = eventCallback
+	return nil
 }
 
-func (c *client) eventUnsubscribe(event EventType) error {
+func (c *client) EventUnsubscribe(event EventType) error {
+	c.eventMutex.Lock()
+	defer c.eventMutex.Unlock()
+
 	params := url.Values{}
 	params.Set("name", string(event))
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
 	_, err := c.apiCall("json/event/unsubscribe", params)
-	return err
+	if err != nil {
+		return err
+	}
+	delete(c.eventsSubscribedCallbacks, event)
+	return nil
 }
 
 func (c *client) EventGet() (*EventGetResponse, error) {
@@ -278,8 +298,8 @@ func (c *client) getToken() (string, error) {
 	// Subscribe again to the events if there was an existing subscription
 	// before. This should only happen when the token was revoked and we had to
 	// reconnect to the server.
-	for _, event := range c.options.EventsToSubscribe {
-		if err := c.eventSubscribe(event); err != nil {
+	for event, callback := range c.eventsSubscribedCallbacks {
+		if err := c.EventSubscribe(event, callback); err != nil {
 			return "", fmt.Errorf("error subscribing again to event '%s': %w", event, err)
 		}
 	}
@@ -386,7 +406,7 @@ func (c *client) getRequest(path string, params url.Values) (interface{}, error)
 // Starts the event loop that will watch for new events in the DigitalStrom
 // server and call the user provided callback when new events are received.
 func (c *client) startEventLoop() {
-	if !c.options.RunEventLoop || len(c.options.EventsToSubscribe) == 0 {
+	if !c.options.RunEventLoop {
 		return
 	}
 
@@ -399,18 +419,36 @@ func (c *client) startEventLoop() {
 			case <-c.eventLoopDone:
 				return
 			default:
+				// In case there is no subscription to any event, in order to
+				// avoid an error in the GET request, let's put to sleep the
+				// loop.
+				if len(c.eventsSubscribedCallbacks) == 0 {
+					time.Sleep(c.options.EventRequestTimeout)
+					continue
+				}
+
 				response, err := c.EventGet()
 				if err != nil {
 					log.Error().Err(err).Msg("Error getting the event.")
 					time.Sleep(1 * time.Second)
 					continue
 				}
+				// For each event received, spawn a goroutine executing its
+				// callback.
 				for _, event := range response.Events {
 					log.Debug().
 						Str("event", utils.PrettyPrint(event)).
 						Msg("Event received.")
-					// Spawn a new goroutine handling the received event.
-					go c.options.OnEventHandler(c, event)
+
+					callback, ok := c.eventsSubscribedCallbacks[event.Name]
+					if !ok {
+						log.Warn().
+							Str("event type", string(event.Name)).
+							Str("even", utils.PrettyPrint(event)).
+							Msg("Received an event that does not have any callback registered.")
+						continue
+					}
+					go callback(c, event)
 				}
 			}
 		}
@@ -422,7 +460,7 @@ func (c *client) startEventLoop() {
 // EventRequestTimeout in the ClientOptions as the get requests to get the next
 // event are blocking and will not return until the timeout is hit.
 func (c *client) stopEventLoop() {
-	if !c.options.RunEventLoop || len(c.options.EventsToSubscribe) == 0 {
+	if !c.options.RunEventLoop {
 		return
 	}
 	log.Info().Msg("Stopping event loop. Waiting for remaining event requests...")
@@ -451,7 +489,7 @@ func wrapApiResponse[T any](response interface{}, err error) (*T, error) {
 		Metadata:         nil,
 		Result:           res,
 		WeaklyTypedInput: true,
-		ErrorUnset:       true,
+		ErrorUnset:       false,
 	}
 	decoder, err := mapstructure.NewDecoder(config)
 	if err != nil {

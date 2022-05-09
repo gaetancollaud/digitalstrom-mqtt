@@ -33,21 +33,18 @@ func New(config *config.Config) *Digitalstrom {
 		SetHost(config.Digitalstrom.Host).
 		SetPort(config.Digitalstrom.Port).
 		SetUsername(config.Digitalstrom.Username).
-		SetPassword(config.Digitalstrom.Password).
-		SetEventsToSubscribe([]digitalstrom.EventType{
-			digitalstrom.EventCallScene,
-			digitalstrom.EventButtonClick,
-			digitalstrom.EventModelReady,
-			digitalstrom.EventUndoScene,
-			digitalstrom.EventDeviceSensor,
-			digitalstrom.EventRunning,
-			digitalstrom.EventDsMeterReady,
-		}).
-		SetOnEventHandler(func(c digitalstrom.Client, event digitalstrom.Event) {
-			ds.eventsManager.events <- event
-		})
+		SetPassword(config.Digitalstrom.Password)
 	ds.httpClient = digitalstrom.NewClient(clientOptions)
 	ds.httpClient.Connect()
+	for _, event := range []digitalstrom.EventType{
+		digitalstrom.EventCallScene,
+		digitalstrom.EventButtonClick,
+	} {
+		ds.httpClient.EventSubscribe(event, func(client digitalstrom.Client, event digitalstrom.Event) error {
+			ds.eventsManager.events <- event
+			return nil
+		})
+	}
 	// ds.httpClient = digitalstrom.NewDigitalStromClient(&config.Digitalstrom)
 	ds.devicesManager = NewDevicesManager(ds.httpClient, config.InvertBlindsPosition)
 	ds.circuitManager = NewCircuitManager(ds.httpClient)

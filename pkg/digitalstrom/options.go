@@ -16,10 +16,8 @@ type ClientOptions struct {
 	MaxRetries          int
 	RetryDuration       time.Duration
 	EventSubscriptionId int
-	EventsToSubscribe   []EventType
 	RunEventLoop        bool
 	EventRequestTimeout time.Duration
-	OnEventHandler      EventHandler
 }
 
 // NewClientOptions will create a new ClientClientOptions type with some
@@ -96,13 +94,6 @@ func (o *ClientOptions) SetEventSubscriptionId(id int) *ClientOptions {
 	return o
 }
 
-// SetEventsToSubscribe will define the events the client will be subscribe to
-// receive.
-func (o *ClientOptions) SetEventsToSubscribe(events []EventType) *ClientOptions {
-	o.EventsToSubscribe = events
-	return o
-}
-
 // SetRunEventLoop will define whether a event loop is triggered to listen to
 // all new events coming from the DigitalStrom server.
 func (o *ClientOptions) SetRunEventLoop(b bool) *ClientOptions {
@@ -113,13 +104,5 @@ func (o *ClientOptions) SetRunEventLoop(b bool) *ClientOptions {
 // SetEventRequestTimeout will set the timeout for the get event requests.
 func (o *ClientOptions) SetEventRequestTimeout(timeout time.Duration) *ClientOptions {
 	o.EventRequestTimeout = timeout
-	return o
-}
-
-// SetOnEventHandler will set the function that will be called when a new event
-// is received in the event loop. On new events, each event handler will be
-// called on a new goroutine and therefore must be safe for concurrency.
-func (o *ClientOptions) SetOnEventHandler(handler EventHandler) *ClientOptions {
-	o.OnEventHandler = handler
 	return o
 }
