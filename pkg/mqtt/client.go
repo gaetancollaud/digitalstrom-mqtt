@@ -29,6 +29,8 @@ type Client interface {
 
 	// Publishes a message under the prefix topic of DigitalStrom.
 	Publish(topic string, message interface{}) error
+
+	Subscribe(topic string, messageHandler mqtt.MessageHandler) error
 }
 
 type client struct {
@@ -79,6 +81,15 @@ func (c *client) Publish(topic string, message interface{}) error {
 		c.options.QoS,
 		c.options.Retain,
 		message)
+	<-t.Done()
+	return t.Error()
+}
+
+func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) error {
+	t := c.mqttClient.Subscribe(
+		path.Join(c.options.TopicPrefix, topic),
+		c.options.QoS,
+		messageHandler)
 	<-t.Done()
 	return t.Error()
 }
