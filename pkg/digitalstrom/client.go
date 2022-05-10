@@ -423,7 +423,7 @@ func (c *client) startEventLoop() {
 				// avoid an error in the GET request, let's put to sleep the
 				// loop.
 				if len(c.eventsSubscribedCallbacks) == 0 {
-					time.Sleep(c.options.EventRequestTimeout)
+					time.Sleep(1 * time.Second)
 					continue
 				}
 

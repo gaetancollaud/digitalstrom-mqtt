@@ -2,8 +2,6 @@ package mqtt
 
 import (
 	"time"
-
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 // ClientOptions contains configurable options for the MQTT client responsible
@@ -17,8 +15,6 @@ type ClientOptions struct {
 	Retain              bool
 	QoS                 byte
 	DisconnectTimeout   time.Duration
-	MessageHandler      mqtt.MessageHandler
-	OnConnectHandler    mqtt.OnConnectHandler
 }
 
 // NewClientOptions will create a new ClientOptions type with some default
@@ -30,14 +26,13 @@ type ClientOptions struct {
 //	 DisconnectTimeout: 1 second
 func NewClientOptions() *ClientOptions {
 	return &ClientOptions{
-		MqttUrl:             "",
-		Username:            "",
-		Password:            "",
-		TopicPrefix:         "digitalstrom",
-		NormalizeDeviceName: true,
-		Retain:              true,
-		QoS:                 0,
-		DisconnectTimeout:   1 * time.Second,
+		MqttUrl:           "",
+		Username:          "",
+		Password:          "",
+		TopicPrefix:       "digitalstrom",
+		Retain:            true,
+		QoS:               0,
+		DisconnectTimeout: 1 * time.Second,
 	}
 }
 
@@ -58,5 +53,19 @@ func (o *ClientOptions) SetUsername(u string) *ClientOptions {
 // to the MQTT server.
 func (o *ClientOptions) SetPassword(p string) *ClientOptions {
 	o.Password = p
+	return o
+}
+
+// SetTopicPrefix will set the prefix that will be prepended to all the
+// published messages.
+func (o *ClientOptions) SetTopicPrefix(prefix string) *ClientOptions {
+	o.TopicPrefix = prefix
+	return o
+}
+
+// SetRetain will define the value for the retain flag for all published
+// messages.
+func (o *ClientOptions) SetRetain(retain bool) *ClientOptions {
+	o.Retain = retain
 	return o
 }

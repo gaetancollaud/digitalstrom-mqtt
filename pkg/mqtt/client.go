@@ -2,9 +2,9 @@ package mqtt
 
 import (
 	"fmt"
+	"path"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
@@ -16,12 +16,9 @@ const (
 
 // Topics.
 const (
-	circuits         string = "circuits"
-	devices          string = "devices"
-	state            string = "state"
-	command          string = "command"
-	powerConsumption string = "consumptionW"
-	energyMeter      string = "EnergyWs"
+	State        string = "state"
+	Command      string = "command"
+	serverStatus string = "server/status"
 )
 
 type Client interface {
@@ -30,11 +27,8 @@ type Client interface {
 	// Disconnect from the MQTT server.
 	Disconnect() error
 
-	PublishDevice(device digitalstrom.Device, channelValues []digitalstrom.ChannelValue) error
-
-	PublishCircuit(circuit digitalstrom.Circuit, powerConsumption int64, energyMeter int64) error
-
-	PublishScene(scene digitalstrom.SceneName) error
+	// Publishes a message under the prefix topic of DigitalStrom.
+	Publish(topic string, message interface{}) error
 }
 
 type client struct {
@@ -48,9 +42,7 @@ func NewClient(options *ClientOptions) Client {
 		SetClientID("digitalstrom-mqtt-" + uuid.New().String()).
 		SetOrderMatters(false).
 		SetUsername(options.Username).
-		SetPassword(options.Password).
-		SetDefaultPublishHandler(options.MessageHandler).
-		SetOnConnectHandler(options.OnConnectHandler)
+		SetPassword(options.Password)
 
 	return &client{
 		mqttClient: mqtt.NewClient(mqttOptions),
@@ -81,63 +73,20 @@ func (c *client) Disconnect() error {
 	return nil
 }
 
-func (c *client) PublishDevice(device digitalstrom.Device, channelValues []digitalstrom.ChannelValue) error {
-	for _, channelValue := range channelValues {
-		topic := c.getTopic(devices, device.Name, channelValue.Name, state)
-		if err := c.publish(topic, fmt.Sprintf("%.2f", channelValue.Value)); err != nil {
-			return err
-		}
-
-	}
-	return nil
-}
-
-func (c *client) PublishCircuit(circuit digitalstrom.Circuit, powerConsumptionValue int64, energyMeterValue int64) error {
-	var topic string
-	topic = c.getTopic(circuits, circuit.Name, powerConsumption, state)
-	if err := c.publish(topic, fmt.Sprintf("%d", powerConsumptionValue)); err != nil {
-		return err
-	}
-	topic = c.getTopic(circuits, circuit.Name, energyMeter, state)
-	if err := c.publish(topic, fmt.Sprintf("%d", energyMeterValue)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *client) PublishScene(scene digitalstrom.SceneName) error {
-	return nil
-}
-
-func (c *client) publish(topic string, message interface{}) error {
-	t := c.mqttClient.Publish(topic, c.options.QoS, c.options.Retain, message)
+func (c *client) Publish(topic string, message interface{}) error {
+	t := c.mqttClient.Publish(
+		path.Join(c.options.TopicPrefix, topic),
+		c.options.QoS,
+		c.options.Retain,
+		message)
 	<-t.Done()
 	return t.Error()
 }
 
 // Publish the current binary status into the MQTT topic.
 func (c *client) publishServerStatus(message string) error {
-	topic := c.getStatusTopic()
-	log.Info().Str("status", message).Str("topic", topic).Msg("Updating server status topic")
-	return c.publish(topic, message)
-}
-
-func (c *client) getTopic(deviceType string, deviceName string, channel string, commandState string) string {
-	if c.options.NormalizeDeviceName {
-		deviceName = normalizeForTopicName(deviceName)
-	}
-
-	topic := c.options.TopicPrefix
-	topic += "/" + deviceType
-	topic += "/" + deviceName
-	topic += "/" + channel
-	topic += "/" + commandState
-	return topic
-}
-
-// Returns MQTT topic to publish the Server status.
-func (c *client) getStatusTopic() string {
-	return c.options.TopicPrefix + "/server/state"
+	log.Info().Str("status", message).Str("topic", serverStatus).Msg("Updating server status topic")
+	return c.Publish(serverStatus, message)
 }
 
 func normalizeForTopicName(item string) string {
