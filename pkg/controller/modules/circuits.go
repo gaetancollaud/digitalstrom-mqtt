@@ -104,5 +104,5 @@ func NewCircuitModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, conf
 }
 
 func init() {
-	// Register("circuits", NewCircuitModule)
+	Register("circuits", NewCircuitModule)
 }

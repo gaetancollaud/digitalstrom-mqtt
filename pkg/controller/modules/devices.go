@@ -253,5 +253,5 @@ func NewDeviceModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, confi
 }
 
 func init() {
-	// Register("devices", NewDeviceModule)
+	Register("devices", NewDeviceModule)
 }
