@@ -72,7 +72,7 @@ func (c *DeviceModule) Start() error {
 		}()
 	}
 
-	// subscribe to DigitalStrom events.
+	// Subscribe to DigitalStrom events.
 	if err := c.dsClient.EventSubscribe(digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
 		return c.onDsEvent(event)
 	}); err != nil {
@@ -84,10 +84,7 @@ func (c *DeviceModule) Start() error {
 		for _, channel := range device.OutputChannels {
 			deviceName := device.Name
 			channelName := channel.Name
-			if c.normalizeDeviceName {
-				deviceName = normalizeForTopicName(deviceName)
-			}
-			topic := deviceCommandTopic(deviceName, channelName)
+			topic := c.deviceCommandTopic(deviceName, channelName)
 			log.Trace().
 				Str("topic", topic).
 				Str("deviceName", deviceName).
@@ -182,18 +179,6 @@ func (c *DeviceModule) updateDevice(device *digitalstrom.Device) error {
 		return nil
 	}
 	outputChannels := device.OutputChannelsNames()
-	// for _, channelName := range outputChannels {
-	// 	path := path.Join("/apartment/zones/zone"+
-	// 		strconv.Itoa(device.ZoneId),
-	// 		"devices", device.Dsuid, "status/outputs", channelName, "targetValue")
-	// 	res, err := c.dsClient.PropertyGetFloating(path)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	if err := c.publishDeviceValue(device, channelName, res.Value); err != nil {
-	// 		return fmt.Errorf("error publishing device '%s' value: %w", device.Name, err)
-	// 	}
-	// }
 	log.Debug().
 		Str("device", device.Name).
 		Str("outputChannels", strings.Join(outputChannels, ";")).
@@ -213,11 +198,7 @@ func (c *DeviceModule) updateDevice(device *digitalstrom.Device) error {
 }
 
 func (c *DeviceModule) publishDeviceValue(device *digitalstrom.Device, channelName string, value float64) error {
-	deviceName := device.Name
-	if c.normalizeDeviceName {
-		deviceName = normalizeForTopicName(deviceName)
-	}
-	return c.mqttClient.Publish(deviceStateTopic(deviceName, channelName), fmt.Sprintf("%.2f", value))
+	return c.mqttClient.Publish(c.deviceStateTopic(device.Name, channelName), fmt.Sprintf("%.2f", value))
 }
 
 func (c *DeviceModule) invertValueIfNeeded(channel string, value float64) float64 {
@@ -231,10 +212,17 @@ func (c *DeviceModule) invertValueIfNeeded(channel string, value float64) float6
 	return value
 }
 
-func deviceStateTopic(deviceName string, channel string) string {
+func (c *DeviceModule) deviceStateTopic(deviceName string, channel string) string {
+	if c.normalizeDeviceName {
+		deviceName = normalizeForTopicName(deviceName)
+	}
 	return path.Join(devices, deviceName, channel, mqtt.State)
 }
-func deviceCommandTopic(deviceName string, channel string) string {
+
+func (c *DeviceModule) deviceCommandTopic(deviceName string, channel string) string {
+	if c.normalizeDeviceName {
+		deviceName = normalizeForTopicName(deviceName)
+	}
 	return path.Join(devices, deviceName, channel, mqtt.Command)
 }
 
@@ -265,5 +253,5 @@ func NewDeviceModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, confi
 }
 
 func init() {
-	Register("devices", NewDeviceModule)
+	// Register("devices", NewDeviceModule)
 }

@@ -18,6 +18,7 @@ const (
 const (
 	State        string = "state"
 	Command      string = "command"
+	Event        string = "event"
 	serverStatus string = "server/status"
 )
 

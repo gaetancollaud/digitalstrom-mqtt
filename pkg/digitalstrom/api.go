@@ -165,6 +165,13 @@ type FloatValue struct {
 	Value float64 `mapstructure:"value"`
 }
 
+// Zone representation.
+type Zone struct {
+	Id     int    `mapstructure:"zoneId"`
+	Name   string `mapstructure:"name"`
+	Groups []int  `mapstructure:"groups"`
+}
+
 // Responses for the API calls into DigitalStrom JSON API.
 
 // Token Response when logging in into the DigitalStrom server.
@@ -178,6 +185,10 @@ type ApartmentGetCircuitsResponse struct {
 }
 
 type ApartmentGetDevicesResponse []Device
+
+type ApartmentGetReachableGroupsResponse struct {
+	Zones []Zone `mapstructure:"zones"`
+}
 
 type DeviceGetOutputChannelValueResponse struct {
 	Channels []ChannelValue `mapstructure:"channels"`

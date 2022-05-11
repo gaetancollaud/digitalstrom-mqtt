@@ -47,6 +47,10 @@ type Client interface {
 	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
 	// Get the list of devices in the apartment.
 	ApartmentGetDevices() (*ApartmentGetDevicesResponse, error)
+	// Call a scene which will be immediately applied.
+	ApartmentCallScene(sceneId int) error
+	// Get the list of Zones and the groups on it.
+	ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error)
 	// Get the power consumption from a given circuit.
 	CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error)
 	// Get the energy meter value from a given circuit.
@@ -68,6 +72,8 @@ type Client interface {
 	EventGet() (*EventGetResponse, error)
 	// Get the floating value for the given property path.
 	PropertyGetFloating(path string) (*FloatValue, error)
+	// Call scene in a specified zone.
+	ZoneCallScene(zoneId int, groupId int, sceneId int) error
 	// Call action in a specified zone.
 	ZoneCallAction(zoneId int, action Action) error
 	// Get the zone name.
@@ -87,7 +93,7 @@ type client struct {
 	options    ClientOptions
 	token      string
 
-	eventsSubscribedCallbacks map[EventType]EventCallback
+	eventsSubscribedCallbacks map[EventType][]EventCallback
 	eventLoopDone             chan void
 	eventMutex                sync.Mutex
 }
@@ -107,7 +113,7 @@ func NewClient(options *ClientOptions) Client {
 		},
 		options:                   *options,
 		token:                     "",
-		eventsSubscribedCallbacks: map[EventType]EventCallback{},
+		eventsSubscribedCallbacks: map[EventType][]EventCallback{},
 	}
 }
 
@@ -162,6 +168,19 @@ func (c *client) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
 	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
 }
 
+func (c *client) ApartmentCallScene(sceneId int) error {
+	params := url.Values{}
+	params.Set("sceneNumber", strconv.Itoa(sceneId))
+	_, err := c.apiCall("json/apartment/callScene", params)
+	return err
+}
+
+func (c *client) ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error) {
+	params := url.Values{}
+	response, err := c.apiCall("json/apartment/getReachableGroups", params)
+	return wrapApiResponse[ApartmentGetReachableGroupsResponse](response, err)
+}
+
 func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
@@ -181,6 +200,16 @@ func (c *client) PropertyGetFloating(path string) (*FloatValue, error) {
 	params.Set("path", path)
 	response, err := c.apiCall("json/property/getFloating", params)
 	return wrapApiResponse[FloatValue](response, err)
+}
+
+func (c *client) ZoneCallScene(zoneId int, groupId int, sceneId int) error {
+	params := url.Values{}
+	params.Set("id", strconv.Itoa(zoneId))
+	params.Set("sceneNumber", strconv.Itoa(sceneId))
+	params.Set("groupID", strconv.Itoa(groupId))
+	params.Set("force", "true")
+	_, err := c.apiCall("json/zone/callScene", params)
+	return err
 }
 
 func (c *client) ZoneGetName(zoneId int) (*ZoneGetNameResponse, error) {
@@ -249,7 +278,10 @@ func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) er
 		return err
 	}
 
-	c.eventsSubscribedCallbacks[event] = eventCallback
+	if _, ok := c.eventsSubscribedCallbacks[event]; !ok {
+		c.eventsSubscribedCallbacks[event] = []EventCallback{}
+	}
+	c.eventsSubscribedCallbacks[event] = append(c.eventsSubscribedCallbacks[event], eventCallback)
 	return nil
 }
 
@@ -298,9 +330,13 @@ func (c *client) getToken() (string, error) {
 	// Subscribe again to the events if there was an existing subscription
 	// before. This should only happen when the token was revoked and we had to
 	// reconnect to the server.
-	for event, callback := range c.eventsSubscribedCallbacks {
-		if err := c.EventSubscribe(event, callback); err != nil {
-			return "", fmt.Errorf("error subscribing again to event '%s': %w", event, err)
+	eventsSubscribed := c.eventsSubscribedCallbacks
+	c.eventsSubscribedCallbacks = map[EventType][]EventCallback{}
+	for event, callbacks := range eventsSubscribed {
+		for _, callback := range callbacks {
+			if err := c.EventSubscribe(event, callback); err != nil {
+				return "", fmt.Errorf("error subscribing again to event '%s': %w", event, err)
+			}
 		}
 	}
 	return c.token, nil
@@ -440,7 +476,7 @@ func (c *client) startEventLoop() {
 						Str("event", utils.PrettyPrint(event)).
 						Msg("Event received.")
 
-					callback, ok := c.eventsSubscribedCallbacks[event.Name]
+					callbacks, ok := c.eventsSubscribedCallbacks[event.Name]
 					if !ok {
 						log.Warn().
 							Str("event type", string(event.Name)).
@@ -448,7 +484,9 @@ func (c *client) startEventLoop() {
 							Msg("Received an event that does not have any callback registered.")
 						continue
 					}
-					go callback(c, event)
+					for _, callback := range callbacks {
+						go callback(c, event)
+					}
 				}
 			}
 		}
