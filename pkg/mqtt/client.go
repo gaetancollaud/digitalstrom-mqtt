@@ -33,6 +33,8 @@ type Client interface {
 	// Subscribe to a topic and calls the given handler when a message is
 	// received.
 	Subscribe(topic string, messageHandler mqtt.MessageHandler) error
+
+	GetFullTopic(topic string) string
 	// Returns the topic used to publish the server status.
 	ServerStatusTopic() string
 }
@@ -106,6 +108,10 @@ func (c *client) publishServerStatus(message string) error {
 
 func (c *client) ServerStatusTopic() string {
 	return path.Join(c.options.TopicPrefix, serverStatus)
+}
+
+func (c *client) GetFullTopic(topic string) string {
+	return path.Join(c.options.TopicPrefix, topic)
 }
 
 func normalizeForTopicName(item string) string {

@@ -74,10 +74,23 @@ func (device *Device) DeviceType() DeviceType {
 
 // Returns some inferred properties from the device.
 func (device *Device) Properties() DeviceProperties {
+	positionChannel := ""
+	tiltChannel := ""
+	for _, channelName := range device.OutputChannelsNames() {
+		if strings.Contains(channelName, "Angle") {
+			tiltChannel = channelName
+		}
+		if strings.Contains(channelName, "Position") {
+			positionChannel = channelName
+		}
+	}
+
 	return DeviceProperties{
 		// outputMode is set to 22 for GE devices where the
 		// output is configure to be "dimmed".
-		Dimmable: device.OutputMode == 22,
+		Dimmable:        device.OutputMode == 22,
+		PositionChannel: positionChannel,
+		TiltChannel:     tiltChannel,
 	}
 }
 
@@ -100,7 +113,9 @@ type OutputChannel struct {
 // Note that all these properties are inferred from the attributes in the Device
 // structure.
 type DeviceProperties struct {
-	Dimmable bool
+	Dimmable        bool
+	PositionChannel string
+	TiltChannel     string
 }
 
 // Entity that represents an electrical circuit managed by DigitaqlStrom. This

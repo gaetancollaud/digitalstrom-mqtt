@@ -17,6 +17,8 @@ const (
 	Light            Domain = "light"
 	DeviceAutomation Domain = "device_automation"
 	Cover            Domain = "cover"
+	Scene            Domain = "scene"
+	DeviceTrigger    Domain = "device_automation"
 )
 
 type DiscoveryConfig struct {
@@ -62,7 +64,9 @@ func (hass *HomeAssistantDiscovery) AddConfigs(configs []DiscoveryConfig) {
 				utils.RemoveRegexp(
 					entityName,
 					hass.config.RemoveRegexpFromName)).
-			AddAvailability(systemAvailability)
+			SetRetain(hass.config.Retain).
+			AddAvailability(systemAvailability).
+			SetAvailabilityMode("all")
 		// Update the config with some generic attributes for all
 		// configurations.
 		device := config.Config.GetDevice()

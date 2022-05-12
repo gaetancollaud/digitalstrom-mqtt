@@ -9,6 +9,7 @@ import (
 	mqtt_base "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
 )
@@ -38,6 +39,7 @@ type Scene struct {
 	GroupName string `json:"GroupName"`
 	SceneId   int    `json:"SceneId"`
 	SceneName string `json:"SceneName"`
+	unnamed   bool
 }
 
 func (c *SceneModule) Start() error {
@@ -73,6 +75,7 @@ func (c *SceneModule) Start() error {
 					GroupId:   groupId,
 					SceneId:   sceneId,
 					SceneName: sceneName,
+					unnamed:   !ok,
 				}
 				c.scenes = append(c.scenes, scene)
 			}
@@ -174,6 +177,35 @@ func (c *SceneModule) sceneCommandTopic(zoneName string, sceneName string) strin
 		sceneName = normalizeForTopicName(sceneName)
 	}
 	return path.Join(scenes, zoneName, sceneName, mqtt.Command)
+}
+
+func (c *SceneModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
+	configs := []homeassistant.DiscoveryConfig{}
+
+	for _, scene := range c.scenes {
+		sceneConfig := homeassistant.DiscoveryConfig{
+			Domain:   homeassistant.Scene,
+			DeviceId: "zone_" + strconv.Itoa(scene.ZoneId),
+			ObjectId: "scene_" + strconv.Itoa(scene.SceneId),
+			Config: &homeassistant.SceneConfig{
+				BaseConfig: homeassistant.BaseConfig{
+					Device: homeassistant.Device{
+						Identifiers: []string{
+							"digitalstrom_zone_" + strconv.Itoa(scene.ZoneId),
+						},
+						Name: scene.ZoneName,
+					},
+					Name:     scene.SceneName,
+					UniqueId: "digitalstrom_zone_" + strconv.Itoa(scene.ZoneId) + "_scene_" + strconv.Itoa(scene.SceneId),
+				},
+				CommandTopic: c.mqttClient.GetFullTopic(
+					c.sceneCommandTopic(scene.ZoneName, scene.SceneName)),
+				EnabledByDefault: !scene.unnamed,
+			},
+		}
+		configs = append(configs, sceneConfig)
+	}
+	return configs, nil
 }
 
 func NewSceneModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
 )
@@ -93,6 +94,60 @@ func (c *CircuitModule) updateCircuitValues() {
 
 func circuitTopic(circuitName string, measurement string) string {
 	return path.Join(circuits, circuitName, measurement, mqtt.State)
+}
+
+func (c *CircuitModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
+	configs := []homeassistant.DiscoveryConfig{}
+
+	for _, circuit := range c.circuits {
+		powerConfig := homeassistant.DiscoveryConfig{
+			Domain:   homeassistant.Sensor,
+			DeviceId: circuit.DsId,
+			ObjectId: "power",
+			Config: &homeassistant.SensorConfig{
+				BaseConfig: homeassistant.BaseConfig{
+					Device: homeassistant.Device{
+						Identifiers: []string{circuit.DsId},
+						Model:       circuit.HwName,
+						Name:        circuit.Name,
+					},
+					Name:     "Power " + circuit.Name,
+					UniqueId: circuit.DsId + "_power",
+				},
+				StateTopic: c.mqttClient.GetFullTopic(
+					circuitTopic(circuit.Name, powerConsumption)),
+				UnitOfMeasurement: "W",
+				DeviceClass:       "power",
+				Icon:              "mdi:flash",
+			},
+		}
+		configs = append(configs, powerConfig)
+		energyConfig := homeassistant.DiscoveryConfig{
+			Domain:   homeassistant.Sensor,
+			DeviceId: circuit.DsId,
+			ObjectId: "energy",
+			Config: &homeassistant.SensorConfig{
+				BaseConfig: homeassistant.BaseConfig{
+					Device: homeassistant.Device{
+						Identifiers: []string{circuit.DsId},
+						Model:       circuit.HwName,
+						Name:        circuit.Name,
+					},
+					Name:     "Energy " + circuit.Name,
+					UniqueId: circuit.DsId + "_energy",
+				},
+				StateTopic: c.mqttClient.GetFullTopic(
+					circuitTopic(circuit.Name, powerConsumption)),
+				UnitOfMeasurement: "kWh",
+				DeviceClass:       "energy",
+				StateClass:        "total_increasing",
+				ValueTemplate:     "{{ (value | float / (3600*1000)) | round(3) }}",
+				Icon:              "mdi:lightning-bolt",
+			},
+		}
+		configs = append(configs, energyConfig)
+	}
+	return configs, nil
 }
 
 func NewCircuitModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {

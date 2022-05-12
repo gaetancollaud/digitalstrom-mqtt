@@ -6,6 +6,7 @@ import (
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
 )
@@ -86,19 +87,59 @@ func (c *ButtonModule) buttonClickTopic(deviceName string) string {
 	return path.Join(buttons, deviceName, mqtt.Event)
 }
 
+var clickTypeMapping = map[int]string{
+	0: "1-push",
+	1: "2-push",
+	2: "3-push",
+	3: "4-push",
+	6: "long-push",
+}
+
 func getClickType(clickType int) string {
-	mapping := map[int]string{
-		0: "1-push",
-		1: "2-push",
-		2: "3-push",
-		3: "4-push",
-		6: "long-push",
-	}
-	value, ok := mapping[clickType]
+	value, ok := clickTypeMapping[clickType]
 	if !ok {
 		return "unknown"
 	}
 	return value
+}
+
+func (c *ButtonModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
+	configs := []homeassistant.DiscoveryConfig{}
+
+	hassTypeMapping := map[int]string{
+		0: "button_short_press",
+		1: "button_double_press",
+		2: "button_triple_press",
+		3: "button_quadruple_press",
+		6: "button_long_press",
+	}
+
+	for _, device := range c.buttons {
+		for clickType, clickName := range clickTypeMapping {
+			config := homeassistant.DiscoveryConfig{
+				Domain:   homeassistant.DeviceTrigger,
+				DeviceId: device.Dsid,
+				ObjectId: clickName,
+				Config: &homeassistant.DeviceTriggerConfig{
+					BaseConfig: homeassistant.BaseConfig{
+						Device: homeassistant.Device{
+							Identifiers: []string{
+								device.Dsid,
+							},
+							Name: device.Name,
+						},
+					},
+					AutomationType: "trigger",
+					Type:           hassTypeMapping[clickType],
+					Subtype:        clickName,
+					Topic:          c.mqttClient.GetFullTopic(c.buttonClickTopic(device.Name)),
+					Payload:        getClickType(clickType),
+				},
+			}
+			configs = append(configs, config)
+		}
+	}
+	return configs, nil
 }
 
 func NewButtonModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {

@@ -11,6 +11,10 @@ type MqttConfig interface {
 	GetName() string
 	// Set name for the entity.
 	SetName(string) MqttConfig
+	// Set retain value.
+	SetRetain(bool) MqttConfig
+	// Set availability mode.
+	SetAvailabilityMode(string) MqttConfig
 }
 
 // Structure that encapsulates the information for the device exposed in
@@ -19,7 +23,7 @@ type Device struct {
 	ConfigurationUrl string   `json:"configuration_url"`
 	Identifiers      []string `json:"identifiers"`
 	Manufacturer     string   `json:"manufacturer"`
-	Model            string   `json:"model"`
+	Model            string   `json:"model,omitempty"`
 	Name             string   `json:"name"`
 }
 
@@ -34,11 +38,11 @@ type Availability struct {
 // Base config for all MQTT discovery configs.
 type BaseConfig struct {
 	Device           Device         `json:"device"`
-	Name             string         `json:"name"`
-	UniqueId         string         `json:"unique_id"`
+	Name             string         `json:"name,omitempty"`
+	UniqueId         string         `json:"unique_id,omitempty"`
 	Retain           bool           `json:"retain"`
-	Availability     []Availability `json:"availability"`
-	AvailabilityMode string         `json:"availability_mode"`
+	Availability     []Availability `json:"availability,omitempty"`
+	AvailabilityMode string         `json:"availability_mode,omitempty"`
 	QoS              int            `json:"qos"`
 }
 
@@ -64,9 +68,21 @@ func (c *BaseConfig) SetName(name string) MqttConfig {
 	return c
 }
 
+// Set retain value.
+func (c *BaseConfig) SetRetain(retain bool) MqttConfig {
+	c.Retain = retain
+	return c
+}
+
+// Set availability mode.
+func (c *BaseConfig) SetAvailabilityMode(mode string) MqttConfig {
+	c.AvailabilityMode = mode
+	return c
+}
+
 // Light configuration:
 // https://www.home-assistant.io/integrations/light.mqtt/
-type LightMqttConfig struct {
+type LightConfig struct {
 	BaseConfig
 	CommandTopic           string `json:"command_topic,omitempty"`
 	StateTopic             string `json:"state_topic,omitempty"`
@@ -82,16 +98,19 @@ type LightMqttConfig struct {
 // https://www.home-assistant.io/integrations/cover.mqtt/
 type CoverConfig struct {
 	BaseConfig
-	StateTopic       string `json:"state_topic,omitempty"`
-	StateClosed      string `json:"state_closed,omitempty"`
-	StateOpen        string `json:"state_open,omitempty"`
-	CommandTopic     string `json:"command_topic,omitempty"`
-	PayloadClose     string `json:"payload_close,omitempty"`
-	PayloadOpen      string `json:"payload_open,omitempty"`
-	PayloadStop      string `json:"payload_stop,omitempty"`
-	PositionTopic    string `json:"position_topic,omitempty"`
-	SetPositionTopic string `json:"set_position_topic,omitempty"`
-	PositionTemplate string `json:"position_template,omitempty"`
+	StateTopic         string `json:"state_topic,omitempty"`
+	StateClosed        string `json:"state_closed,omitempty"`
+	StateOpen          string `json:"state_open,omitempty"`
+	CommandTopic       string `json:"command_topic,omitempty"`
+	PayloadClose       string `json:"payload_close,omitempty"`
+	PayloadOpen        string `json:"payload_open,omitempty"`
+	PayloadStop        string `json:"payload_stop,omitempty"`
+	PositionTopic      string `json:"position_topic,omitempty"`
+	SetPositionTopic   string `json:"set_position_topic,omitempty"`
+	PositionTemplate   string `json:"position_template,omitempty"`
+	TiltStatusTopic    string `json:"tilt_status_topic"`
+	TiltCommandTopic   string `json:"tilt_command_topic"`
+	TiltStatusTemplate string `json:"tilt_status_template"`
 }
 
 // Sensor configuration:
@@ -101,7 +120,9 @@ type SensorConfig struct {
 	StateTopic        string `json:"state_topic,omitempty"`
 	UnitOfMeasurement string `json:"unit_of_measurement,omitempty"`
 	DeviceClass       string `json:"device_class,omitempty"`
+	StateClass        string `json:"state_class,omitempty"`
 	Icon              string `json:"icon,omitempty"`
+	ValueTemplate     string `json:"value_template,omitempty"`
 }
 
 // Scene configuration:

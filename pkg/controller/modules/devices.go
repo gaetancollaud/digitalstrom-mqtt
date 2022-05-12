@@ -10,6 +10,7 @@ import (
 	mqtt_base "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
 )
@@ -224,6 +225,94 @@ func (c *DeviceModule) deviceCommandTopic(deviceName string, channel string) str
 		deviceName = normalizeForTopicName(deviceName)
 	}
 	return path.Join(devices, deviceName, channel, mqtt.Command)
+}
+
+func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
+	configs := []homeassistant.DiscoveryConfig{}
+
+	for _, device := range c.devices {
+		var config homeassistant.DiscoveryConfig
+		if device.DeviceType() == digitalstrom.Light {
+			entityConfig := &homeassistant.LightConfig{
+				BaseConfig: homeassistant.BaseConfig{
+					Device: homeassistant.Device{
+						Identifiers: []string{
+							device.Dsid,
+							device.Dsuid,
+						},
+						Model: device.HwInfo,
+						Name:  device.Name,
+					},
+					Name:     device.Name,
+					UniqueId: device.Dsid + "_light",
+				},
+				CommandTopic: c.mqttClient.GetFullTopic(
+					c.deviceCommandTopic(device.Name, device.OutputChannelsNames()[0])),
+				StateTopic: c.mqttClient.GetFullTopic(
+					c.deviceStateTopic(device.Name, device.OutputChannelsNames()[0])),
+				PayloadOn:  "100.00",
+				PayloadOff: "0.00",
+			}
+			if device.Properties().Dimmable {
+				entityConfig.OnCommandType = "brightness"
+				entityConfig.BrightnessScale = 100
+				entityConfig.BrightnessStateTopic = c.mqttClient.GetFullTopic(
+					c.deviceStateTopic(device.Name, device.OutputChannelsNames()[0]))
+				entityConfig.BrightnessCommandTopic = c.mqttClient.GetFullTopic(
+					c.deviceCommandTopic(device.Name, device.OutputChannelsNames()[0]))
+			}
+			config = homeassistant.DiscoveryConfig{
+				Domain:   homeassistant.Light,
+				DeviceId: device.Dsid,
+				ObjectId: "light",
+				Config:   entityConfig,
+			}
+			configs = append(configs, config)
+		} else if device.DeviceType() == digitalstrom.Blind {
+			deviceProperties := device.Properties()
+			entityConfig := &homeassistant.CoverConfig{
+				BaseConfig: homeassistant.BaseConfig{
+					Device: homeassistant.Device{
+						Identifiers: []string{
+							device.Dsid,
+							device.Dsuid,
+						},
+						Model: device.HwInfo,
+						Name:  device.Name,
+					},
+					Name:     device.Name,
+					UniqueId: device.Dsid + "_cover",
+				},
+				CommandTopic: c.mqttClient.GetFullTopic(
+					c.deviceCommandTopic(device.Name, deviceProperties.PositionChannel)),
+				PayloadOpen:  "100.00",
+				PayloadClose: "0.00",
+				PayloadStop:  "STOP",
+				StateTopic: c.mqttClient.GetFullTopic(
+					c.deviceStateTopic(device.Name, deviceProperties.PositionChannel)),
+				StateOpen:        "100.00",
+				StateClosed:      "0.00",
+				PositionTopic:    c.mqttClient.GetFullTopic(c.deviceStateTopic(device.Name, deviceProperties.PositionChannel)),
+				SetPositionTopic: c.mqttClient.GetFullTopic(c.deviceCommandTopic(device.Name, deviceProperties.PositionChannel)),
+				PositionTemplate: "{{ value | int }}",
+			}
+			if deviceProperties.TiltChannel != "" {
+				entityConfig.TiltStatusTemplate = "{{ value | int }}"
+				entityConfig.TiltStatusTopic = c.mqttClient.GetFullTopic(
+					c.deviceStateTopic(device.Name, deviceProperties.TiltChannel))
+				entityConfig.TiltCommandTopic = c.mqttClient.GetFullTopic(
+					c.deviceCommandTopic(device.Name, deviceProperties.TiltChannel))
+			}
+			config = homeassistant.DiscoveryConfig{
+				Domain:   homeassistant.Cover,
+				DeviceId: device.Dsid,
+				ObjectId: "blind",
+				Config:   entityConfig,
+			}
+			configs = append(configs, config)
+		}
+	}
+	return configs, nil
 }
 
 func normalizeForTopicName(item string) string {
