@@ -30,8 +30,11 @@ type Client interface {
 
 	// Publishes a message under the prefix topic of DigitalStrom.
 	Publish(topic string, message interface{}) error
-
+	// Subscribe to a topic and calls the given handler when a message is
+	// received.
 	Subscribe(topic string, messageHandler mqtt.MessageHandler) error
+	// Returns the topic used to publish the server status.
+	ServerStatusTopic() string
 }
 
 type client struct {
@@ -99,6 +102,10 @@ func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) err
 func (c *client) publishServerStatus(message string) error {
 	log.Info().Str("status", message).Str("topic", serverStatus).Msg("Updating server status topic")
 	return c.Publish(serverStatus, message)
+}
+
+func (c *client) ServerStatusTopic() string {
+	return path.Join(c.options.TopicPrefix, serverStatus)
 }
 
 func normalizeForTopicName(item string) string {

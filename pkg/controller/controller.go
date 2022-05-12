@@ -6,13 +6,15 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/controller/modules"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
 )
 
 type Controller struct {
-	dsClient   digitalstrom.Client
-	mqttClient mqtt.Client
+	dsClient      digitalstrom.Client
+	mqttClient    mqtt.Client
+	hassDiscovery *homeassistant.HomeAssistantDiscovery
 
 	modules map[string]modules.Module
 }
@@ -33,10 +35,16 @@ func NewController(config *config.Config) *Controller {
 		SetTopicPrefix(config.Mqtt.TopicPrefix).
 		SetRetain(config.Mqtt.Retain)
 	mqttClient := mqtt.NewClient(mqttOptions)
+
+	hass := homeassistant.NewHomeAssistantDiscovery(
+		mqttClient,
+		&config.HomeAssistant)
+
 	controller := Controller{
-		dsClient:   dsClient,
-		mqttClient: mqttClient,
-		modules:    map[string]modules.Module{},
+		dsClient:      dsClient,
+		mqttClient:    mqttClient,
+		hassDiscovery: hass,
+		modules:       map[string]modules.Module{},
 	}
 
 	for name, builder := range modules.Modules {
@@ -61,6 +69,23 @@ func (c *Controller) Start() error {
 		if err := module.Start(); err != nil {
 			return fmt.Errorf("error starting module '%s': %w", name, err)
 		}
+	}
+
+	// Retrieve from all the modules the discovery configs to be exported.
+	for name, module := range c.modules {
+		m, ok := module.(homeassistant.HomeAssistantDiscoveryInterface)
+		if !ok {
+			continue
+		}
+		configs, err := m.GetHomeAssistantEntities()
+		if err != nil {
+			return fmt.Errorf("error getting discovery configs from module '%s': %w", name, err)
+		}
+		c.hassDiscovery.AddConfigs(configs)
+	}
+	// Publishes Home Assistant Discovery messages.
+	if err := c.hassDiscovery.PublishDiscoveryMessages(); err != nil {
+		return err
 	}
 
 	return nil
