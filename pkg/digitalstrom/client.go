@@ -96,6 +96,11 @@ type client struct {
 	eventsSubscribedCallbacks map[EventType][]EventCallback
 	eventLoopDone             chan void
 	eventMutex                sync.Mutex
+
+	// Protect the login process with a Mutex to avoid multiple goroutines
+	// performing login in parallel and not have in sync the subscriptions for
+	// each session.
+	loginMutex sync.Mutex
 }
 
 // NewClient will create a DigitalStrom client with all the options specified in
@@ -313,6 +318,9 @@ func (c *client) EventGet() (*EventGetResponse, error) {
 // if the token has been invalidated (e.g. expired), it will do login again and
 // subscribe again to all the events the client was previously subscribed to.
 func (c *client) getToken() (string, error) {
+	c.loginMutex.Lock()
+	defer c.loginMutex.Unlock()
+
 	if c.token != "" {
 		return c.token, nil
 	}

@@ -34,9 +34,12 @@ type Client interface {
 	// received.
 	Subscribe(topic string, messageHandler mqtt.MessageHandler) error
 
+	// Return the full topic for a given subpath.
 	GetFullTopic(topic string) string
 	// Returns the topic used to publish the server status.
 	ServerStatusTopic() string
+
+	RawClient() mqtt.Client
 }
 
 type client struct {
@@ -112,6 +115,10 @@ func (c *client) ServerStatusTopic() string {
 
 func (c *client) GetFullTopic(topic string) string {
 	return path.Join(c.options.TopicPrefix, topic)
+}
+
+func (c *client) RawClient() mqtt.Client {
+	return c.mqttClient
 }
 
 func normalizeForTopicName(item string) string {

@@ -195,12 +195,13 @@ func (c *SceneModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfi
 						},
 						Name: scene.ZoneName,
 					},
-					Name:     scene.SceneName,
+					Name:     scene.ZoneName + " " + scene.SceneName,
 					UniqueId: "digitalstrom_zone_" + strconv.Itoa(scene.ZoneId) + "_scene_" + strconv.Itoa(scene.SceneId),
 				},
 				CommandTopic: c.mqttClient.GetFullTopic(
 					c.sceneCommandTopic(scene.ZoneName, scene.SceneName)),
 				EnabledByDefault: !scene.unnamed,
+				PayloadOn:        "ON",
 			},
 		}
 		configs = append(configs, sceneConfig)

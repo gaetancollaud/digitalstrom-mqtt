@@ -137,7 +137,7 @@ func (c *CircuitModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCon
 					UniqueId: circuit.DsId + "_energy",
 				},
 				StateTopic: c.mqttClient.GetFullTopic(
-					circuitTopic(circuit.Name, powerConsumption)),
+					circuitTopic(circuit.Name, energyMeter)),
 				UnitOfMeasurement: "kWh",
 				DeviceClass:       "energy",
 				StateClass:        "total_increasing",

@@ -132,7 +132,7 @@ type SceneConfig struct {
 	CommandTopic     string `json:"command_topic,omitempty"`
 	PayloadOn        string `json:"payload_on,omitempty"`
 	Icon             string `json:"icon,omitempty"`
-	EnabledByDefault bool   `json:"enabled_by_default,omitempty"`
+	EnabledByDefault bool   `json:"enabled_by_default"`
 }
 
 // Device Trigger configuration:
