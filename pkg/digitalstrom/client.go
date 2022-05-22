@@ -59,6 +59,8 @@ type Client interface {
 	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
 	// Sets the values for the channels in the given device.
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
+	// Gets the motion time for the device.
+	DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error)
 	// Subscribe to an event and run the given callback when an event of the
 	// given types is received.
 	EventSubscribe(event EventType, eventCallback EventCallback) error
@@ -269,6 +271,13 @@ func (c *client) DeviceGetOutputChannelValue(dsid string, channels []string) (*D
 	params.Set("channels", strings.Join(channels, ";"))
 	response, err := c.apiCall("json/device/getOutputChannelValue", params)
 	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
+}
+
+func (c *client) DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error) {
+	params := url.Values{}
+	params.Set("dsid", dsid)
+	response, err := c.apiCall("json/device/getMaxMotionTime", params)
+	return wrapApiResponse[DeviceGetMaxMotionTimeResponse](response, err)
 }
 
 func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) error {

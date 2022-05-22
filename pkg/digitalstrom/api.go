@@ -209,6 +209,11 @@ type DeviceGetOutputChannelValueResponse struct {
 	Channels []ChannelValue `mapstructure:"channels"`
 }
 
+type DeviceGetMaxMotionTimeResponse struct {
+	Supported bool  `mapstructure:"supported"`
+	Value     int64 `mapstructure:"value"`
+}
+
 type CircuitGetConsumptionResponse struct {
 	Consumption float64 `mapstructure:"consumption"`
 }
