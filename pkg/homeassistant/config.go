@@ -89,7 +89,7 @@ type LightConfig struct {
 	PayloadOn              string `json:"payload_on,omitempty"`
 	PayloadOff             string `json:"payload_off,omitempty"`
 	OnCommandType          string `json:"on_command_type,omitempty"`
-	BrightnessScale        int    `json:"brigthness_scale,omitempty"`
+	BrightnessScale        int    `json:"brightness_scale,omitempty"`
 	BrightnessStateTopic   string `json:"brightness_state_topic,omitempty"`
 	BrightnessCommandTopic string `json:"brightness_command_topic,omitempty"`
 }

@@ -37,11 +37,7 @@ func main() {
 
 	log.Info().Msg("Starting DigitalStrom MQTT!")
 
-	// ds := digitalstrom.New(config)
-	// mqtt := mqtt.New(config, ds)
-
-	// ds.Start()
-	// mqtt.Start()
+	// Initialize controller responsible for all the bridge logic.
 	controller := controller.NewController(config)
 	if err := controller.Start(); err != nil {
 		log.Fatal().Err(err).Msg("Error on starting the controller")
@@ -52,9 +48,7 @@ func main() {
 	signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
 	<-exitSignal
 
-	// Gracefulle stop the connections.
-	// ds.Stop()
-	// mqtt.Stop()
+	// Gracefulle stop all the modules loops and logic.
 	if err := controller.Stop(); err != nil {
 		log.Fatal().Err(err).Msg("Error when stopping the controller")
 	}

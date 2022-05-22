@@ -83,7 +83,8 @@ func (c *DeviceModule) Start() error {
 	// Subscribe to MQTT events.
 	for _, device := range c.devices {
 		for _, channel := range device.OutputChannels {
-			deviceName := device.Name
+			deviceCopy := device
+			deviceName := deviceCopy.Name
 			channelName := channel.Name
 			topic := c.deviceCommandTopic(deviceName, channelName)
 			log.Trace().
@@ -99,7 +100,7 @@ func (c *DeviceModule) Start() error {
 					Str("channel", channelName).
 					Str("payload", payload).
 					Msg("Message Received.")
-				if err := c.onMqttMessage(&device, channelName, payload); err != nil {
+				if err := c.onMqttMessage(&deviceCopy, channelName, payload); err != nil {
 					log.Error().
 						Str("topic", topic).
 						Err(err).
@@ -139,6 +140,9 @@ func (c *DeviceModule) onMqttMessage(device *digitalstrom.Device, channel string
 		Float64("value", value).
 		Msg("Setting value.")
 	if err := c.dsClient.DeviceSetOutputChannelValue(device.Dsid, map[string]int{channel: int(value)}); err != nil {
+		return err
+	}
+	if err := c.publishDeviceValue(device, channel, value); err != nil {
 		return err
 	}
 	return nil
