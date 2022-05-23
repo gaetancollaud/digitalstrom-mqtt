@@ -32,3 +32,5 @@ jobs:
           path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       - name: Build
         run: go build -o dist/digitalstrom-mqtt-${{matrix.os}} ./main.go
+      - name: Test
+        run: go test -v ./...
