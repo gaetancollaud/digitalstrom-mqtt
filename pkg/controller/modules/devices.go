@@ -20,9 +20,9 @@ const (
 	stop    string = "stop"
 )
 
-// Circuit Module encapsulates all the logic regarding the circuits. The logic
-// is the following: every 30 seconds the circuit values are being checked and
-// pushed to the corresponding topic in the MQTT server.
+// Device Module encapsulates all the logic regarding the devices in your
+// installation. It listens for events in DigitalStrom and messages in MQTT and
+// send value updates to the other client.
 type DeviceModule struct {
 	mqttClient mqtt.Client
 	dsClient   digitalstrom.Client
@@ -37,10 +37,10 @@ type DeviceModule struct {
 }
 
 func (c *DeviceModule) Start() error {
-	// Prefetch the list of circuits available in DigitalStrom.
+	// Prefetch the list of devices available in DigitalStrom.
 	response, err := c.dsClient.ApartmentGetDevices()
 	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
+		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
 	}
 	c.devices = *response
 

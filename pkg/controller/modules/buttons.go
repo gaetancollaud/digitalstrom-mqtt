@@ -15,9 +15,9 @@ const (
 	buttons string = "buttons"
 )
 
-// Circuit Module encapsulates all the logic regarding the circuits. The logic
-// is the following: every 30 seconds the circuit values are being checked and
-// pushed to the corresponding topic in the MQTT server.
+// Button Module encapsulates all the logic regarding the joker button devices.
+// The logic listens for Joker push button events and publishes them into the
+// MQTT server.
 type ButtonModule struct {
 	mqttClient mqtt.Client
 	dsClient   digitalstrom.Client
@@ -29,10 +29,10 @@ type ButtonModule struct {
 }
 
 func (c *ButtonModule) Start() error {
-	// Prefetch the list of circuits available in DigitalStrom.
+	// Prefetch the list of devices available in DigitalStrom.
 	response, err := c.dsClient.ApartmentGetDevices()
 	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
+		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
 	}
 	// Store only the devices that are actually joker buttons.
 	for _, device := range *response {
