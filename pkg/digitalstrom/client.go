@@ -140,7 +140,7 @@ func (c *client) Connect() error {
 	return nil
 }
 
-// Disconnect stops all work on the  It stops any running event loop,
+// Disconnect stops all work on the client: it stops any running event loop,
 // unsubscribe from any event in the server and closes any idle connection.
 func (c *client) Disconnect() error {
 	if c.status == disconnected {
@@ -371,7 +371,7 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 		if err != nil {
 			// In case of error retrieving token, wait some time and continue to
 			// next retry.
-			log.Warn().Err(err).Msg("Failed to retrieve tokenn. Will wait for next retry.")
+			log.Warn().Err(err).Msg("Failed to retrieve token. Will wait for next retry.")
 			time.Sleep(c.options.RetryDuration)
 			continue
 		}
@@ -392,8 +392,12 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 		time.Sleep(c.options.RetryDuration)
 	}
 	if err != nil {
-		log.Error().Err(err).Msg("Failed API GET request")
-		return nil, fmt.Errorf("unable to refresh token after "+strconv.Itoa(c.options.MaxRetries)+" retries: %w", err)
+		log.Error().
+			Err(err).
+			Str("path", path).
+			Str("params", fmt.Sprintf("%+v", params)).
+			Msg("Failed API GET request")
+		return nil, fmt.Errorf("unable to refresh token after %d retries: %w", c.options.MaxRetries, err)
 	}
 	return response, nil
 }
@@ -446,7 +450,7 @@ func (c *client) getRequest(path string, params url.Values) (interface{}, error)
 			return nil, errors.New("error with DigitalStrom API: " + jsonResponse["message"].(string))
 		}
 	} else {
-		log.Panic().Str("response", string(body)).Msg("No 'ok' field present in API response.")
+		log.Error().Str("response", string(body)).Msg("No 'ok' field present in API response.")
 		return nil, errors.New("no 'ok' field present, cannot check request")
 	}
 

@@ -21,7 +21,7 @@ type ClientOptions struct {
 // values.
 //   TopicPrefix: "digitalstrom"
 //	 NormalizeDeviceName: true
-// 	 Retain: true
+// 	 Retain: false
 //	 QoS: 0
 //	 DisconnectTimeout: 1 second
 func NewClientOptions() *ClientOptions {
@@ -30,7 +30,7 @@ func NewClientOptions() *ClientOptions {
 		Username:          "",
 		Password:          "",
 		TopicPrefix:       "digitalstrom",
-		Retain:            true,
+		Retain:            false,
 		QoS:               0,
 		DisconnectTimeout: 1 * time.Second,
 	}

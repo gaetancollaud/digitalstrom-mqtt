@@ -1,6 +1,10 @@
 package digitalstrom
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/rs/zerolog/log"
+)
 
 type DeviceType string
 
@@ -68,6 +72,9 @@ func (device *Device) DeviceType() DeviceType {
 	case strings.HasPrefix(device.HwInfo, "SW"):
 		return Joker
 	default:
+		log.Warn().
+			Str("hwInfo", device.HwInfo).
+			Msg("Unknown device type found.")
 		return Unknown
 	}
 }
