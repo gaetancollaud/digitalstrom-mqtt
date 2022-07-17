@@ -221,6 +221,11 @@ type DeviceGetMaxMotionTimeResponse struct {
 	Value     int64 `mapstructure:"value"`
 }
 
+type DeviceGetTransmissionQualityResponse struct {
+	Upstream   int64 `mapstructure:"upstream"`
+	Downstream int64 `mapstructure:"downstream"`
+}
+
 type CircuitGetConsumptionResponse struct {
 	Consumption float64 `mapstructure:"consumption"`
 }

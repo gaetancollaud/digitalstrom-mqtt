@@ -61,6 +61,8 @@ type Client interface {
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
 	// Gets the motion time for the device.
 	DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error)
+	// Gets the transmission quality for the device.
+	DeviceGetTransmissionQuality(dsid string) (*DeviceGetTransmissionQualityResponse, error)
 	// Subscribe to an event and run the given callback when an event of the
 	// given types is received.
 	EventSubscribe(event EventType, eventCallback EventCallback) error
@@ -131,7 +133,7 @@ func (c *client) Connect() error {
 		return nil
 	}
 	c.status = connecting
-	if _, err := c.getToken(); err != nil {
+	if err := c.login(); err != nil {
 		return err
 	}
 
@@ -280,6 +282,13 @@ func (c *client) DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeRes
 	return wrapApiResponse[DeviceGetMaxMotionTimeResponse](response, err)
 }
 
+func (c *client) DeviceGetTransmissionQuality(dsid string) (*DeviceGetTransmissionQualityResponse, error) {
+	params := url.Values{}
+	params.Set("dsid", dsid)
+	response, err := c.apiCall("json/device/getTransmissionQuality", params)
+	return wrapApiResponse[DeviceGetTransmissionQualityResponse](response, err)
+}
+
 func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) error {
 	c.eventMutex.Lock()
 	defer c.eventMutex.Unlock()
@@ -322,17 +331,24 @@ func (c *client) EventGet() (*EventGetResponse, error) {
 	return wrapApiResponse[EventGetResponse](response, err)
 }
 
-// getToken will retrieve the token of the current connection into the server.
-// If already login, it will return the current connection token. Alternatively,
-// if the token has been invalidated (e.g. expired), it will do login again and
-// subscribe again to all the events the client was previously subscribed to.
-func (c *client) getToken() (string, error) {
+func (c *client) isSubscribedToEvents() bool {
+	c.eventMutex.Lock()
+	defer c.eventMutex.Unlock()
+	return len(c.eventsSubscribedCallbacks) > 0
+}
+
+func (c *client) getSubscriptionCallback(eventType EventType) ([]EventCallback, bool) {
+	c.eventMutex.Lock()
+	defer c.eventMutex.Unlock()
+	callbacks, ok := c.eventsSubscribedCallbacks[eventType]
+	return callbacks, ok
+}
+
+func (c *client) login() error {
 	c.loginMutex.Lock()
 	defer c.loginMutex.Unlock()
 
-	if c.token != "" {
-		return c.token, nil
-	}
+	c.token = ""
 	// Get token by making login to the server.
 	params := url.Values{}
 	params.Set("user", c.options.Username)
@@ -340,23 +356,35 @@ func (c *client) getToken() (string, error) {
 	response, err := c.getRequest("json/system/login", params)
 	res, err := wrapApiResponse[TokenResponse](response, err)
 	if err != nil {
-		return "", fmt.Errorf("error on login request: %w", err)
+		return fmt.Errorf("error on login request: %w", err)
 	}
 	c.token = res.Token
+	return nil
+}
 
-	// Subscribe again to the events if there was an existing subscription
-	// before. This should only happen when the token was revoked and we had to
-	// reconnect to the server.
+// getToken will retrieve the token of the current connection into the server.
+// If already login, it will return the current connection token. Alternatively,
+// if the token has been invalidated (e.g. expired), it will do login again and
+// subscribe again to all the events the client was previously subscribed to.
+func (c *client) getToken() (string, error) {
+	c.loginMutex.Lock()
+	defer c.loginMutex.Unlock()
+	return c.token, nil
+}
+
+func (c *client) resubscribe() error {
+	c.eventMutex.Lock()
 	eventsSubscribed := c.eventsSubscribedCallbacks
 	c.eventsSubscribedCallbacks = map[EventType][]EventCallback{}
+	c.eventMutex.Unlock()
 	for event, callbacks := range eventsSubscribed {
 		for _, callback := range callbacks {
 			if err := c.EventSubscribe(event, callback); err != nil {
-				return "", fmt.Errorf("error subscribing again to event '%s': %w", event, err)
+				return fmt.Errorf("error subscribing again to event '%s': %w", event, err)
 			}
 		}
 	}
-	return c.token, nil
+	return nil
 }
 
 // apiCall performs a request to the DigitalStrom server by using retry and
@@ -381,9 +409,16 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 			break
 		}
 		if strings.Contains(err.Error(), "not logged in") {
-			// Issue with token, invalidate the old one before retrying.
-			c.token = "" // Invalidate current token.
 			log.Warn().Err(err).Msg("Not logged error. Retrying...")
+			// Issue with token perform login again.
+			if err := c.login(); err != nil {
+				return nil, fmt.Errorf("unable to login again after invalid token: %w", err)
+			}
+			// Subscribe again to the events if there was an existing
+			// subscription before.
+			if err := c.resubscribe(); err != nil {
+				return nil, fmt.Errorf("unsable to resubscribe to events after invalid token: %w", err)
+			}
 		} else {
 			// Don't retry in case its not an authetication error.
 			break
@@ -479,7 +514,7 @@ func (c *client) startEventLoop() {
 				// In case there is no subscription to any event, in order to
 				// avoid an error in the GET request, let's put to sleep the
 				// loop.
-				if len(c.eventsSubscribedCallbacks) == 0 {
+				if !c.isSubscribedToEvents() {
 					time.Sleep(1 * time.Second)
 					continue
 				}
@@ -497,7 +532,7 @@ func (c *client) startEventLoop() {
 						Str("event", utils.PrettyPrint(event)).
 						Msg("Event received.")
 
-					callbacks, ok := c.eventsSubscribedCallbacks[event.Name]
+					callbacks, ok := c.getSubscriptionCallback(event.Name)
 					if !ok {
 						log.Warn().
 							Str("event type", string(event.Name)).
