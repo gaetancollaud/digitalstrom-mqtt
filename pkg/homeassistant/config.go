@@ -123,6 +123,7 @@ type SensorConfig struct {
 	StateClass        string `json:"state_class,omitempty"`
 	Icon              string `json:"icon,omitempty"`
 	ValueTemplate     string `json:"value_template,omitempty"`
+	EntityCategory    string `json:"entity_category,omitempty"`
 }
 
 // Scene configuration:
