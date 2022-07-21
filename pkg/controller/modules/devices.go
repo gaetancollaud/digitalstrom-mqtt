@@ -235,6 +235,9 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 	configs := []homeassistant.DiscoveryConfig{}
 
 	for _, device := range c.devices {
+		if device.Name == "" {
+			continue
+		}
 		var config homeassistant.DiscoveryConfig
 		if device.DeviceType() == digitalstrom.Light {
 			entityConfig := &homeassistant.LightConfig{
@@ -283,6 +286,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 						},
 						Model: device.HwInfo,
 						Name:  device.Name,
+						// TODO(alberto): Add suggested Area to Home Assistant.
 					},
 					Name:     device.Name,
 					UniqueId: device.Dsid + "_cover",

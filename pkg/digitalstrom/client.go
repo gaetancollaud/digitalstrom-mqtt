@@ -432,7 +432,7 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 			Str("path", path).
 			Str("params", fmt.Sprintf("%+v", params)).
 			Msg("Failed API GET request")
-		return nil, fmt.Errorf("unable to refresh token after %d retries: %w", c.options.MaxRetries, err)
+		return nil, fmt.Errorf("failed API GET requst: %w", err)
 	}
 	return response, nil
 }

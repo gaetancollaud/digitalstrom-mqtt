@@ -5,3 +5,5 @@ tests/
 
 .env
 /config.yaml
+
+TODO.md
