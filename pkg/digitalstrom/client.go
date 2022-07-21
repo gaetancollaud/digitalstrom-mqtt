@@ -1,6 +1,7 @@
 package digitalstrom
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -44,48 +45,48 @@ type Client interface {
 	// Start of the API calls to DigitalStrom.
 
 	// Get the list of circuits in the apartment.
-	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
+	ApartmentGetCircuits(ctx context.Context) (*ApartmentGetCircuitsResponse, error)
 	// Get the list of devices in the apartment.
-	ApartmentGetDevices() (*ApartmentGetDevicesResponse, error)
+	ApartmentGetDevices(ctx context.Context) (*ApartmentGetDevicesResponse, error)
 	// Call a scene which will be immediately applied.
-	ApartmentCallScene(sceneId int) error
+	ApartmentCallScene(ctx context.Context, sceneId int) error
 	// Get the list of Zones and the groups on it.
-	ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error)
+	ApartmentGetReachableGroups(ctx context.Context) (*ApartmentGetReachableGroupsResponse, error)
 	// Get the power consumption from a given circuit.
-	CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error)
+	CircuitGetConsumption(ctx context.Context, dsid string) (*CircuitGetConsumptionResponse, error)
 	// Get the energy meter value from a given circuit.
-	CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error)
+	CircuitGetEnergyMeterValue(dctx context.Context, sid string) (*CircuitGetEnergyMeterValueResponse, error)
 	// Get the values for the channels in the given device.
-	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
+	DeviceGetOutputChannelValue(ctx context.Context, dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
 	// Sets the values for the channels in the given device.
-	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
+	DeviceSetOutputChannelValue(ctx context.Context, dsid string, channelValues map[string]int) error
 	// Gets the motion time for the device.
-	DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error)
+	DeviceGetMaxMotionTime(ctx context.Context, dsid string) (*DeviceGetMaxMotionTimeResponse, error)
 	// Gets the transmission quality for the device.
-	DeviceGetTransmissionQuality(dsid string) (*DeviceGetTransmissionQualityResponse, error)
+	DeviceGetTransmissionQuality(ctx context.Context, dsid string) (*DeviceGetTransmissionQualityResponse, error)
 	// Subscribe to an event and run the given callback when an event of the
 	// given types is received.
-	EventSubscribe(event EventType, eventCallback EventCallback) error
+	EventSubscribe(ctx context.Context, event EventType, eventCallback EventCallback) error
 	// Unsubscribe to the given event type.
-	EventUnsubscribe(event EventType) error
+	EventUnsubscribe(ctx context.Context, event EventType) error
 	// Get the latest event from the server. Note that you must be subscribed to
 	// at least one event and the call is blocking until a new event is
 	// available. This can be used when has been specified that the event loop
 	// does not run and therefore is responsibility of the client to retrieve
 	// the events manually using this call.
-	EventGet() (*EventGetResponse, error)
+	EventGet(ctx context.Context) (*EventGetResponse, error)
 	// Get the floating value for the given property path.
-	PropertyGetFloating(path string) (*FloatValue, error)
+	PropertyGetFloating(ctx context.Context, path string) (*FloatValue, error)
 	// Call scene in a specified zone.
-	ZoneCallScene(zoneId int, groupId int, sceneId int) error
+	ZoneCallScene(ctx context.Context, zoneId int, groupId int, sceneId int) error
 	// Call action in a specified zone.
-	ZoneCallAction(zoneId int, action Action) error
+	ZoneCallAction(ctx context.Context, zoneId int, action Action) error
 	// Get the zone name.
-	ZoneGetName(zoneId int) (*ZoneGetNameResponse, error)
+	ZoneGetName(ctx context.Context, zoneId int) (*ZoneGetNameResponse, error)
 	// Get the list of scenes that are available at a given zone.
-	ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error)
+	ZoneGetReachableScenes(ctx context.Context, zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error)
 	// Get the scene name.
-	ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error)
+	ZoneSceneGetName(ctx context.Context, zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error)
 }
 
 // client implements the DigitalStrom interface.
@@ -133,7 +134,7 @@ func (c *client) Connect() error {
 		return nil
 	}
 	c.status = connecting
-	if err := c.login(); err != nil {
+	if err := c.login(context.TODO()); err != nil {
 		return err
 	}
 
@@ -152,8 +153,8 @@ func (c *client) Disconnect() error {
 	c.stopEventLoop()
 
 	// Unsubscribe from events.
-	for event, _ := range c.eventsSubscribedCallbacks {
-		if err := c.EventUnsubscribe(event); err != nil {
+	for event := range c.eventsSubscribedCallbacks {
+		if err := c.EventUnsubscribe(context.TODO(), event); err != nil {
 			return fmt.Errorf("error unsubscribing from event '%s': %w", event, err)
 		}
 	}
@@ -167,94 +168,94 @@ func (c *client) Disconnect() error {
 	return nil
 }
 
-func (c *client) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
-	response, err := c.apiCall("json/apartment/getCircuits", url.Values{})
+func (c *client) ApartmentGetCircuits(ctx context.Context) (*ApartmentGetCircuitsResponse, error) {
+	response, err := c.apiCall(ctx, "json/apartment/getCircuits", url.Values{})
 	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
 }
 
-func (c *client) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
-	response, err := c.apiCall("json/apartment/getDevices", url.Values{})
+func (c *client) ApartmentGetDevices(ctx context.Context) (*ApartmentGetDevicesResponse, error) {
+	response, err := c.apiCall(ctx, "json/apartment/getDevices", url.Values{})
 	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
 }
 
-func (c *client) ApartmentCallScene(sceneId int) error {
+func (c *client) ApartmentCallScene(ctx context.Context, sceneId int) error {
 	params := url.Values{}
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
-	_, err := c.apiCall("json/apartment/callScene", params)
+	_, err := c.apiCall(ctx, "json/apartment/callScene", params)
 	return err
 }
 
-func (c *client) ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error) {
+func (c *client) ApartmentGetReachableGroups(ctx context.Context) (*ApartmentGetReachableGroupsResponse, error) {
 	params := url.Values{}
-	response, err := c.apiCall("json/apartment/getReachableGroups", params)
+	response, err := c.apiCall(ctx, "json/apartment/getReachableGroups", params)
 	return wrapApiResponse[ApartmentGetReachableGroupsResponse](response, err)
 }
 
-func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
+func (c *client) CircuitGetConsumption(ctx context.Context, dsid string) (*CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
-	response, err := c.apiCall("json/circuit/getConsumption", params)
+	response, err := c.apiCall(ctx, "json/circuit/getConsumption", params)
 	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
 }
 
-func (c *client) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
+func (c *client) CircuitGetEnergyMeterValue(ctx context.Context, dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
-	response, err := c.apiCall("json/circuit/getEnergyMeterValue", params)
+	response, err := c.apiCall(ctx, "json/circuit/getEnergyMeterValue", params)
 	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
 }
 
-func (c *client) PropertyGetFloating(path string) (*FloatValue, error) {
+func (c *client) PropertyGetFloating(ctx context.Context, path string) (*FloatValue, error) {
 	params := url.Values{}
 	params.Set("path", path)
-	response, err := c.apiCall("json/property/getFloating", params)
+	response, err := c.apiCall(ctx, "json/property/getFloating", params)
 	return wrapApiResponse[FloatValue](response, err)
 }
 
-func (c *client) ZoneCallScene(zoneId int, groupId int, sceneId int) error {
+func (c *client) ZoneCallScene(ctx context.Context, zoneId int, groupId int, sceneId int) error {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("force", "true")
-	_, err := c.apiCall("json/zone/callScene", params)
+	_, err := c.apiCall(ctx, "json/zone/callScene", params)
 	return err
 }
 
-func (c *client) ZoneGetName(zoneId int) (*ZoneGetNameResponse, error) {
+func (c *client) ZoneGetName(ctx context.Context, zoneId int) (*ZoneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
-	response, err := c.apiCall("json/zone/getName", params)
+	response, err := c.apiCall(ctx, "json/zone/getName", params)
 	return wrapApiResponse[ZoneGetNameResponse](response, err)
 }
 
-func (c *client) ZoneCallAction(zoneId int, action Action) error {
+func (c *client) ZoneCallAction(ctx context.Context, zoneId int, action Action) error {
 	params := url.Values{}
 	params.Set("application", "2")
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("action", string(action))
-	_, err := c.apiCall("json/zone/callAction", params)
+	_, err := c.apiCall(ctx, "json/zone/callAction", params)
 	return err
 }
 
-func (c *client) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error) {
+func (c *client) ZoneSceneGetName(ctx context.Context, zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
-	response, err := c.apiCall("json/zone/sceneGetName", params)
+	response, err := c.apiCall(ctx, "json/zone/sceneGetName", params)
 	return wrapApiResponse[ZoneSceneGetNameResponse](response, err)
 }
 
-func (c *client) ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error) {
+func (c *client) ZoneGetReachableScenes(ctx context.Context, zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
-	response, err := c.apiCall("json/zone/getReachableScenes", params)
+	response, err := c.apiCall(ctx, "json/zone/getReachableScenes", params)
 	return wrapApiResponse[ZoneGetReachableScenesResponse](response, err)
 }
 
-func (c *client) DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error {
+func (c *client) DeviceSetOutputChannelValue(ctx context.Context, dsid string, channelValues map[string]int) error {
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	var channelValuesParam []string
@@ -263,40 +264,40 @@ func (c *client) DeviceSetOutputChannelValue(dsid string, channelValues map[stri
 	}
 	params.Set("channelvalues", strings.Join(channelValuesParam, ";"))
 	params.Set("applyNow", "1")
-	_, err := c.apiCall("json/device/setOutputChannelValue", params)
+	_, err := c.apiCall(ctx, "json/device/setOutputChannelValue", params)
 	return err
 }
 
-func (c *client) DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error) {
+func (c *client) DeviceGetOutputChannelValue(ctx context.Context, dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	params.Set("channels", strings.Join(channels, ";"))
-	response, err := c.apiCall("json/device/getOutputChannelValue", params)
+	response, err := c.apiCall(ctx, "json/device/getOutputChannelValue", params)
 	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
 }
 
-func (c *client) DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error) {
+func (c *client) DeviceGetMaxMotionTime(ctx context.Context, dsid string) (*DeviceGetMaxMotionTimeResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
-	response, err := c.apiCall("json/device/getMaxMotionTime", params)
+	response, err := c.apiCall(ctx, "json/device/getMaxMotionTime", params)
 	return wrapApiResponse[DeviceGetMaxMotionTimeResponse](response, err)
 }
 
-func (c *client) DeviceGetTransmissionQuality(dsid string) (*DeviceGetTransmissionQualityResponse, error) {
+func (c *client) DeviceGetTransmissionQuality(ctx context.Context, dsid string) (*DeviceGetTransmissionQualityResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
-	response, err := c.apiCall("json/device/getTransmissionQuality", params)
+	response, err := c.apiCall(ctx, "json/device/getTransmissionQuality", params)
 	return wrapApiResponse[DeviceGetTransmissionQualityResponse](response, err)
 }
 
-func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) error {
+func (c *client) EventSubscribe(ctx context.Context, event EventType, eventCallback EventCallback) error {
 	c.eventMutex.Lock()
 	defer c.eventMutex.Unlock()
 
 	params := url.Values{}
 	params.Set("name", string(event))
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
-	_, err := c.apiCall("json/event/subscribe", params)
+	_, err := c.apiCall(ctx, "json/event/subscribe", params)
 	if err != nil {
 		return err
 	}
@@ -308,14 +309,14 @@ func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) er
 	return nil
 }
 
-func (c *client) EventUnsubscribe(event EventType) error {
+func (c *client) EventUnsubscribe(ctx context.Context, event EventType) error {
 	c.eventMutex.Lock()
 	defer c.eventMutex.Unlock()
 
 	params := url.Values{}
 	params.Set("name", string(event))
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
-	_, err := c.apiCall("json/event/unsubscribe", params)
+	_, err := c.apiCall(ctx, "json/event/unsubscribe", params)
 	if err != nil {
 		return err
 	}
@@ -323,11 +324,11 @@ func (c *client) EventUnsubscribe(event EventType) error {
 	return nil
 }
 
-func (c *client) EventGet() (*EventGetResponse, error) {
+func (c *client) EventGet(ctx context.Context) (*EventGetResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
 	params.Set("timeout", strconv.Itoa(int(c.options.EventRequestTimeout.Milliseconds())))
-	response, err := c.apiCall("json/event/get", params)
+	response, err := c.apiCall(ctx, "json/event/get", params)
 	return wrapApiResponse[EventGetResponse](response, err)
 }
 
@@ -344,7 +345,7 @@ func (c *client) getSubscriptionCallback(eventType EventType) ([]EventCallback, 
 	return callbacks, ok
 }
 
-func (c *client) login() error {
+func (c *client) login(ctx context.Context) error {
 	c.loginMutex.Lock()
 	defer c.loginMutex.Unlock()
 
@@ -353,7 +354,7 @@ func (c *client) login() error {
 	params := url.Values{}
 	params.Set("user", c.options.Username)
 	params.Set("password", c.options.Password)
-	response, err := c.getRequest("json/system/login", params)
+	response, err := c.getRequest(ctx, "json/system/login", params)
 	res, err := wrapApiResponse[TokenResponse](response, err)
 	if err != nil {
 		return fmt.Errorf("error on login request: %w", err)
@@ -372,14 +373,14 @@ func (c *client) getToken() (string, error) {
 	return c.token, nil
 }
 
-func (c *client) resubscribe() error {
+func (c *client) resubscribe(ctx context.Context) error {
 	c.eventMutex.Lock()
 	eventsSubscribed := c.eventsSubscribedCallbacks
 	c.eventsSubscribedCallbacks = map[EventType][]EventCallback{}
 	c.eventMutex.Unlock()
 	for event, callbacks := range eventsSubscribed {
 		for _, callback := range callbacks {
-			if err := c.EventSubscribe(event, callback); err != nil {
+			if err := c.EventSubscribe(ctx, event, callback); err != nil {
 				return fmt.Errorf("error subscribing again to event '%s': %w", event, err)
 			}
 		}
@@ -389,7 +390,7 @@ func (c *client) resubscribe() error {
 
 // apiCall performs a request to the DigitalStrom server by using retry and
 // automatically populating the token on the request.
-func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
+func (c *client) apiCall(ctx context.Context, path string, params url.Values) (interface{}, error) {
 	var token string
 	var err error
 	var response interface{}
@@ -404,19 +405,19 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 			continue
 		}
 		params.Set("token", token)
-		response, err = c.getRequest(path, params)
+		response, err = c.getRequest(ctx, path, params)
 		if err == nil {
 			break
 		}
 		if strings.Contains(err.Error(), "not logged in") {
 			log.Warn().Err(err).Msg("Not logged error. Retrying...")
 			// Issue with token perform login again.
-			if err := c.login(); err != nil {
+			if err := c.login(ctx); err != nil {
 				return nil, fmt.Errorf("unable to login again after invalid token: %w", err)
 			}
 			// Subscribe again to the events if there was an existing
 			// subscription before.
-			if err := c.resubscribe(); err != nil {
+			if err := c.resubscribe(ctx); err != nil {
 				return nil, fmt.Errorf("unsable to resubscribe to events after invalid token: %w", err)
 			}
 		} else {
@@ -441,11 +442,15 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 // and parameters. It will parse the returned message to identify errors in the
 // request and return a generic interface that corresponds to the `result` item
 // in the response.
-func (c *client) getRequest(path string, params url.Values) (interface{}, error) {
+func (c *client) getRequest(ctx context.Context, path string, params url.Values) (interface{}, error) {
 	// If Client is not connected refuse to make the request.
 	if c.status == disconnected {
 		return nil, fmt.Errorf("error performing request: client disconnected")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	url := "https://" + c.options.Host +
 		":" + strconv.Itoa(c.options.Port) +
 		"/" + path +
@@ -455,7 +460,7 @@ func (c *client) getRequest(path string, params url.Values) (interface{}, error)
 	if err != nil {
 		return nil, fmt.Errorf("error building the request: %w", err)
 	}
-	resp, err := c.httpClient.Do(request)
+	resp, err := c.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("error doing the request: %w", err)
 	}
@@ -519,7 +524,7 @@ func (c *client) startEventLoop() {
 					continue
 				}
 
-				response, err := c.EventGet()
+				response, err := c.EventGet(context.TODO())
 				if err != nil {
 					log.Error().Err(err).Msg("Error getting the event.")
 					time.Sleep(1 * time.Second)

@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strconv"
@@ -38,7 +39,7 @@ type DeviceModule struct {
 
 func (c *DeviceModule) Start() error {
 	// Prefetch the list of devices available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetDevices()
+	response, err := c.dsClient.ApartmentGetDevices(context.TODO())
 	if err != nil {
 		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
 	}
@@ -74,7 +75,7 @@ func (c *DeviceModule) Start() error {
 	}
 
 	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
+	if err := c.dsClient.EventSubscribe(context.TODO(), digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
 		return c.onDsEvent(event)
 	}); err != nil {
 		return err
@@ -113,7 +114,7 @@ func (c *DeviceModule) Start() error {
 }
 
 func (c *DeviceModule) Stop() error {
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventCallScene); err != nil {
+	if err := c.dsClient.EventUnsubscribe(context.TODO(), digitalstrom.EventCallScene); err != nil {
 		return err
 	}
 	return nil
@@ -122,7 +123,7 @@ func (c *DeviceModule) Stop() error {
 func (c *DeviceModule) onMqttMessage(device *digitalstrom.Device, channel string, message string) error {
 	// In case stop is being passed as part of the message.
 	if strings.ToLower(message) == stop {
-		if err := c.dsClient.ZoneCallAction(device.ZoneId, digitalstrom.Stop); err != nil {
+		if err := c.dsClient.ZoneCallAction(context.TODO(), device.ZoneId, digitalstrom.Stop); err != nil {
 			return err
 		}
 		return nil
@@ -139,7 +140,7 @@ func (c *DeviceModule) onMqttMessage(device *digitalstrom.Device, channel string
 		Str("channel", channel).
 		Float64("value", value).
 		Msg("Setting value.")
-	if err := c.dsClient.DeviceSetOutputChannelValue(device.Dsid, map[string]int{channel: int(value)}); err != nil {
+	if err := c.dsClient.DeviceSetOutputChannelValue(context.TODO(), device.Dsid, map[string]int{channel: int(value)}); err != nil {
 		return err
 	}
 	if err := c.publishDeviceValue(device, channel, value); err != nil {
@@ -188,7 +189,7 @@ func (c *DeviceModule) updateDevice(device *digitalstrom.Device) error {
 		Str("device", device.Name).
 		Str("outputChannels", strings.Join(outputChannels, ";")).
 		Msg("Updating device")
-	response, err := c.dsClient.DeviceGetOutputChannelValue(device.Dsid, outputChannels)
+	response, err := c.dsClient.DeviceGetOutputChannelValue(context.TODO(), device.Dsid, outputChannels)
 	if err != nil {
 		return err
 	}

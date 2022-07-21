@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"time"
@@ -32,7 +33,7 @@ type CircuitModule struct {
 
 func (c *CircuitModule) Start() error {
 	// Prefetch the list of circuits available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetCircuits()
+	response, err := c.dsClient.ApartmentGetCircuits(context.TODO())
 	if err != nil {
 		log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
 	}
@@ -68,7 +69,7 @@ func (c *CircuitModule) updateCircuitValues() {
 			continue
 		}
 
-		powerResponse, err := c.dsClient.CircuitGetConsumption(circuit.DsId)
+		powerResponse, err := c.dsClient.CircuitGetConsumption(context.TODO(), circuit.DsId)
 		if err != nil {
 			log.Error().Err(err).Msgf("Error fetching power consumption of circuit '%s'", circuit.Name)
 			continue
@@ -79,7 +80,7 @@ func (c *CircuitModule) updateCircuitValues() {
 			continue
 		}
 
-		energyResponse, err := c.dsClient.CircuitGetEnergyMeterValue(circuit.DsId)
+		energyResponse, err := c.dsClient.CircuitGetEnergyMeterValue(context.TODO(), circuit.DsId)
 		if err != nil {
 			log.Error().Err(err).Msgf("Error fetching energy meter of circuit '%s'", circuit.Name)
 			continue

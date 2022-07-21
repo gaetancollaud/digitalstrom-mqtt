@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -44,7 +45,7 @@ type Scene struct {
 
 func (c *SceneModule) Start() error {
 	// First retrieve all available groups in the apartment.
-	response, err := c.dsClient.ApartmentGetReachableGroups()
+	response, err := c.dsClient.ApartmentGetReachableGroups(context.TODO())
 	if err != nil {
 		return fmt.Errorf("error retrieving reachable groups from apartment: %w", err)
 	}
@@ -52,7 +53,7 @@ func (c *SceneModule) Start() error {
 	// Retrieve all the scenes available in the apartment.
 	for _, zone := range response.Zones {
 		for _, groupId := range zone.Groups {
-			response, err := c.dsClient.ZoneGetReachableScenes(zone.Id, groupId)
+			response, err := c.dsClient.ZoneGetReachableScenes(context.TODO(), zone.Id, groupId)
 			if err != nil {
 				return fmt.Errorf("error retrieving scenes for zone %d and group %d: %w", zone.Id, groupId, err)
 			}
@@ -92,9 +93,12 @@ func (c *SceneModule) Start() error {
 	}
 
 	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
-		return c.onDsEvent(event)
-	}); err != nil {
+	if err := c.dsClient.EventSubscribe(
+		context.TODO(),
+		digitalstrom.EventCallScene,
+		func(client digitalstrom.Client, event digitalstrom.Event) error {
+			return c.onDsEvent(event)
+		}); err != nil {
 		return err
 	}
 
@@ -118,7 +122,7 @@ func (c *SceneModule) Start() error {
 }
 
 func (c *SceneModule) Stop() error {
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventCallScene); err != nil {
+	if err := c.dsClient.EventUnsubscribe(context.TODO(), digitalstrom.EventCallScene); err != nil {
 		return err
 	}
 	return nil
@@ -130,7 +134,7 @@ func (c *SceneModule) onMqttMessage(scene *Scene) error {
 		Int("groupId", scene.GroupId).
 		Int("sceneId", scene.SceneId).
 		Msg("Received MQTT command to set scene")
-	return c.dsClient.ZoneCallScene(scene.ZoneId, scene.GroupId, scene.SceneId)
+	return c.dsClient.ZoneCallScene(context.TODO(), scene.ZoneId, scene.GroupId, scene.SceneId)
 }
 
 func (c *SceneModule) onDsEvent(event digitalstrom.Event) error {

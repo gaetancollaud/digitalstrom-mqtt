@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"time"
@@ -32,7 +33,7 @@ type TransmissionQualityModule struct {
 
 func (c *TransmissionQualityModule) Start() error {
 	// Prefetch the list of devices available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetDevices()
+	response, err := c.dsClient.ApartmentGetDevices(context.TODO())
 	if err != nil {
 		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
 	}
@@ -76,7 +77,7 @@ func (c *TransmissionQualityModule) updateDevicesTransmissionQuality() {
 		}
 		var upstream int64
 		// var downstream int64
-		transmissionQuality, err := c.dsClient.DeviceGetTransmissionQuality(device.Dsid)
+		transmissionQuality, err := c.dsClient.DeviceGetTransmissionQuality(context.TODO(), device.Dsid)
 		if err != nil {
 			log.Error().Err(err).Str("dsid", device.Dsid).Msg("Failed to get transmission quality for device")
 			upstream = 0

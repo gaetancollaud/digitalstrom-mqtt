@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"path"
 
@@ -30,7 +31,7 @@ type ButtonModule struct {
 
 func (c *ButtonModule) Start() error {
 	// Prefetch the list of devices available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetDevices()
+	response, err := c.dsClient.ApartmentGetDevices(context.TODO())
 	if err != nil {
 		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
 	}
@@ -48,7 +49,7 @@ func (c *ButtonModule) Start() error {
 	}
 
 	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventButtonClick, func(client digitalstrom.Client, event digitalstrom.Event) error {
+	if err := c.dsClient.EventSubscribe(context.TODO(), digitalstrom.EventButtonClick, func(client digitalstrom.Client, event digitalstrom.Event) error {
 		return c.onDsEvent(event)
 	}); err != nil {
 		return err
@@ -57,7 +58,7 @@ func (c *ButtonModule) Start() error {
 }
 
 func (c *ButtonModule) Stop() error {
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventButtonClick); err != nil {
+	if err := c.dsClient.EventUnsubscribe(context.TODO(), digitalstrom.EventButtonClick); err != nil {
 		return err
 	}
 	return nil
