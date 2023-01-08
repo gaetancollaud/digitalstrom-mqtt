@@ -281,7 +281,7 @@ func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit di
 	// `value_template` field to make the conversion from Ws reported in the
 	// MQTT topic, to kWh which is the default unit of measurement of energy in
 	// Home Assistant.
-	energyNodeId := "power"
+	energyNodeId := "energy"
 	energyTopic := hass.discoveryTopic(Sensor, circuit.Dsid, energyNodeId)
 	energyMessage := map[string]interface{}{
 		"device":            deviceConfig,
