@@ -37,7 +37,7 @@ func (hass *HomeAssistantMqtt) publishDiscoveryMessages() {
 		messages, err := hass.deviceToHomeAssistantDiscoveryMessage(device)
 		if utils.CheckNoErrorAndPrint(err) {
 			for _, discovery_message := range messages {
-				hass.mqtt.client.Publish(discovery_message.topic, 0, hass.config.Retain, discovery_message.message)
+				hass.mqtt.client.Publish(discovery_message.topic, 0, true, discovery_message.message)
 			}
 		}
 	}
@@ -45,7 +45,7 @@ func (hass *HomeAssistantMqtt) publishDiscoveryMessages() {
 		messages, err := hass.circuitToHomeAssistantDiscoveryMessage(circuit)
 		if utils.CheckNoErrorAndPrint(err) {
 			for _, discovery_message := range messages {
-				hass.mqtt.client.Publish(discovery_message.topic, 0, hass.config.Retain, discovery_message.message)
+				hass.mqtt.client.Publish(discovery_message.topic, 0, true, discovery_message.message)
 			}
 		}
 	}
@@ -100,7 +100,6 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 				device.Name,
 				hass.config.RemoveRegexpFromName),
 			"unique_id":         device.Dsid + "_" + nodeId,
-			"retain":            hass.config.Retain,
 			"availability":      availability,
 			"availability_mode": "all",
 			"command_topic": hass.mqtt.getTopic(
@@ -169,7 +168,6 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 				hass.config.RemoveRegexpFromName),
 			"unique_id":         device.Dsid + "_" + nodeId,
 			"device_class":      "blind",
-			"retain":            hass.config.Retain,
 			"availability":      availability,
 			"availability_mode": "all",
 			"state_topic": hass.mqtt.getTopic(
@@ -262,7 +260,6 @@ func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit di
 		"device":            deviceConfig,
 		"name":              "Power " + circuit.Name,
 		"unique_id":         circuit.Dsid + "_" + powerNodeId,
-		"retain":            hass.config.Retain,
 		"availability":      availability,
 		"availability_mode": "all",
 		"state_topic": hass.mqtt.getTopic(
@@ -287,7 +284,6 @@ func (hass *HomeAssistantMqtt) circuitToHomeAssistantDiscoveryMessage(circuit di
 		"device":            deviceConfig,
 		"name":              "Energy " + circuit.Name,
 		"unique_id":         circuit.Dsid + "_" + energyNodeId,
-		"retain":            hass.config.Retain,
 		"availability":      availability,
 		"availability_mode": "all",
 		"state_topic": hass.mqtt.getTopic(
