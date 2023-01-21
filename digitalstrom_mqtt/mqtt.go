@@ -128,7 +128,7 @@ func (dm *DigitalstromMqtt) ListenForCircuitValues(changes chan digitalstrom.Cir
 func (dm *DigitalstromMqtt) publishServerStatus(message string) {
 	topic := dm.getStatusTopic()
 	log.Info().Str("status", message).Str("topic", topic).Msg("Updating server status topic")
-	dm.client.Publish(topic, 0, dm.config.Retain, message)
+	dm.client.Publish(topic, 0, true, message)
 }
 
 func (dm *DigitalstromMqtt) publishSceneEvent(sceneEvent digitalstrom.SceneEvent) {
