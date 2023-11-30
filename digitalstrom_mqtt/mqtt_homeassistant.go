@@ -3,6 +3,7 @@ package digitalstrom_mqtt
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"strings"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/config"
@@ -90,49 +91,57 @@ func (hass *HomeAssistantMqtt) deviceToHomeAssistantDiscoveryMessage(device digi
 	var message map[string]interface{}
 	var topic string
 	if device.DeviceType == digitalstrom.Light {
-		// Setup configuration for a MQTT Cover in Home Assistant:
-		// https://www.home-assistant.io/integrations/light.mqtt/
-		nodeId := "light"
-		topic = hass.discoveryTopic(Light, device.Dsid, nodeId)
-		message = map[string]interface{}{
-			"device": deviceConfig,
-			"name": utils.RemoveRegexp(
-				device.Name,
-				hass.config.RemoveRegexpFromName),
-			"unique_id":         device.Dsid + "_" + nodeId,
-			"availability":      availability,
-			"availability_mode": "all",
-			"command_topic": hass.mqtt.getTopic(
-				"devices",
-				device.Dsid,
-				device.Name,
-				device.OutputChannels[0],
-				"command"),
-			"state_topic": hass.mqtt.getTopic(
-				"devices",
-				device.Dsid,
-				device.Name,
-				device.OutputChannels[0],
-				"state"),
-			"payload_on":  "100.00",
-			"payload_off": "0.00",
-			"qos":         0,
-		}
-		if device.Properties.Dimmable {
-			message["on_command_type"] = "brightness"
-			message["brightness_scale"] = 100
-			message["brightness_state_topic"] = hass.mqtt.getTopic(
-				"devices",
-				device.Dsid,
-				device.Name,
-				device.OutputChannels[0],
-				"state")
-			message["brightness_command_topic"] = hass.mqtt.getTopic(
-				"devices",
-				device.Dsid,
-				device.Name,
-				device.OutputChannels[0],
-				"command")
+		if device.OutputChannels == nil || len(device.OutputChannels) == 0 {
+			log.Warn().
+				Str("dsid", device.Dsid).
+				Str("deviceName", device.Name).
+				Msg("Light device has no output channel")
+		} else {
+			// Setup configuration for a MQTT Cover in Home Assistant:
+			// https://www.home-assistant.io/integrations/light.mqtt/
+			nodeId := "light"
+			topic = hass.discoveryTopic(Light, device.Dsid, nodeId)
+			message = map[string]interface{}{
+				"device": deviceConfig,
+				"name": utils.RemoveRegexp(
+					device.Name,
+					hass.config.RemoveRegexpFromName),
+				"unique_id":         device.Dsid + "_" + nodeId,
+				"availability":      availability,
+				"availability_mode": "all",
+				"command_topic": hass.mqtt.getTopic(
+					"devices",
+					device.Dsid,
+					device.Name,
+					device.OutputChannels[0],
+					"command"),
+				"state_topic": hass.mqtt.getTopic(
+					"devices",
+					device.Dsid,
+					device.Name,
+					device.OutputChannels[0],
+					"state"),
+				"payload_on":  "100.00",
+				"payload_off": "0.00",
+				"qos":         0,
+			}
+			if device.Properties.Dimmable {
+				message["on_command_type"] = "brightness"
+				message["brightness_scale"] = 100
+				message["brightness_state_topic"] = hass.mqtt.getTopic(
+					"devices",
+					device.Dsid,
+					device.Name,
+					device.OutputChannels[0],
+					"state")
+				message["brightness_command_topic"] = hass.mqtt.getTopic(
+					"devices",
+					device.Dsid,
+					device.Name,
+					device.OutputChannels[0],
+					"command")
+
+			}
 
 		}
 	} else if device.DeviceType == digitalstrom.Blind {
