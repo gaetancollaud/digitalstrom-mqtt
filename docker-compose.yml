@@ -7,13 +7,27 @@ services:
       - MQTT_URL=tcp://mosquitto:1883
       - MQTT_RETAIN=true
       - REFRESH_AT_START=true
+      - HOME_ASSISTANT_DISCOVERY_ENABLED=true
     env_file:
       - .env
 
   mosquitto:
-    image: eclipse-mosquitto:1.5
+    image: eclipse-mosquitto:1.6
     volumes:
       - ./docs/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ports:
       - "1883:1883"
       - "9001:9001"
+
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+#      - ./docs/docker/homeassistant.yaml:/config/configuration.yaml
+      - ./docs/docker/homeassistant:/config/
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    ports:
+      - "8123:8123"
+#    network_mode: host
+#    privileged: true

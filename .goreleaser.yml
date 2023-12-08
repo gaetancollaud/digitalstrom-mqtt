@@ -2,9 +2,15 @@ env:
   - GO111MODULE=on
   - CGO_ENABLED=0
 builds:
-  - goos:
-      - linux
+  - id: windows
+    goos:
       - windows
+    goarch:
+      - 386
+      - amd64
+  - id: linux
+    goos:
+      - linux
     goarch:
       - 386
       - amd64

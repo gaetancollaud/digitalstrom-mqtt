@@ -30,6 +30,8 @@ type Client interface {
 
 	// Publishes a message under the prefix topic of DigitalStrom.
 	Publish(topic string, message interface{}) error
+	// Same as publish but force the retain flag regardless of what is in the config
+	PublishAndRetain(topic string, message interface{}) error
 	// Subscribe to a topic and calls the given handler when a message is
 	// received.
 	Subscribe(topic string, messageHandler mqtt.MessageHandler) error
@@ -84,14 +86,22 @@ func (c *client) Disconnect() error {
 	return nil
 }
 
-func (c *client) Publish(topic string, message interface{}) error {
+func (c *client) publish(topic string, message interface{}, forceRetain bool) error {
 	t := c.mqttClient.Publish(
 		path.Join(c.options.TopicPrefix, topic),
 		c.options.QoS,
-		c.options.Retain,
+		c.options.Retain || forceRetain,
 		message)
 	<-t.Done()
 	return t.Error()
+}
+
+func (c *client) Publish(topic string, message interface{}) error {
+	return c.publish(topic, message, false)
+}
+
+func (c *client) PublishAndRetain(topic string, message interface{}) error {
+	return c.publish(topic, message, true)
 }
 
 func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) error {
@@ -106,7 +116,7 @@ func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) err
 // Publish the current binary status into the MQTT topic.
 func (c *client) publishServerStatus(message string) error {
 	log.Info().Str("status", message).Str("topic", serverStatus).Msg("Updating server status topic")
-	return c.Publish(serverStatus, message)
+	return c.PublishAndRetain(serverStatus, message)
 }
 
 func (c *client) ServerStatusTopic() string {

@@ -93,7 +93,7 @@ func (hass *HomeAssistantDiscovery) PublishDiscoveryMessages() error {
 		if err != nil {
 			return fmt.Errorf("error serializing dicovery config to JSON: %w", err)
 		}
-		t := hass.mqttClient.RawClient().Publish(topic, 0, hass.config.Retain, json)
+		t := hass.mqttClient.RawClient().Publish(topic, 0, true, json)
 		<-t.Done()
 		if t.Error() != nil {
 			return fmt.Errorf("error publishing discovery message to MQTT: %w", err)

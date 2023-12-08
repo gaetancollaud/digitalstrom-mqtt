@@ -3,5 +3,6 @@ vendor/
 dist/
 tests/
 
+docs/docker/homeassistant
 .env
 /config.yaml
