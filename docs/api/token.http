@@ -1,0 +1,9 @@
+GET {{host}}/json/system/login?user={{username}}&password={{password}}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    client.log(`Response Json: ${response.body.result.token}`)
+    client.global.set("token", response.body.result.token);
+%}

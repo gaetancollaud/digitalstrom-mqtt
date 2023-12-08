@@ -6,3 +6,4 @@ tests/
 docs/docker/homeassistant
 .env
 /config.yaml
+*.private.env.json

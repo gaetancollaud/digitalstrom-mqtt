@@ -1,0 +1,5 @@
+GET {{host}}/api/v1/apartment?token={{token}}
+
+
+###
+GET {{host}}/api/v1/apartment/dsDevices/status?token={{token}}
