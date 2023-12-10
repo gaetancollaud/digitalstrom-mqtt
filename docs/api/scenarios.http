@@ -1,0 +1,15 @@
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/scenarios
+Authorization: Bearer {{api-key}}
+
+###
+POST {{host}}/api/v1/apartment/scenarios/invoke
+Authorization: Bearer {{api-key}}
+
+{
+  "context": "deviceStandard",
+  "actionId": "on",
+  "application": "lights",
+  "zone": "5",
+  "dsDevice": "303505d7f8000000000000400013befc00"
+}

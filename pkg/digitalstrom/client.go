@@ -30,6 +30,13 @@ const (
 	connected    uint32 = 2
 )
 
+type ApiVersion uint32
+
+const (
+	apiClassic   ApiVersion = 1
+	apiSmarthome ApiVersion = 2
+)
+
 type EventCallback func(Client, Event) error
 
 // Client is the interface definition as used by this library, the
@@ -43,10 +50,13 @@ type Client interface {
 
 	// Start of the API calls to DigitalStrom.
 
+	Apartment() (*Apartment, error)
+
 	// Get the list of circuits in the apartment.
 	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
 	// Get the list of devices in the apartment.
 	ApartmentGetDevices() (*ApartmentGetDevicesResponse, error)
+	ApartmentGetFunctionBlocks() (*ApartmentGetFunctionBlocksResponse, error)
 	// Call a scene which will be immediately applied.
 	ApartmentCallScene(sceneId int) error
 	// Get the list of Zones and the groups on it.
@@ -75,9 +85,9 @@ type Client interface {
 	// Get the floating value for the given property path.
 	PropertyGetFloating(path string) (*FloatValue, error)
 	// Call scene in a specified zone.
-	ZoneCallScene(zoneId int, groupId int, sceneId int) error
+	ZoneCallScene(zone string, groupId int, sceneId int) error
 	// Call action in a specified zone.
-	ZoneCallAction(zoneId int, action Action) error
+	ZoneCallAction(zone string, action Action) error
 	// Get the zone name.
 	ZoneGetName(zoneId int) (*ZoneGetNameResponse, error)
 	// Get the list of scenes that are available at a given zone.
@@ -165,73 +175,84 @@ func (c *client) Disconnect() error {
 	return nil
 }
 
-func (c *client) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
-	response, err := c.apiCall("json/apartment/getCircuits", url.Values{})
-	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
+func (c *client) Apartment() (*Apartment, error) {
+	// TODO cache !!!
+	response, err := c.apiCall("api/v1/apartment", url.Values{}, apiClassic)
+	return wrapApiResponse[Apartment](response, err)
 }
 
 func (c *client) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
-	response, err := c.apiCall("json/apartment/getDevices", url.Values{})
+	response, err := c.apiCall("api/v1/apartment/dsDevices", url.Values{}, apiSmarthome)
 	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
+}
+
+func (c *client) ApartmentGetFunctionBlocks() (*ApartmentGetFunctionBlocksResponse, error) {
+	response, err := c.apiCall("api/v1/apartment/functionBlocks", url.Values{}, apiSmarthome)
+	return wrapApiResponse[ApartmentGetFunctionBlocksResponse](response, err)
+}
+
+func (c *client) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
+	response, err := c.apiCall("json/apartment/getCircuits", url.Values{}, apiClassic)
+	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
 }
 
 func (c *client) ApartmentCallScene(sceneId int) error {
 	params := url.Values{}
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
-	_, err := c.apiCall("json/apartment/callScene", params)
+	_, err := c.apiCall("json/apartment/callScene", params, apiClassic)
 	return err
 }
 
 func (c *client) ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error) {
 	params := url.Values{}
-	response, err := c.apiCall("json/apartment/getReachableGroups", params)
+	response, err := c.apiCall("json/apartment/getReachableGroups", params, apiClassic)
 	return wrapApiResponse[ApartmentGetReachableGroupsResponse](response, err)
 }
 
 func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
-	response, err := c.apiCall("json/circuit/getConsumption", params)
+	response, err := c.apiCall("json/circuit/getConsumption", params, apiClassic)
 	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
 }
 
 func (c *client) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
-	response, err := c.apiCall("json/circuit/getEnergyMeterValue", params)
+	response, err := c.apiCall("json/circuit/getEnergyMeterValue", params, apiClassic)
 	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
 }
 
 func (c *client) PropertyGetFloating(path string) (*FloatValue, error) {
 	params := url.Values{}
 	params.Set("path", path)
-	response, err := c.apiCall("json/property/getFloating", params)
+	response, err := c.apiCall("json/property/getFloating", params, apiClassic)
 	return wrapApiResponse[FloatValue](response, err)
 }
 
-func (c *client) ZoneCallScene(zoneId int, groupId int, sceneId int) error {
+func (c *client) ZoneCallScene(zone string, groupId int, sceneId int) error {
 	params := url.Values{}
-	params.Set("id", strconv.Itoa(zoneId))
+	params.Set("id", zone)
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("force", "true")
-	_, err := c.apiCall("json/zone/callScene", params)
+	_, err := c.apiCall("json/zone/callScene", params, apiClassic)
 	return err
 }
 
 func (c *client) ZoneGetName(zoneId int) (*ZoneGetNameResponse, error) {
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
-	response, err := c.apiCall("json/zone/getName", params)
+	response, err := c.apiCall("json/zone/getName", params, apiClassic)
 	return wrapApiResponse[ZoneGetNameResponse](response, err)
 }
 
-func (c *client) ZoneCallAction(zoneId int, action Action) error {
+func (c *client) ZoneCallAction(zone string, action Action) error {
 	params := url.Values{}
 	params.Set("application", "2")
-	params.Set("id", strconv.Itoa(zoneId))
+	params.Set("id", zone)
 	params.Set("action", string(action))
-	_, err := c.apiCall("json/zone/callAction", params)
+	_, err := c.apiCall("json/zone/callAction", params, apiClassic)
 	return err
 }
 
@@ -240,7 +261,7 @@ func (c *client) ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSc
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
-	response, err := c.apiCall("json/zone/sceneGetName", params)
+	response, err := c.apiCall("json/zone/sceneGetName", params, apiClassic)
 	return wrapApiResponse[ZoneSceneGetNameResponse](response, err)
 }
 
@@ -248,7 +269,7 @@ func (c *client) ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReacha
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(zoneId))
 	params.Set("groupID", strconv.Itoa(groupId))
-	response, err := c.apiCall("json/zone/getReachableScenes", params)
+	response, err := c.apiCall("json/zone/getReachableScenes", params, apiClassic)
 	return wrapApiResponse[ZoneGetReachableScenesResponse](response, err)
 }
 
@@ -261,7 +282,7 @@ func (c *client) DeviceSetOutputChannelValue(dsid string, channelValues map[stri
 	}
 	params.Set("channelvalues", strings.Join(channelValuesParam, ";"))
 	params.Set("applyNow", "1")
-	_, err := c.apiCall("json/device/setOutputChannelValue", params)
+	_, err := c.apiCall("json/device/setOutputChannelValue", params, apiClassic)
 	return err
 }
 
@@ -269,14 +290,14 @@ func (c *client) DeviceGetOutputChannelValue(dsid string, channels []string) (*D
 	params := url.Values{}
 	params.Set("dsid", dsid)
 	params.Set("channels", strings.Join(channels, ";"))
-	response, err := c.apiCall("json/device/getOutputChannelValue", params)
+	response, err := c.apiCall("json/device/getOutputChannelValue", params, apiClassic)
 	return wrapApiResponse[DeviceGetOutputChannelValueResponse](response, err)
 }
 
 func (c *client) DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error) {
 	params := url.Values{}
 	params.Set("dsid", dsid)
-	response, err := c.apiCall("json/device/getMaxMotionTime", params)
+	response, err := c.apiCall("json/device/getMaxMotionTime", params, apiClassic)
 	return wrapApiResponse[DeviceGetMaxMotionTimeResponse](response, err)
 }
 
@@ -287,7 +308,7 @@ func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) er
 	params := url.Values{}
 	params.Set("name", string(event))
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
-	_, err := c.apiCall("json/event/subscribe", params)
+	_, err := c.apiCall("json/event/subscribe", params, apiClassic)
 	if err != nil {
 		return err
 	}
@@ -306,7 +327,7 @@ func (c *client) EventUnsubscribe(event EventType) error {
 	params := url.Values{}
 	params.Set("name", string(event))
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
-	_, err := c.apiCall("json/event/unsubscribe", params)
+	_, err := c.apiCall("json/event/unsubscribe", params, apiClassic)
 	if err != nil {
 		return err
 	}
@@ -318,7 +339,7 @@ func (c *client) EventGet() (*EventGetResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
 	params.Set("timeout", strconv.Itoa(int(c.options.EventRequestTimeout.Milliseconds())))
-	response, err := c.apiCall("json/event/get", params)
+	response, err := c.apiCall("json/event/get", params, apiClassic)
 	return wrapApiResponse[EventGetResponse](response, err)
 }
 
@@ -337,7 +358,7 @@ func (c *client) getToken() (string, error) {
 	params := url.Values{}
 	params.Set("user", c.options.Username)
 	params.Set("password", c.options.Password)
-	response, err := c.getRequest("json/system/login", params)
+	response, err := c.getRequest("json/system/login", params, apiClassic)
 	res, err := wrapApiResponse[TokenResponse](response, err)
 	if err != nil {
 		return "", fmt.Errorf("error on login request: %w", err)
@@ -361,7 +382,7 @@ func (c *client) getToken() (string, error) {
 
 // apiCall performs a request to the DigitalStrom server by using retry and
 // automatically populating the token on the request.
-func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
+func (c *client) apiCall(path string, params url.Values, version ApiVersion) (interface{}, error) {
 	var token string
 	var err error
 	var response interface{}
@@ -376,7 +397,7 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 			continue
 		}
 		params.Set("token", token)
-		response, err = c.getRequest(path, params)
+		response, err = c.getRequest(path, params, version)
 		if err == nil {
 			break
 		}
@@ -402,7 +423,7 @@ func (c *client) apiCall(path string, params url.Values) (interface{}, error) {
 // and parameters. It will parse the returned message to identify errors in the
 // request and return a generic interface that corresponds to the `result` item
 // in the response.
-func (c *client) getRequest(path string, params url.Values) (interface{}, error) {
+func (c *client) getRequest(path string, params url.Values, version ApiVersion) (interface{}, error) {
 	// If Client is not connected refuse to make the request.
 	if c.status == disconnected {
 		return nil, fmt.Errorf("error performing request: client disconnected")
@@ -441,17 +462,30 @@ func (c *client) getRequest(path string, params url.Values) (interface{}, error)
 	var jsonResponse map[string]interface{}
 	json.Unmarshal(body, &jsonResponse)
 
-	if val, ok := jsonResponse["ok"]; ok {
-		if !val.(bool) {
-			return nil, errors.New("error with DigitalStrom API: " + jsonResponse["message"].(string))
+	// TODO handle version
+	if version == apiClassic {
+		if val, ok := jsonResponse["ok"]; ok {
+			if !val.(bool) {
+				return nil, errors.New("error with DigitalStrom API: " + jsonResponse["message"].(string))
+			}
+		} else {
+			log.Panic().Str("response", string(body)).Msg("No 'ok' field present in API response.")
+			return nil, errors.New("no 'ok' field present, cannot check request")
+		}
+
+		if val, ok := jsonResponse["result"]; ok {
+			return val, nil
+		}
+	} else if version == apiSmarthome {
+		if data, ok := jsonResponse["data"]; ok {
+			return data, nil
+		} else {
+			// TODO maybe handle error
+			log.Panic().Str("response", string(body)).Msg("no 'data' field present, cannot get data from request")
+			return nil, errors.New("no 'data' field present, cannot get data from request")
 		}
 	} else {
-		log.Panic().Str("response", string(body)).Msg("No 'ok' field present in API response.")
-		return nil, errors.New("no 'ok' field present, cannot check request")
-	}
-
-	if val, ok := jsonResponse["result"]; ok {
-		return val, nil
+		log.Panic().Uint32("Version", uint32(version)).Msg("Unknown API version")
 	}
 	return nil, nil
 }

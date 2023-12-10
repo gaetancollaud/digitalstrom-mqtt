@@ -1,240 +1,189 @@
 package digitalstrom
 
-import "strings"
+type Apartment struct {
+	ApartmentId string              `mapstructure:"id"`
+	Attributes  ApartmentAttributes `mapstructure:"attributes"`
+	Included    ApartmentIncluded   `mapstructure:"included"`
+}
 
-type DeviceType string
+type ApartmentAttributes struct {
+	Name     string   `mapstructure:"name"`
+	Zones    []string `mapstructure:"zones"`
+	Devices  []string `mapstructure:"dsDevices"`
+	Clusters []string `mapstructure:"clusters"`
+}
 
-const (
-	Light   DeviceType = "GE"
-	Blind   DeviceType = "GR"
-	Joker   DeviceType = "SW"
-	Unknown DeviceType = "Unknown"
-)
+type ApartmentIncluded struct {
+	Installation   Installation    `mapstructure:"installation"`
+	Devices        []Device        `mapstructure:"dsDevices"`
+	Submodules     []Submodule     `mapstructure:"submodules"`
+	FunctionBlocks []FunctionBlock `mapstructure:"functionBlocks"`
+	Zones          []Zone          `mapstructure:"zones"`
+	Scenarios      []Scenarios     `mapstructure:"scenarios"`
+	// floors
+	// clusters
+	// dsServer
+	// controllers
+	// apiRevision
+	Meterings []Metering `mapstructure:"meterings"`
+	// userDefinedStates
+	// applications
+}
 
-type Action string
+type Installation struct {
+	InstallationId string                `mapstructure:"id"`
+	Type           string                `mapstructure:"type"`
+	Attributes     InstallationAttribute `mapstructure:"attributes"`
+}
 
-const (
-	MoveUp        Action = "app.moveUp"
-	MoveDown      Action = "app.moveDown"
-	StepUp        Action = "app.stepUp"
-	StepDown      Action = "app.stepDown"
-	SunProtection Action = "app.sunProtection"
-	Stop          Action = "app.stop"
-)
+type InstallationAttribute struct {
+	CountryCode string `mapstructure:"countryCode"`
+	City        string `mapstructure:"city"`
+	Timezone    string `mapstructure:"timezone"`
+}
 
-type ChannelType string
-
-const (
-	Brightness ChannelType = "brightness"
-	Hue        ChannelType = "hue"
-)
-
-type EventType string
-
-const (
-	EventCallScene    EventType = "callScene"
-	EventUndoScene    EventType = "undoScene"
-	EventButtonClick  EventType = "buttonClick"
-	EventDeviceSensor EventType = "deviceSensorEvent"
-	EventRunning      EventType = "running"
-	EventModelReady   EventType = "model_ready"
-	EventDsMeterReady EventType = "dsMeter_ready"
-)
-
-// A Device is the smallest entity represented in the DigitalStrom system and
-// represents a input/output physical device that can receive human input
-// (button push) or can actuate (open light).
 type Device struct {
-	Dsid           string          `mapstructure:"id"`
-	Dsuid          string          `mapstructure:"dSUID"`
-	Name           string          `mapstructure:"name"`
-	HwInfo         string          `mapstructure:"hwInfo"`
-	MeterDsid      string          `mapstructure:"meterDSID"`
-	MeterDsuid     string          `mapstructure:"meterDSUID"`
-	MeterName      string          `mapstructure:"meterName"`
-	ZoneId         int             `mapstructure:"zoneID"`
-	OutputChannels []OutputChannel `mapstructure:"outputChannels"`
-	Groups         []int           `mapstructure:"groups"`
-	OutputMode     int             `mapstructure:"outputMode"`
+	DeviceId   string           `mapstructure:"id"`
+	Attributes DeviceAttributes `mapstructure:"attributes"`
 }
 
-// Returns the device type given its hardware version.
-func (device *Device) DeviceType() DeviceType {
-	switch {
-	case strings.HasPrefix(device.HwInfo, "GE"):
-		return Light
-	case strings.HasPrefix(device.HwInfo, "GR"):
-		return Blind
-	case strings.HasPrefix(device.HwInfo, "SW"):
-		return Joker
-	default:
-		return Unknown
-	}
+type DeviceAttributes struct {
+	Name       string   `mapstructure:"name"`
+	Dsid       string   `mapstructure:"dsid"`
+	DisplayId  string   `mapstructure:"displayId"`
+	Present    bool     `mapstructure:"present"`
+	Submodules []string `mapstructure:"submodules"`
+	Zone       string   `mapstructure:"zone"`
+	Scenarios  []string `mapstructure:"scenarios"`
+	Controller string   `mapstructure:"controller"`
 }
 
-// Returns some inferred properties from the device.
-func (device *Device) Properties() DeviceProperties {
-	positionChannel := ""
-	tiltChannel := ""
-	for _, channelName := range device.OutputChannelsNames() {
-		if strings.Contains(channelName, "Angle") {
-			tiltChannel = channelName
-		}
-		if strings.Contains(channelName, "Position") {
-			positionChannel = channelName
-		}
-	}
-
-	return DeviceProperties{
-		// outputMode is set to 22 for GE devices where the
-		// output is configure to be "dimmed".
-		Dimmable:        device.OutputMode == 22,
-		PositionChannel: positionChannel,
-		TiltChannel:     tiltChannel,
-	}
+type Submodule struct {
+	SubmoduleId string              `mapstructure:"id"`
+	Attributes  SubmoduleAttributes `mapstructure:"attributes"`
 }
 
-// Flattens the output channels into a slice of channel names.
-func (device *Device) OutputChannelsNames() []string {
-	names := make([]string, len(device.OutputChannels))
-	for i, channel := range device.OutputChannels {
-		names[i] = channel.Name
-	}
-	return names
+type SubmoduleAttributes struct {
+	Name           string               `mapstructure:"name"`
+	TechnicalName  string               `mapstructure:"technicalName"`
+	DeviceId       string               `mapstructure:"dsDevice"`
+	FunctionBlocks []string             `mapstructure:"functionBlocks"`
+	Zone           string               `mapstructure:"zone"`
+	Application    SubmoduleApplication `mapstructure:"application"`
+	Scenarios      []string             `mapstructure:"scenarios"`
+	Controller     string               `mapstructure:"controller"`
 }
 
-// OutputChannel gives the information about an output that a Device can actuate
-// on.
-type OutputChannel struct {
-	Name string `mapstructure:"channelName"`
+type FunctionBlock struct {
+	FunctionBlockId string                  `mapstructure:"id"`
+	Attributes      FunctionBlockAttributes `mapstructure:"attributes"`
 }
 
-// Properties a device can have and helps us better understand how it works.
-// Note that all these properties are inferred from the attributes in the Device
-// structure.
-type DeviceProperties struct {
-	Dimmable        bool
-	PositionChannel string
-	TiltChannel     string
+type FunctionBlockAttributes struct {
+	Name          string         `mapstructure:"name"`
+	TechnicalName string         `mapstructure:"technicalName"`
+	Active        bool           `mapstructure:"active"`
+	Outputs       []Output       `mapstructure:"outputs"`
+	ButtonInputs  []ButtonInputs `mapstructure:"buttonInputs"`
+	SensorInputs  []SensorInputs `mapstructure:"sensorInputs"`
+	Submodule     string         `mapstructure:"submodule"`
+	DeviceAdapter string         `mapstructure:"deviceAdapter"`
 }
 
-// Entity that represents an electrical circuit managed by DigitaqlStrom. This
-// circuit is the controller for a set of devices and can perform extra
-// functions as power metering.
-type Circuit struct {
-	Name        string `mapstructure:"name"`
-	DsId        string `mapstructure:"dsid"`
-	DsUid       string `mapstructure:"dSUID"`
-	HwVersion   int    `mapstructure:"hwVersion"`
-	HwName      string `mapstructure:"hwName"`
-	HasMetering bool   `mapstructure:"hasMetering"`
-	IsValid     bool   `mapstructure:"isValid"`
-	IsPresent   bool   `mapstructure:"isPresent"`
+type Output struct {
+	OutputId   string           `mapstructure:"id"`
+	Attributes OutputAttributes `mapstructure:"attributes"`
 }
 
-// Channel value information obtained from the server.
-type ChannelValue struct {
-	Name  string  `mapstructure:"channel"`
-	Id    string  `mapstructure:"channelId"`
-	Type  string  `mapstructure:"channelType"`
-	Value float64 `mapstructure:"value"`
+type OutputAttributes struct {
+	TechnicalName string     `mapstructure:"technicalName"`
+	Type          OutputType `mapstructure:"type"`
+	Function      string     `mapstructure:"function"`
+	Mode          OutputMode `mapstructure:"mode"`
+	Min           float32    `mapstructure:"min"`
+	Max           float32    `mapstructure:"max"`
+	Resolution    float32    `mapstructure:"resolution"`
 }
 
-// Event that registers a change in the DigitalStrom system.
-type Event struct {
-	Name       EventType       `mapstructure:"name"`
-	Properties EventProperties `mapstructure:"properties"`
-	Source     EventSource     `mapstructure:"source"`
+type ButtonInputs struct {
+	ButtonInputId string                 `mapstructure:"id"`
+	Attributes    ButtonInputsAttributes `mapstructure:"attributes"`
 }
 
-// Set of properties for an event.
-type EventProperties struct {
-	OriginToken string `mapstructure:"originToken"`
-	OriginDsUid string `mapstructure:"originDSUID"`
-	ZoneId      int    `mapstructure:"zoneID"`
-	SceneId     int    `mapstructure:"sceneID"`
-	GroupId     int    `mapstructure:"groupId"`
-	CallOrigin  string `mapstructure:"callOrigin"`
-	ButtonIndex int    `mapstructure:"buttonIndex"`
-	ClickType   int    `mapstructure:"clickType"`
+type ButtonInputsAttributes struct {
+	TechnicalName string          `mapstructure:"technicalName"`
+	Type          ButtonInputType `mapstructure:"type"`
+	Mode          ButtonInputMode `mapstructure:"mode"`
 }
 
-// Information about the source of the event responsible to fire it.
-type EventSource struct {
-	Dsid        string `mapstructure:"dsid"`
-	ZoneId      int    `mapstructure:"zoneID"`
-	GroupId     int    `mapstructure:"groupId"`
-	IsApartment bool   `mapstructure:"isApartment"`
-	IsGroup     bool   `mapstructure:"isGroup"`
-	IsDevice    bool   `mapstructure:"isDevice"`
+type SensorInputs struct {
+	SensorInputId string                 `mapstructure:"id"`
+	Attributes    SensorInputsAttributes `mapstructure:"attributes"`
 }
 
-// Structure to hold a scene number and name pair.
-type SceneName struct {
-	Number int    `mapstructure:"sceneNr"`
-	Name   string `mapstructure:"name"`
-}
-
-// Holds a float64 value.
-type FloatValue struct {
-	Value float64 `mapstructure:"value"`
+type SensorInputsAttributes struct {
+	TechnicalName string           `mapstructure:"technicalName"`
+	Type          SensorInputType  `mapstructure:"type"`
+	Mode          SensorInputUsage `mapstructure:"usage"`
+	Min           float32          `mapstructure:"min"`
+	Max           float32          `mapstructure:"max"`
+	Resolution    float32          `mapstructure:"resolution"`
 }
 
 // Zone representation.
 type Zone struct {
-	Id     int    `mapstructure:"zoneId"`
+	ZoneId     string         `mapstructure:"id"`
+	Attributes ZoneAttributes `mapstructure:"attributes"`
+}
+
+type ZoneAttributes struct {
+	Name               string              `mapstructure:"name"`
+	Floor              string              `mapstructure:"floor"`
+	OrderId            float32             `mapstructure:"orderId"`
+	Submodules         []string            `mapstructure:"submodules"`
+	Applications       []string            `mapstructure:"applications"`
+	ApplicationTypes   []string            `mapstructure:"applicationTypes"`
+	ApplicationDetails []ApplicationDetail `mapstructure:"applicationDetails"`
+}
+
+type ApplicationDetail struct {
+	ApplicationDetailId string `mapstructure:"id"`
+	Areas               []Area `mapstructure:"areas"`
+}
+
+type Area struct {
+	AreaId string `mapstructure:"id"`
 	Name   string `mapstructure:"name"`
-	Groups []int  `mapstructure:"groups"`
 }
 
-// Responses for the API calls into DigitalStrom JSON API.
-
-// Token Response when logging in into the DigitalStrom server.
-// It provides the token which can be used for future calls to the server.
-type TokenResponse struct {
-	Token string `mapstructure:"token"`
+type Scenarios struct {
+	ScenarioId string             `mapstructure:"id"`
+	Type       ScenarioType       `mapstructure:"type"`
+	Attributes ScenarioAttributes `mapstructure:"attributes"`
 }
 
-type ApartmentGetCircuitsResponse struct {
-	Circuits []Circuit `mapstructure:"circuits"`
+type ScenarioAttributes struct {
+	Name        string              `mapstructure:"name"`
+	ActionId    string              `mapstructure:"actionId"`
+	Context     string              `mapstructure:"context"`
+	Submodules  []string            `mapstructure:"submodules"`
+	Devices     []string            `mapstructure:"dsDevices"`
+	Zone        string              `mapstructure:"zone"`
+	Application ScenarioApplication `mapstructure:"application"`
 }
 
-type ApartmentGetDevicesResponse []Device
-
-type ApartmentGetReachableGroupsResponse struct {
-	Zones []Zone `mapstructure:"zones"`
+type Metering struct {
+	MeteringId string             `mapstructure:"id"`
+	Attributes MeteringAttributes `mapstructure:"attributes"`
 }
 
-type DeviceGetOutputChannelValueResponse struct {
-	Channels []ChannelValue `mapstructure:"channels"`
+type MeteringAttributes struct {
+	Unit          string         `mapstructure:"unit"`
+	TechnicalName string         `mapstructure:"technicalName"`
+	Origin        MeteringOrigin `mapstructure:"origin"`
 }
 
-type DeviceGetMaxMotionTimeResponse struct {
-	Supported bool  `mapstructure:"supported"`
-	Value     int64 `mapstructure:"value"`
-}
-
-type CircuitGetConsumptionResponse struct {
-	Consumption float64 `mapstructure:"consumption"`
-}
-
-type CircuitGetEnergyMeterValueResponse struct {
-	MeterValue float64 `mapstructure:"meterValue"`
-}
-
-type EventGetResponse struct {
-	Events []Event `mapstructure:"events"`
-}
-
-type ZoneGetReachableScenesResponse struct {
-	ReachableScenes []int       `mapstructure:"reachableScenes"`
-	UserSceneNames  []SceneName `mapstructure:"userSceneNames"`
-}
-
-type ZoneGetNameResponse struct {
-	Name string `mapstructure:"name"`
-}
-
-type ZoneSceneGetNameResponse struct {
-	Name string `mapstructure:"name"`
+type MeteringOrigin struct {
+	MeteringOriginId string `mapstructure:"id"`
+	Type             string `mapstructure:"type"`
 }

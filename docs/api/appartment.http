@@ -1,5 +1,9 @@
-GET {{host}}/api/v1/apartment?token={{token}}
-
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment?include=dsDevice
+Authorization: Bearer {{api-key}}
 
 ###
-GET {{host}}/api/v1/apartment/dsDevices/status?token={{token}}
+
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/status?include=zones
+Authorization: Bearer {{api-key}}

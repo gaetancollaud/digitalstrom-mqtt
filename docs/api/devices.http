@@ -1,1 +1,30 @@
-GET {{host}}/api/v1/apartment/dsDevices?token={{token}}
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/dsDevices?includeAll=true
+Authorization: Bearer {{api-key}}
+
+###
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/functionBlocks
+Authorization: Bearer {{api-key}}
+
+###
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/submodules
+Authorization: Bearer {{api-key}}
+
+
+###
+GET {{host}}/api/v1/apartment/dsDevices
+Authorization: Bearer {{api-key}}
+
+###
+GET {{host}}/api/v1/apartment/dsDevices/303505d7f8000000000000400013befc00
+Authorization: Bearer {{api-key}}
+
+###
+GET {{host}}/api/v1/apartment/dsDevices/status
+Authorization: Bearer {{api-key}}
+
+###
+GET {{host}}/api/v1/apartment/dsDevices/303505d7f8000000000000400013befc00/status
+Authorization: Bearer {{api-key}}

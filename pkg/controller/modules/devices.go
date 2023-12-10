@@ -2,17 +2,15 @@ package modules
 
 import (
 	"fmt"
-	"path"
-	"strconv"
-	"strings"
-	"time"
-
 	mqtt_base "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
+	"path"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -31,35 +29,46 @@ type DeviceModule struct {
 	refreshAtStart       bool
 	invertBlindsPosition bool
 
-	devices         []digitalstrom.Device
-	deviceLookup    map[string]digitalstrom.Device
-	zoneGroupLookup map[int]map[int][]string
+	devices              []digitalstrom.Device
+	functionBlocks       []digitalstrom.FunctionBlock
+	deviceLookup         map[string]digitalstrom.Device
+	functionBlocksLookup map[string]digitalstrom.FunctionBlock
+	//zoneGroupLookup map[string]map[int][]string
 }
 
 func (c *DeviceModule) Start() error {
 	// Prefetch the list of circuits available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetDevices()
+	responseDevices, err := c.dsClient.ApartmentGetDevices()
 	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
+		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
 	}
-	c.devices = *response
+	c.devices = *responseDevices
+
+	responseFunctionBlocks, err := c.dsClient.ApartmentGetFunctionBlocks()
+	if err != nil {
+		log.Panic().Err(err).Msg("Error fetching the function blocks in the apartment.")
+	}
+	c.functionBlocks = *responseFunctionBlocks
 
 	// Create maps regarding Devices for fast lookup when a new Event is
 	// received.
+	for _, functionBlock := range c.functionBlocks {
+		c.functionBlocksLookup[functionBlock.DeviceId] = functionBlock
+	}
 	for _, device := range c.devices {
-		c.deviceLookup[device.Dsid] = device
-		_, ok := c.zoneGroupLookup[device.ZoneId]
-		if !ok {
-			c.zoneGroupLookup[device.ZoneId] = map[int][]string{}
-		}
-
-		for _, groupId := range device.Groups {
-			_, ok := c.zoneGroupLookup[device.ZoneId][groupId]
-			if !ok {
-				c.zoneGroupLookup[device.ZoneId][groupId] = []string{}
-			}
-			c.zoneGroupLookup[device.ZoneId][groupId] = append(c.zoneGroupLookup[device.ZoneId][groupId], device.Dsid)
-		}
+		c.deviceLookup[device.DeviceId] = device
+		//_, ok := c.zoneGroupLookup[device.Attributes.Zone]
+		//if !ok {
+		//	c.zoneGroupLookup[device.Attributes.Zone] = map[int][]string{}
+		//}
+		//
+		//for _, groupId := range device.Groups {
+		//	_, ok := c.zoneGroupLookup[device.ZoneId][groupId]
+		//	if !ok {
+		//		c.zoneGroupLookup[device.ZoneId][groupId] = []string{}
+		//	}
+		//	c.zoneGroupLookup[device.ZoneId][groupId] = append(c.zoneGroupLookup[device.ZoneId][groupId], device.Dsid)
+		//}
 	}
 
 	// Refresh devices values.
@@ -67,7 +76,7 @@ func (c *DeviceModule) Start() error {
 		go func() {
 			for _, device := range c.devices {
 				if err := c.updateDevice(&device); err != nil {
-					log.Error().Err(err).Msgf("Error updating device '%s'", device.Name)
+					log.Error().Err(err).Msgf("Error updating device '%s'", device.Attributes.Name)
 				}
 			}
 		}()
@@ -81,11 +90,11 @@ func (c *DeviceModule) Start() error {
 	}
 
 	// Subscribe to MQTT events.
-	for _, device := range c.devices {
-		for _, channel := range device.OutputChannels {
-			deviceCopy := device
-			deviceName := deviceCopy.Name
-			channelName := channel.Name
+	for _, functionBlock := range c.functionBlocks {
+		for _, channel := range functionBlock.Attributes.Outputs {
+			deviceCopy := functionBlock
+			deviceName := deviceCopy.Attributes.Name
+			channelName := channel.Attributes.TechnicalName
 			topic := c.deviceCommandTopic(deviceName, channelName)
 			log.Trace().
 				Str("topic", topic).
@@ -100,7 +109,7 @@ func (c *DeviceModule) Start() error {
 					Str("channel", channelName).
 					Str("payload", payload).
 					Msg("Message Received.")
-				if err := c.onMqttMessage(&deviceCopy, channelName, payload); err != nil {
+				if err := c.onMqttMessage(deviceCopy.DeviceId, channelName, payload); err != nil {
 					log.Error().
 						Str("topic", topic).
 						Err(err).
@@ -119,10 +128,12 @@ func (c *DeviceModule) Stop() error {
 	return nil
 }
 
-func (c *DeviceModule) onMqttMessage(device *digitalstrom.Device, channel string, message string) error {
+func (c *DeviceModule) onMqttMessage(deviceId string, channel string, message string) error {
+	device := c.deviceLookup[deviceId]
+
 	// In case stop is being passed as part of the message.
 	if strings.ToLower(message) == stop {
-		if err := c.dsClient.ZoneCallAction(device.ZoneId, digitalstrom.Stop); err != nil {
+		if err := c.dsClient.ZoneCallAction(device.Attributes.Zone, digitalstrom.Stop); err != nil {
 			return err
 		}
 		return nil
@@ -135,11 +146,11 @@ func (c *DeviceModule) onMqttMessage(device *digitalstrom.Device, channel string
 	}
 	value = c.invertValueIfNeeded(channel, value)
 	log.Info().
-		Str("device", device.Name).
+		Str("device", device.Attributes.Name).
 		Str("channel", channel).
 		Float64("value", value).
 		Msg("Setting value.")
-	if err := c.dsClient.DeviceSetOutputChannelValue(device.Dsid, map[string]int{channel: int(value)}); err != nil {
+	if err := c.dsClient.DeviceSetOutputChannelValue(device.DeviceId, map[string]int{channel: int(value)}); err != nil {
 		return err
 	}
 	if err := c.publishDeviceValue(device, channel, value); err != nil {
@@ -150,35 +161,37 @@ func (c *DeviceModule) onMqttMessage(device *digitalstrom.Device, channel string
 }
 
 func (c *DeviceModule) onDsEvent(event digitalstrom.Event) error {
-	if event.Source.IsDevice {
-		// The event was triggered by a single device, then let's update it.
-		device := c.deviceLookup[event.Source.Dsid]
-		if err := c.updateDevice(&device); err != nil {
-			return fmt.Errorf("error updating device '%s': %w", device.Name, err)
-		}
-		return nil
-	}
-	devicesIds, ok := c.zoneGroupLookup[event.Source.ZoneId][event.Source.GroupId]
-	if !ok {
-		log.Warn().
-			Int("zoneId", event.Source.ZoneId).
-			Int("groupID", event.Source.GroupId).
-			Msg("No devices found for group when event received.")
-		return fmt.Errorf("error when retrieving device given a zone and group ID")
-	}
-
-	time.Sleep(1 * time.Second)
-	for _, dsid := range devicesIds {
-		device := c.deviceLookup[dsid]
-		if err := c.updateDevice(&device); err != nil {
-			return fmt.Errorf("error updating device '%s': %w", device.Name, err)
-		}
-	}
+	// TODO refresh the all devices and make diff
+	//if event.Source.IsDevice {
+	//	// The event was triggered by a single device, then let's update it.
+	//	device := c.deviceLookup[event.Source.Dsid]
+	//	if err := c.updateDevice(&device); err != nil {
+	//		return fmt.Errorf("error updating device '%s': %w", device.Name, err)
+	//	}
+	//	return nil
+	//}
+	//devicesIds, ok := c.zoneGroupLookup[event.Source.ZoneId][event.Source.GroupId]
+	//if !ok {
+	//	log.Warn().
+	//		Int("zoneId", event.Source.ZoneId).
+	//		Int("groupID", event.Source.GroupId).
+	//		Msg("No devices found for group when event received.")
+	//	return fmt.Errorf("error when retrieving device given a zone and group ID")
+	//}
+	//
+	//time.Sleep(1 * time.Second)
+	//for _, dsid := range devicesIds {
+	//	device := c.deviceLookup[dsid]
+	//	if err := c.updateDevice(&device); err != nil {
+	//		return fmt.Errorf("error updating device '%s': %w", device.Name, err)
+	//	}
+	//}
 
 	return nil
 }
 
-func (c *DeviceModule) updateDevice(device *digitalstrom.Device) error {
+func (c *DeviceModule) updateDevice(deviceId string) error {
+	device := c.deviceLookup[deviceId]
 	if len(device.OutputChannels) == 0 {
 		log.Debug().Str("device", device.Name).Msg("Skipping update. No output channels.")
 		return nil
