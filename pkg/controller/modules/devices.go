@@ -75,10 +75,19 @@ func (c *DeviceModule) Start() error {
 	//}
 	devices, err := c.dsRegistry.GetDevices()
 
+	for _, device := range devices {
+		err := c.dsRegistry.DeviceChangeSubscribe(device.DeviceId, func(deviceId string, outputId string, oldValue float64, newValue float64) {
+			err := c.updateDevice(deviceId)
+			if err != nil {
+				log.Error().Err(err).Str("deviceid", deviceId).Msg("Error updating device ")
+			}
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	if err != nil {
-
-		// TODO refresh values in registry directly
-
 		// Refresh devices values.
 		if c.refreshAtStart {
 			go func() {
@@ -89,14 +98,6 @@ func (c *DeviceModule) Start() error {
 				}
 			}()
 		}
-	}
-
-	// TODO handle that in registry
-	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventTypeCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
-		return c.onDsEvent(event)
-	}); err != nil {
-		return err
 	}
 
 	// Subscribe to MQTT events.
@@ -135,10 +136,12 @@ func (c *DeviceModule) Start() error {
 }
 
 func (c *DeviceModule) Stop() error {
-	// TODO do this in registry
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventTypeCallScene); err != nil {
-		return err
+	if devices, err := c.dsRegistry.GetDevices(); err != nil {
+		for _, device := range devices {
+			_ = c.dsRegistry.DeviceChangeUnsubscribe(device.DeviceId)
+		}
 	}
+
 	return nil
 }
 
@@ -170,42 +173,43 @@ func (c *DeviceModule) onMqttMessage(deviceId string, channel string, message st
 	if err := c.dsClient.DeviceSetOutputChannelValue(device.Attributes.Dsid, map[string]int{channel: int(value)}); err != nil {
 		return err
 	}
-	if err := c.publishDeviceValue(&device, channel, value); err != nil {
-		return err
-	}
+	//if err := c.publishDeviceValue(&device, channel, value); err != nil {
+	//	return err
+	//}
 	return nil
 
 }
 
-func (c *DeviceModule) onDsEvent(event digitalstrom.Event) error {
-	// TODO refresh the all devices and make diff
-	//if event.Source.IsDevice {
-	//	// The event was triggered by a single device, then let's update it.
-	//	device := c.deviceLookup[event.Source.Dsid]
-	//	if err := c.updateDevice(&device); err != nil {
-	//		return fmt.Errorf("error updating device '%s': %w", device.Name, err)
-	//	}
-	//	return nil
-	//}
-	//devicesIds, ok := c.zoneGroupLookup[event.Source.ZoneId][event.Source.GroupId]
-	//if !ok {
-	//	log.Warn().
-	//		Int("zoneId", event.Source.ZoneId).
-	//		Int("groupID", event.Source.GroupId).
-	//		Msg("No devices found for group when event received.")
-	//	return fmt.Errorf("error when retrieving device given a zone and group ID")
-	//}
-	//
-	//time.Sleep(1 * time.Second)
-	//for _, dsid := range devicesIds {
-	//	device := c.deviceLookup[dsid]
-	//	if err := c.updateDevice(&device); err != nil {
-	//		return fmt.Errorf("error updating device '%s': %w", device.Name, err)
-	//	}
-	//}
-
-	return nil
-}
+//
+//func (c *DeviceModule) onDsEvent(event digitalstrom.Event) error {
+//	// TODO refresh the all devices and make diff
+//	//if event.Source.IsDevice {
+//	//	// The event was triggered by a single device, then let's update it.
+//	//	device := c.deviceLookup[event.Source.Dsid]
+//	//	if err := c.updateDevice(&device); err != nil {
+//	//		return fmt.Errorf("error updating device '%s': %w", device.Name, err)
+//	//	}
+//	//	return nil
+//	//}
+//	//devicesIds, ok := c.zoneGroupLookup[event.Source.ZoneId][event.Source.GroupId]
+//	//if !ok {
+//	//	log.Warn().
+//	//		Int("zoneId", event.Source.ZoneId).
+//	//		Int("groupID", event.Source.GroupId).
+//	//		Msg("No devices found for group when event received.")
+//	//	return fmt.Errorf("error when retrieving device given a zone and group ID")
+//	//}
+//	//
+//	//time.Sleep(1 * time.Second)
+//	//for _, dsid := range devicesIds {
+//	//	device := c.deviceLookup[dsid]
+//	//	if err := c.updateDevice(&device); err != nil {
+//	//		return fmt.Errorf("error updating device '%s': %w", device.Name, err)
+//	//	}
+//	//}
+//
+//	return nil
+//}
 
 func (c *DeviceModule) updateDevice(deviceId string) error {
 	device, err := c.dsRegistry.GetDevice(deviceId)
@@ -230,23 +234,28 @@ func (c *DeviceModule) updateDevice(deviceId string) error {
 		Str("outputChannels", strings.Join(channels, ";")).
 		Msg("Updating device")
 
-	// TODO use registry
-	//response, err := c.dsClient.DeviceGetOutputChannelValue(device.DeviceId, outputChannels)
-	//if err != nil {
-	//	return err
-	//}
-	//for _, channelValue := range response.Channels {
-	//	value := c.invertValueIfNeeded(channelValue.Name, channelValue.Value)
-	//	if err := c.publishDeviceValue(device, channelValue.Name, value); err != nil {
-	//		return fmt.Errorf("error publishing device '%s' value: %w", device.Name, err)
-	//	}
-	//}
+	outputValues, err := c.dsRegistry.GetOutputValuesOfDevice(deviceId)
+	if err != nil {
+		return err
+	}
+	outputValuesLookup := map[string]digitalstrom.OutputValue{}
+	for _, outputValue := range outputValues {
+		outputValuesLookup[outputValue.OutputId] = outputValue
+	}
+
+	for _, output := range outputs {
+		outputValue := outputValuesLookup[output.OutputId]
+		value := c.invertValueIfNeeded(output.OutputId, outputValue.Value)
+		if err := c.publishDeviceValue(&device, output.OutputId, value); err != nil {
+			return fmt.Errorf("error publishing device '%s' value: %w", device.Attributes.Name, err)
+		}
+	}
 
 	return nil
 }
 
-func (c *DeviceModule) publishDeviceValue(device *digitalstrom.Device, channelName string, value float64) error {
-	return c.mqttClient.Publish(c.deviceStateTopic(device.Attributes.Name, channelName), fmt.Sprintf("%.2f", value))
+func (c *DeviceModule) publishDeviceValue(device *digitalstrom.Device, outputId string, value float64) error {
+	return c.mqttClient.Publish(c.deviceStateTopic(device.Attributes.Name, outputId), fmt.Sprintf("%.2f", value))
 }
 
 func (c *DeviceModule) invertValueIfNeeded(channel string, value float64) float64 {

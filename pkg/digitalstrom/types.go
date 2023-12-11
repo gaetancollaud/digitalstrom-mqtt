@@ -27,6 +27,7 @@ const (
 	ChannelTypeHue        ChannelType = "hue"
 )
 
+// Deprecated: use new API instead
 type EventType string
 
 const (

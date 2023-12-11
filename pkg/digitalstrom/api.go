@@ -1,5 +1,6 @@
 package digitalstrom
 
+// Appartment structure
 type Apartment struct {
 	ApartmentId string              `mapstructure:"id"`
 	Attributes  ApartmentAttributes `mapstructure:"attributes"`
@@ -100,9 +101,9 @@ type OutputAttributes struct {
 	Type          OutputType `mapstructure:"type"`
 	Function      string     `mapstructure:"function"`
 	Mode          OutputMode `mapstructure:"mode"`
-	Min           float32    `mapstructure:"min"`
-	Max           float32    `mapstructure:"max"`
-	Resolution    float32    `mapstructure:"resolution"`
+	Min           float64    `mapstructure:"min"`
+	Max           float64    `mapstructure:"max"`
+	Resolution    float64    `mapstructure:"resolution"`
 }
 
 type ButtonInputs struct {
@@ -125,9 +126,9 @@ type SensorInputsAttributes struct {
 	TechnicalName string           `mapstructure:"technicalName"`
 	Type          SensorInputType  `mapstructure:"type"`
 	Mode          SensorInputUsage `mapstructure:"usage"`
-	Min           float32          `mapstructure:"min"`
-	Max           float32          `mapstructure:"max"`
-	Resolution    float32          `mapstructure:"resolution"`
+	Min           float64          `mapstructure:"min"`
+	Max           float64          `mapstructure:"max"`
+	Resolution    float64          `mapstructure:"resolution"`
 }
 
 // Zone representation.
@@ -139,7 +140,7 @@ type Zone struct {
 type ZoneAttributes struct {
 	Name               string              `mapstructure:"name"`
 	Floor              string              `mapstructure:"floor"`
-	OrderId            float32             `mapstructure:"orderId"`
+	OrderId            float64             `mapstructure:"orderId"`
 	Submodules         []string            `mapstructure:"submodules"`
 	Applications       []string            `mapstructure:"applications"`
 	ApplicationTypes   []string            `mapstructure:"applicationTypes"`
@@ -186,6 +187,63 @@ type MeteringAttributes struct {
 type MeteringOrigin struct {
 	MeteringOriginId string `mapstructure:"id"`
 	Type             string `mapstructure:"type"`
+}
+
+// Meterings
+type Meterings struct {
+	Meterings []Metering `mapstructure:"meterings"`
+}
+
+type MeteringValues struct {
+	Values []MeteringValue `mapstructure:"values"`
+}
+type MeteringValue struct {
+	Id         string                  `mapstructure:"id"`
+	Attributes MeteringValueAttributes `mapstructure:"attributes"`
+}
+
+type MeteringValueAttributes struct {
+	Value float64 `json:"value"`
+}
+
+// Status
+
+type ApartmentStatus struct {
+	ApartmentId string                  `mapstructure:"id"`
+	Included    ApartmentStatusIncluded `mapstructure:"included"`
+}
+
+type ApartmentStatusIncluded struct {
+	Devices []DeviceStatus `mapstructure:"dsDevices"`
+}
+
+type DeviceStatus struct {
+	DeviceId   string                 `mapstructure:"id"`
+	Type       string                 `mapstructure:"type"`
+	Attributes DeviceStatusAttributes `mapstructure:"attributes"`
+}
+
+type DeviceStatusAttributes struct {
+	FunctionBlocks []struct {
+		FunctionBlockId string        `mapstructure:"id"`
+		Outputs         []OutputValue `mapstructure:"outputs,omitempty"`
+	} `mapstructure:"functionBlocks"`
+	Submodules []struct {
+		SubmoduleId      string `mapstructure:"id"`
+		OperationsLocked bool   `mapstructure:"operationsLocked"`
+	} `mapstructure:"submodules"`
+	States []struct {
+		StateId string `mapstructure:"id"`
+		Value   string `mapstructure:"value"`
+	} `mapstructure:"states,omitempty"`
+}
+
+type OutputValue struct {
+	OutputId    string  `mapstructure:"id"`
+	Value       float64 `mapstructure:"value"`
+	Status      string  `mapstructure:"status"`
+	TargetValue float64 `mapstructure:"targetValue"`
+	Level       int     `mapstructure:"level,omitempty"`
 }
 
 // Websocket

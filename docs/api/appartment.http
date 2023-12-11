@@ -5,5 +5,5 @@ Authorization: Bearer {{api-key}}
 ###
 
 // @no-cookie-jar
-GET {{host}}/api/v1/apartment/status?include=zones
+GET {{host}}/api/v1/apartment/status
 Authorization: Bearer {{api-key}}

@@ -2,8 +2,11 @@ package digitalstrom
 
 import (
 	"errors"
+	"github.com/rs/zerolog/log"
 	"sync"
 )
+
+type DeviceChangeCallback func(deviceId string, outputId string, oldValue float64, newValue float64)
 
 type Registry interface {
 	Start() error
@@ -17,30 +20,57 @@ type Registry interface {
 	GetFunctionBlockForDevice(deviceId string) (FunctionBlock, error)
 
 	GetOutputsOfDevice(deviceId string) ([]Output, error)
+	GetOutputValuesOfDevice(deviceId string) ([]OutputValue, error)
 
 	GetMeterings() []Metering
+
+	DeviceChangeSubscribe(deviceId string, callback DeviceChangeCallback) error
+	DeviceChangeUnsubscribe(deviceId string) error
+
+	UpdateApartmentStatusAndFireChangeEvents() error
 }
 
 type registry struct {
 	digitalstromClient Client
 
-	apartment *Apartment
+	apartment       *Apartment
+	apartmentStatus *ApartmentStatus
+	meterings       *Meterings
 
 	devicesLookup        map[string]Device
 	submoduleLookup      map[string]Submodule
 	functionBlocksLookup map[string]FunctionBlock
+
+	deviceChangeCallbacks map[string]DeviceChangeCallback
 
 	registryLoading sync.Mutex
 }
 
 func NewRegistry(digitalstromClient Client) Registry {
 	return &registry{
-		digitalstromClient: digitalstromClient,
+		digitalstromClient:    digitalstromClient,
+		deviceChangeCallbacks: make(map[string]DeviceChangeCallback),
 	}
 }
 
 func (r *registry) Start() error {
-	return r.updateApartment()
+	if err := r.updateApartment(); err != nil {
+		return err
+	}
+	err := r.UpdateApartmentStatusAndFireChangeEvents()
+	if err != nil {
+		return err
+	}
+	callback := func(notification WebsocketNotification) {
+		// TODO handle structure changes
+		if err := r.UpdateApartmentStatusAndFireChangeEvents(); err != nil {
+			log.Err(err).Msg("Error updating apartment status")
+		}
+	}
+	if err := r.digitalstromClient.NotificationSubscribe("registry", callback); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *registry) Stop() error {
@@ -72,6 +102,21 @@ func (r *registry) GetOutputsOfDevice(deviceId string) ([]Output, error) {
 			functionBlock := r.functionBlocksLookup[functionBlockId]
 			for _, output := range functionBlock.Attributes.Outputs {
 				outputs = append(outputs, output)
+			}
+		}
+	}
+
+	return outputs, nil
+}
+
+func (r *registry) GetOutputValuesOfDevice(deviceId string) ([]OutputValue, error) {
+	outputs := []OutputValue{}
+	for _, device := range r.apartmentStatus.Included.Devices {
+		if device.DeviceId == deviceId {
+			for _, functionBlockValue := range device.Attributes.FunctionBlocks {
+				for _, outputValue := range functionBlockValue.Outputs {
+					outputs = append(outputs, outputValue)
+				}
 			}
 		}
 	}
@@ -135,5 +180,70 @@ func (r *registry) updateApartment() error {
 		r.functionBlocksLookup[functionBlock.FunctionBlockId] = functionBlock
 	}
 
+	return nil
+}
+
+func (r *registry) DeviceChangeSubscribe(deviceId string, callback DeviceChangeCallback) error {
+	_, exists := r.deviceChangeCallbacks[deviceId]
+	if exists {
+		return errors.New("Callback already registered for device " + deviceId)
+	}
+	r.deviceChangeCallbacks[deviceId] = callback
+	return nil
+}
+
+func (r *registry) DeviceChangeUnsubscribe(deviceId string) error {
+	_, exists := r.deviceChangeCallbacks[deviceId]
+	if !exists {
+		return errors.New("No callback registered for device " + deviceId)
+	}
+	delete(r.deviceChangeCallbacks, deviceId)
+	return nil
+}
+
+func (r *registry) UpdateApartmentStatusAndFireChangeEvents() error {
+	oldStatus := r.apartmentStatus
+	newStatus, err := r.digitalstromClient.GetApartmentStatus()
+	if err != nil {
+		return err
+	}
+	r.apartmentStatus = newStatus
+
+	if oldStatus != nil {
+		// Check diff and broadcast events
+		log.Info().Msg("Checking diff")
+
+		oldStatusLookup := make(map[string]map[string]OutputValue)
+		for _, device := range oldStatus.Included.Devices {
+			oldStatusLookup[device.DeviceId] = make(map[string]OutputValue)
+			for _, functionBlock := range device.Attributes.FunctionBlocks {
+				for _, output := range functionBlock.Outputs {
+					oldStatusLookup[device.DeviceId][output.OutputId] = output
+				}
+			}
+		}
+
+		for _, device := range newStatus.Included.Devices {
+			for _, functionBlock := range device.Attributes.FunctionBlocks {
+				for _, newOutput := range functionBlock.Outputs {
+					oldOutput := oldStatusLookup[device.DeviceId][newOutput.OutputId]
+					if oldOutput.Value != newOutput.Value {
+						log.Info().
+							Str("DeviceId", device.DeviceId).
+							Str("Output", newOutput.OutputId).
+							Float64("oldValue", oldOutput.Value).
+							Float64("newValue", newOutput.Value).
+							Msg("Output value changed")
+
+						callback, exists := r.deviceChangeCallbacks[device.DeviceId]
+						if exists {
+							callback(device.DeviceId, newOutput.OutputId, oldOutput.Value, newOutput.Value)
+						}
+					}
+				}
+			}
+		}
+
+	}
 	return nil
 }

@@ -38,6 +38,9 @@ const (
 	apiSmarthome ApiVersion = 2
 )
 
+type NotificationCallback func(notification WebsocketNotification)
+
+// Deprecated: use new API instead
 type EventCallback func(Client, Event) error
 
 // Client is the interface definition as used by this library, the
@@ -52,47 +55,72 @@ type Client interface {
 	// Start of the API calls to DigitalStrom.
 
 	GetApartment() (*Apartment, error)
+	GetApartmentStatus() (*ApartmentStatus, error)
+	GetMetering() (*Meterings, error)
+	GetMeteringStatus() (*MeteringValues, error)
 
+	NotificationSubscribe(id string, callback NotificationCallback) error
+	NotificationUnsubscribe(id string) error
+
+	// Deprecated: use new API instead
 	// Get the list of circuits in the apartment.
 	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
+	// Deprecated: use new API instead
 	// Get the list of devices in the apartment.
 	ApartmentGetDevices() (*ApartmentGetDevicesResponse, error)
+	// Deprecated: use new API instead
 	ApartmentGetFunctionBlocks() (*ApartmentGetFunctionBlocksResponse, error)
+	// Deprecated: use new API instead
 	// Call a scene which will be immediately applied.
 	ApartmentCallScene(sceneId int) error
+	// Deprecated: use new API instead
 	// Get the list of Zones and the groups on it.
 	ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error)
+	// Deprecated: use new API instead
 	// Get the power consumption from a given circuit.
 	CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error)
+	// Deprecated: use new API instead
 	// Get the energy meter value from a given circuit.
 	CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error)
+	// Deprecated: use new API instead
 	// Get the values for the channels in the given device.
 	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
+	// Deprecated: use new API instead
 	// Sets the values for the channels in the given device.
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
+	// Deprecated: use new API instead
 	// Gets the motion time for the device.
 	DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error)
+	// Deprecated: use new API instead
 	// Subscribe to an event and run the given callback when an event of the
 	// given types is received.
 	EventSubscribe(event EventType, eventCallback EventCallback) error
+	// Deprecated: use new API instead
 	// Unsubscribe to the given event type.
 	EventUnsubscribe(event EventType) error
+	// Deprecated: use new API instead
 	// Get the latest event from the server. Note that you must be subscribed to
 	// at least one event and the call is blocking until a new event is
 	// available. This can be used when has been specified that the event loop
 	// does not run and therefore is responsibility of the client to retrieve
 	// the events manually using this call.
 	EventGet() (*EventGetResponse, error)
+	// Deprecated: use new API instead
 	// Get the floating value for the given property path.
 	PropertyGetFloating(path string) (*FloatValue, error)
+	// Deprecated: use new API instead
 	// Call scene in a specified zone.
 	ZoneCallScene(zone string, groupId int, sceneId int) error
+	// Deprecated: use new API instead
 	// Call action in a specified zone.
 	ZoneCallAction(zone string, action Action) error
+	// Deprecated: use new API instead
 	// Get the zone name.
 	ZoneGetName(zoneId int) (*ZoneGetNameResponse, error)
+	// Deprecated: use new API instead
 	// Get the list of scenes that are available at a given zone.
 	ZoneGetReachableScenes(zoneId int, groupId int) (*ZoneGetReachableScenesResponse, error)
+	// Deprecated: use new API instead
 	// Get the scene name.
 	ZoneSceneGetName(zoneId int, groupId int, sceneId int) (*ZoneSceneGetNameResponse, error)
 }
@@ -106,6 +134,8 @@ type client struct {
 	options             ClientOptions
 	websocketConnection *websocket.Conn
 	token               string
+
+	notificationCallbacks map[string]NotificationCallback
 
 	eventsSubscribedCallbacks map[EventType][]EventCallback
 	eventLoopDone             chan void
@@ -133,6 +163,7 @@ func NewClient(options *ClientOptions) Client {
 		options:                   *options,
 		token:                     "",
 		eventsSubscribedCallbacks: map[EventType][]EventCallback{},
+		notificationCallbacks:     map[string]NotificationCallback{},
 	}
 }
 
@@ -164,8 +195,7 @@ func (c *client) Connect() error {
 	}
 
 	go func() {
-		// ignore first message
-		//c.websocketConnection.ReadMessage()
+		firstMessage := true
 		for {
 			var notif WebsocketNotification
 			err := c.websocketConnection.ReadJSON(&notif)
@@ -173,10 +203,16 @@ func (c *client) Connect() error {
 				log.Error().Err(err).Msg("Websocket reading error")
 				break
 			} else if notif.Arguments == nil || len(notif.Arguments) == 0 {
-				log.Warn().Msg("No argument received in notification")
+				if !firstMessage {
+					log.Warn().Msg("No argument received in notification")
+				}
 			} else {
-				log.Info().Str("target", notif.Target).Str("type", string(notif.Arguments[0].Type)).Msg("Websocket received")
+				for _, callback := range c.notificationCallbacks {
+					callback(notif)
+				}
+				log.Trace().Str("target", notif.Target).Str("type", string(notif.Arguments[0].Type)).Msg("Websocket received")
 			}
+			firstMessage = false
 		}
 		log.Warn().Msg("Closing websocket reader")
 	}()
@@ -217,16 +253,52 @@ func (c *client) GetApartment() (*Apartment, error) {
 	return wrapApiResponse[Apartment](response, err)
 }
 
+func (c *client) GetApartmentStatus() (*ApartmentStatus, error) {
+	response, err := c.apiCall("api/v1/apartment/status", url.Values{}, apiSmarthome)
+	return wrapApiResponse[ApartmentStatus](response, err)
+}
+
+func (c *client) GetMetering() (*Meterings, error) {
+	response, err := c.apiCall("api/v1/apartment/meterings", url.Values{}, apiSmarthome)
+	return wrapApiResponse[Meterings](response, err)
+}
+
+func (c *client) GetMeteringStatus() (*MeteringValues, error) {
+	response, err := c.apiCall("api/v1/apartment/meterings/values", url.Values{}, apiSmarthome)
+	return wrapApiResponse[MeteringValues](response, err)
+}
+
+func (c *client) NotificationSubscribe(id string, callback NotificationCallback) error {
+	_, exists := c.notificationCallbacks[id]
+	if exists {
+		return errors.New("Notification callback with id " + id + " already exists")
+	}
+	c.notificationCallbacks[id] = callback
+	return nil
+}
+
+func (c *client) NotificationUnsubscribe(id string) error {
+	_, exists := c.notificationCallbacks[id]
+	if !exists {
+		return errors.New("Notification callback with id " + id + " does not exist")
+	}
+	delete(c.notificationCallbacks, id)
+	return nil
+}
+
+// Deprecated: use new API instead
 func (c *client) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
 	response, err := c.apiCall("api/v1/apartment/dsDevices", url.Values{}, apiSmarthome)
 	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
 }
 
+// Deprecated: use new API instead
 func (c *client) ApartmentGetFunctionBlocks() (*ApartmentGetFunctionBlocksResponse, error) {
 	response, err := c.apiCall("api/v1/apartment/functionBlocks", url.Values{}, apiSmarthome)
 	return wrapApiResponse[ApartmentGetFunctionBlocksResponse](response, err)
 }
 
+// Deprecated: use new API instead
 func (c *client) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
 	response, err := c.apiCall("json/apartment/getCircuits", url.Values{}, apiClassic)
 	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
@@ -245,6 +317,7 @@ func (c *client) ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResp
 	return wrapApiResponse[ApartmentGetReachableGroupsResponse](response, err)
 }
 
+// Deprecated: use new API instead
 func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
@@ -252,6 +325,7 @@ func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionRespo
 	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
 }
 
+// Deprecated: use new API instead
 func (c *client) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
 	params := url.Values{}
 	params.Set("id", dsid)
@@ -259,6 +333,7 @@ func (c *client) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeter
 	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
 }
 
+// Deprecated: use new API instead
 func (c *client) PropertyGetFloating(path string) (*FloatValue, error) {
 	params := url.Values{}
 	params.Set("path", path)
@@ -337,6 +412,7 @@ func (c *client) DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeRes
 	return wrapApiResponse[DeviceGetMaxMotionTimeResponse](response, err)
 }
 
+// Deprecated: use new API instead
 func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) error {
 	c.eventMutex.Lock()
 	defer c.eventMutex.Unlock()
@@ -356,6 +432,7 @@ func (c *client) EventSubscribe(event EventType, eventCallback EventCallback) er
 	return nil
 }
 
+// Deprecated: use new API instead
 func (c *client) EventUnsubscribe(event EventType) error {
 	c.eventMutex.Lock()
 	defer c.eventMutex.Unlock()
@@ -371,6 +448,7 @@ func (c *client) EventUnsubscribe(event EventType) error {
 	return nil
 }
 
+// Deprecated: use new API instead
 func (c *client) EventGet() (*EventGetResponse, error) {
 	params := url.Values{}
 	params.Set("subscriptionID", strconv.Itoa(c.options.EventSubscriptionId))
@@ -526,6 +604,7 @@ func (c *client) getRequest(path string, params url.Values, version ApiVersion) 
 	return nil, nil
 }
 
+// Deprecated: use new API instead
 // Starts the event loop that will watch for new events in the DigitalStrom
 // server and call the user provided callback when new events are received.
 func (c *client) startEventLoop() {
@@ -580,6 +659,7 @@ func (c *client) startEventLoop() {
 	}()
 }
 
+// Deprecated: use new API instead
 // stopEventLoop signals the event loop to stop and waits until any work on the
 // event loop is done. The waiting time can be control using the
 // EventRequestTimeout in the ClientOptions as the get requests to get the next
