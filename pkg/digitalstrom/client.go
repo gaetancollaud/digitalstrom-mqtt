@@ -40,7 +40,7 @@ const (
 type EventCallback func(Client, Event) error
 
 // Client is the interface definition as used by this library, the
-// interface is primarly to allow mocking tests.
+// interface is primarily to allow mocking tests.
 type Client interface {
 	// Connect will perform login on the DigitalStrom server.
 	Connect() error
@@ -50,7 +50,7 @@ type Client interface {
 
 	// Start of the API calls to DigitalStrom.
 
-	Apartment() (*Apartment, error)
+	GetApartment() (*Apartment, error)
 
 	// Get the list of circuits in the apartment.
 	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
@@ -175,9 +175,8 @@ func (c *client) Disconnect() error {
 	return nil
 }
 
-func (c *client) Apartment() (*Apartment, error) {
-	// TODO cache !!!
-	response, err := c.apiCall("api/v1/apartment", url.Values{}, apiClassic)
+func (c *client) GetApartment() (*Apartment, error) {
+	response, err := c.apiCall("api/v1/apartment", url.Values{}, apiSmarthome)
 	return wrapApiResponse[Apartment](response, err)
 }
 

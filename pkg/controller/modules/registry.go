@@ -12,9 +12,9 @@ type Module interface {
 	Stop() error
 }
 
-type ModuleBuilder func(mqtt.Client, digitalstrom.Client, *config.Config) Module
+type ModuleBuilder func(mqtt.Client, digitalstrom.Client, digitalstrom.Registry, *config.Config) Module
 
-// Register stores a builder function into the registy for external access.
+// Register stores a builder function into the registry for external access.
 // Register() can be called from init() on a module in this package and will
 // automatically register a module.
 func Register(name string, builder ModuleBuilder) {

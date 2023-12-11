@@ -13,6 +13,7 @@ import (
 
 type Controller struct {
 	dsClient      digitalstrom.Client
+	dsRegistry    digitalstrom.Registry
 	mqttClient    mqtt.Client
 	hassDiscovery *homeassistant.HomeAssistantDiscovery
 
@@ -28,6 +29,8 @@ func NewController(config *config.Config) *Controller {
 		SetPassword(config.Digitalstrom.Password)
 	dsClient := digitalstrom.NewClient(dsOptions)
 
+	dsRegistry := digitalstrom.NewRegistry(dsClient)
+
 	mqttOptions := mqtt.NewClientOptions().
 		SetMqttUrl(config.Mqtt.MqttUrl).
 		SetUsername(config.Mqtt.Username).
@@ -42,13 +45,14 @@ func NewController(config *config.Config) *Controller {
 
 	controller := Controller{
 		dsClient:      dsClient,
+		dsRegistry:    dsRegistry,
 		mqttClient:    mqttClient,
 		hassDiscovery: hass,
 		modules:       map[string]modules.Module{},
 	}
 
 	for name, builder := range modules.Modules {
-		module := builder(mqttClient, dsClient, config)
+		module := builder(mqttClient, dsClient, dsRegistry, config)
 		controller.modules[name] = module
 	}
 
@@ -62,6 +66,9 @@ func (c *Controller) Start() error {
 	}
 	if err := c.dsClient.Connect(); err != nil {
 		return fmt.Errorf("error connecting to DigitalStrom client: %w", err)
+	}
+	if err := c.dsRegistry.Start(); err != nil {
+		return fmt.Errorf("error starting DigitalStrom registry: %w", err)
 	}
 
 	for name, module := range c.modules {
@@ -103,6 +110,9 @@ func (c *Controller) Stop() error {
 
 	if err := c.mqttClient.Disconnect(); err != nil {
 		return fmt.Errorf("error disconnecting to MQTT client: %w", err)
+	}
+	if err := c.dsRegistry.Stop(); err != nil {
+		return fmt.Errorf("error stoping DigitalStrom registry: %w", err)
 	}
 	if err := c.dsClient.Disconnect(); err != nil {
 		return fmt.Errorf("error disconnecting to DigitalStrom client: %w", err)

@@ -8,7 +8,6 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -30,34 +29,36 @@ type ButtonModule struct {
 
 func (c *ButtonModule) Start() error {
 	// Prefetch the list of circuits available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetDevices()
-	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
-	}
-	// Store only the devices that are actually joker buttons.
-	for _, device := range *response {
-		if len(device.Groups) == 1 && device.Groups[0] == 8 { // Joker device.
-			c.buttons = append(c.buttons, device)
-		}
-	}
 
-	// Create maps regarding Buttons for fast lookup when a new Event is
-	// received.
-	for _, device := range c.buttons {
-		c.buttonLookup[device.Dsuid] = device
-	}
-
-	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventButtonClick, func(client digitalstrom.Client, event digitalstrom.Event) error {
-		return c.onDsEvent(event)
-	}); err != nil {
-		return err
-	}
+	// TODO implement for v2
+	//response, err := c.dsClient.ApartmentGetDevices()
+	//if err != nil {
+	//	log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
+	//}
+	//// Store only the devices that are actually joker buttons.
+	//for _, device := range *response {
+	//	if len(device.Groups) == 1 && device.Groups[0] == 8 { // Joker device.
+	//		c.buttons = append(c.buttons, device)
+	//	}
+	//}
+	//
+	//// Create maps regarding Buttons for fast lookup when a new Event is
+	//// received.
+	//for _, device := range c.buttons {
+	//	c.buttonLookup[device.Dsuid] = device
+	//}
+	//
+	//// Subscribe to DigitalStrom events.
+	//if err := c.dsClient.EventSubscribe(digitalstrom.EventButtonClick, func(client digitalstrom.Client, event digitalstrom.Event) error {
+	//	return c.onDsEvent(event)
+	//}); err != nil {
+	//	return err
+	//}
 	return nil
 }
 
 func (c *ButtonModule) Stop() error {
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventButtonClick); err != nil {
+	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventTypeButtonClick); err != nil {
 		return err
 	}
 	return nil
@@ -77,7 +78,7 @@ func (c *ButtonModule) onDsEvent(event digitalstrom.Event) error {
 
 func (c *ButtonModule) publishButtonClick(device *digitalstrom.Device, clickType int) error {
 	message := getClickType(clickType)
-	return c.mqttClient.Publish(c.buttonClickTopic(device.Name), message)
+	return c.mqttClient.Publish(c.buttonClickTopic(device.Attributes.Name), message)
 }
 
 func (c *ButtonModule) buttonClickTopic(deviceName string) string {
@@ -118,21 +119,21 @@ func (c *ButtonModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 		for clickType, clickName := range clickTypeMapping {
 			config := homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.DeviceTrigger,
-				DeviceId: device.Dsid,
+				DeviceId: device.DeviceId,
 				ObjectId: clickName,
 				Config: &homeassistant.DeviceTriggerConfig{
 					BaseConfig: homeassistant.BaseConfig{
 						Device: homeassistant.Device{
 							Identifiers: []string{
-								device.Dsid,
+								device.DeviceId,
 							},
-							Name: device.Name,
+							Name: device.Attributes.Name,
 						},
 					},
 					AutomationType: "trigger",
 					Type:           hassTypeMapping[clickType],
 					Subtype:        clickName,
-					Topic:          c.mqttClient.GetFullTopic(c.buttonClickTopic(device.Name)),
+					Topic:          c.mqttClient.GetFullTopic(c.buttonClickTopic(device.Attributes.Name)),
 					Payload:        getClickType(clickType),
 				},
 			}
@@ -142,7 +143,7 @@ func (c *ButtonModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 	return configs, nil
 }
 
-func NewButtonModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {
+func NewButtonModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
 	return &ButtonModule{
 		mqttClient:         mqttClient,
 		dsClient:           dsClient,

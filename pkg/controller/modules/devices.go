@@ -24,116 +24,132 @@ const (
 type DeviceModule struct {
 	mqttClient mqtt.Client
 	dsClient   digitalstrom.Client
+	dsRegistry digitalstrom.Registry
 
 	normalizeDeviceName  bool
 	refreshAtStart       bool
 	invertBlindsPosition bool
 
-	devices              []digitalstrom.Device
-	functionBlocks       []digitalstrom.FunctionBlock
-	deviceLookup         map[string]digitalstrom.Device
-	functionBlocksLookup map[string]digitalstrom.FunctionBlock
+	//devices              []digitalstrom.Device
+	//functionBlocks       []digitalstrom.FunctionBlock
+	//deviceLookup         map[string]digitalstrom.Device
+	//functionBlocksLookup map[string]digitalstrom.FunctionBlock
 	//zoneGroupLookup map[string]map[int][]string
 }
 
 func (c *DeviceModule) Start() error {
-	// Prefetch the list of circuits available in DigitalStrom.
-	responseDevices, err := c.dsClient.ApartmentGetDevices()
+
+	//
+	//// Prefetch the list of circuits available in DigitalStrom.
+	//responseDevices, err := c.dsClient.ApartmentGetDevices()
+	//if err != nil {
+	//	log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
+	//}
+	//c.devices = *responseDevices
+	//
+	//responseFunctionBlocks, err := c.dsClient.ApartmentGetFunctionBlocks()
+	//if err != nil {
+	//	log.Panic().Err(err).Msg("Error fetching the function blocks in the apartment.")
+	//}
+	//c.functionBlocks = *responseFunctionBlocks
+	//
+	//// Create maps regarding Devices for fast lookup when a new Event is
+	//// received.
+	//for _, functionBlock := range c.functionBlocks {
+	//	c.functionBlocksLookup[functionBlock.DeviceId] = functionBlock
+	//}
+	//for _, device := range c.devices {
+	//	c.deviceLookup[device.DeviceId] = device
+	//	//_, ok := c.zoneGroupLookup[device.Attributes.Zone]
+	//	//if !ok {
+	//	//	c.zoneGroupLookup[device.Attributes.Zone] = map[int][]string{}
+	//	//}
+	//	//
+	//	//for _, groupId := range device.Groups {
+	//	//	_, ok := c.zoneGroupLookup[device.ZoneId][groupId]
+	//	//	if !ok {
+	//	//		c.zoneGroupLookup[device.ZoneId][groupId] = []string{}
+	//	//	}
+	//	//	c.zoneGroupLookup[device.ZoneId][groupId] = append(c.zoneGroupLookup[device.ZoneId][groupId], device.Dsid)
+	//	//}
+	//}
+	devices, err := c.dsRegistry.GetDevices()
+
 	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the devices in the apartment.")
-	}
-	c.devices = *responseDevices
 
-	responseFunctionBlocks, err := c.dsClient.ApartmentGetFunctionBlocks()
-	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the function blocks in the apartment.")
-	}
-	c.functionBlocks = *responseFunctionBlocks
+		// TODO refresh values in registry directly
 
-	// Create maps regarding Devices for fast lookup when a new Event is
-	// received.
-	for _, functionBlock := range c.functionBlocks {
-		c.functionBlocksLookup[functionBlock.DeviceId] = functionBlock
-	}
-	for _, device := range c.devices {
-		c.deviceLookup[device.DeviceId] = device
-		//_, ok := c.zoneGroupLookup[device.Attributes.Zone]
-		//if !ok {
-		//	c.zoneGroupLookup[device.Attributes.Zone] = map[int][]string{}
-		//}
-		//
-		//for _, groupId := range device.Groups {
-		//	_, ok := c.zoneGroupLookup[device.ZoneId][groupId]
-		//	if !ok {
-		//		c.zoneGroupLookup[device.ZoneId][groupId] = []string{}
-		//	}
-		//	c.zoneGroupLookup[device.ZoneId][groupId] = append(c.zoneGroupLookup[device.ZoneId][groupId], device.Dsid)
-		//}
-	}
-
-	// Refresh devices values.
-	if c.refreshAtStart {
-		go func() {
-			for _, device := range c.devices {
-				if err := c.updateDevice(&device); err != nil {
-					log.Error().Err(err).Msgf("Error updating device '%s'", device.Attributes.Name)
+		// Refresh devices values.
+		if c.refreshAtStart {
+			go func() {
+				for _, device := range devices {
+					if err := c.updateDevice(device.DeviceId); err != nil {
+						log.Error().Err(err).Msgf("Error updating device '%s'", device.Attributes.Name)
+					}
 				}
-			}
-		}()
+			}()
+		}
 	}
 
+	// TODO handle that in registry
 	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
+	if err := c.dsClient.EventSubscribe(digitalstrom.EventTypeCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
 		return c.onDsEvent(event)
 	}); err != nil {
 		return err
 	}
 
 	// Subscribe to MQTT events.
-	for _, functionBlock := range c.functionBlocks {
-		for _, channel := range functionBlock.Attributes.Outputs {
-			deviceCopy := functionBlock
-			deviceName := deviceCopy.Attributes.Name
-			channelName := channel.Attributes.TechnicalName
-			topic := c.deviceCommandTopic(deviceName, channelName)
-			log.Trace().
-				Str("topic", topic).
-				Str("deviceName", deviceName).
-				Str("channel", channelName).
-				Msg("Subscribing for topic.")
-			c.mqttClient.Subscribe(topic, func(client mqtt_base.Client, message mqtt_base.Message) {
-				payload := string(message.Payload())
+	for _, device := range devices {
+		outputs, err := c.dsRegistry.GetOutputsOfDevice(device.DeviceId)
+		if err == nil {
+			for _, output := range outputs {
+				deviceName := device.Attributes.Name
+				outputName := output.OutputId
+				topic := c.deviceCommandTopic(deviceName, outputName)
 				log.Trace().
 					Str("topic", topic).
 					Str("deviceName", deviceName).
-					Str("channel", channelName).
-					Str("payload", payload).
-					Msg("Message Received.")
-				if err := c.onMqttMessage(deviceCopy.DeviceId, channelName, payload); err != nil {
-					log.Error().
+					Str("outputName", outputName).
+					Msg("Subscribing for topic.")
+				c.mqttClient.Subscribe(topic, func(client mqtt_base.Client, message mqtt_base.Message) {
+					payload := string(message.Payload())
+					log.Trace().
 						Str("topic", topic).
-						Err(err).
-						Msg("Error handling MQTT Message.")
-				}
-			})
+						Str("deviceName", deviceName).
+						Str("outputName", outputName).
+						Str("payload", payload).
+						Msg("Message Received.")
+					if err := c.onMqttMessage(device.DeviceId, outputName, payload); err != nil {
+						log.Error().
+							Str("topic", topic).
+							Err(err).
+							Msg("Error handling MQTT Message.")
+					}
+				})
+			}
 		}
 	}
 	return nil
 }
 
 func (c *DeviceModule) Stop() error {
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventCallScene); err != nil {
+	// TODO do this in registry
+	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventTypeCallScene); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (c *DeviceModule) onMqttMessage(deviceId string, channel string, message string) error {
-	device := c.deviceLookup[deviceId]
+	device, err := c.dsRegistry.GetDevice(deviceId)
+	if err != nil {
+		return err
+	}
 
 	// In case stop is being passed as part of the message.
 	if strings.ToLower(message) == stop {
-		if err := c.dsClient.ZoneCallAction(device.Attributes.Zone, digitalstrom.Stop); err != nil {
+		if err := c.dsClient.ZoneCallAction(device.Attributes.Zone, digitalstrom.ActionStop); err != nil {
 			return err
 		}
 		return nil
@@ -153,7 +169,7 @@ func (c *DeviceModule) onMqttMessage(deviceId string, channel string, message st
 	if err := c.dsClient.DeviceSetOutputChannelValue(device.DeviceId, map[string]int{channel: int(value)}); err != nil {
 		return err
 	}
-	if err := c.publishDeviceValue(device, channel, value); err != nil {
+	if err := c.publishDeviceValue(&device, channel, value); err != nil {
 		return err
 	}
 	return nil
@@ -191,32 +207,45 @@ func (c *DeviceModule) onDsEvent(event digitalstrom.Event) error {
 }
 
 func (c *DeviceModule) updateDevice(deviceId string) error {
-	device := c.deviceLookup[deviceId]
-	if len(device.OutputChannels) == 0 {
-		log.Debug().Str("device", device.Name).Msg("Skipping update. No output channels.")
-		return nil
-	}
-	outputChannels := device.OutputChannelsNames()
-	log.Debug().
-		Str("device", device.Name).
-		Str("outputChannels", strings.Join(outputChannels, ";")).
-		Msg("Updating device")
-	response, err := c.dsClient.DeviceGetOutputChannelValue(device.Dsid, outputChannels)
+	device, err := c.dsRegistry.GetDevice(deviceId)
 	if err != nil {
 		return err
 	}
-	for _, channelValue := range response.Channels {
-		value := c.invertValueIfNeeded(channelValue.Name, channelValue.Value)
-		if err := c.publishDeviceValue(device, channelValue.Name, value); err != nil {
-			return fmt.Errorf("error publishing device '%s' value: %w", device.Name, err)
-		}
+	outputs, err := c.dsRegistry.GetOutputsOfDevice(deviceId)
+	if err != nil {
+		return err
 	}
+	if len(outputs) == 0 {
+		log.Debug().Str("device", device.Attributes.Name).Msg("Skipping update. No output channels.")
+		return nil
+	}
+
+	channels := []string{}
+	for _, output := range outputs {
+		channels = append(channels, output.Attributes.TechnicalName)
+	}
+	log.Debug().
+		Str("device", device.Attributes.Name).
+		Str("outputChannels", strings.Join(channels, ";")).
+		Msg("Updating device")
+
+	// TODO use registry
+	//response, err := c.dsClient.DeviceGetOutputChannelValue(device.DeviceId, outputChannels)
+	//if err != nil {
+	//	return err
+	//}
+	//for _, channelValue := range response.Channels {
+	//	value := c.invertValueIfNeeded(channelValue.Name, channelValue.Value)
+	//	if err := c.publishDeviceValue(device, channelValue.Name, value); err != nil {
+	//		return fmt.Errorf("error publishing device '%s' value: %w", device.Name, err)
+	//	}
+	//}
 
 	return nil
 }
 
 func (c *DeviceModule) publishDeviceValue(device *digitalstrom.Device, channelName string, value float64) error {
-	return c.mqttClient.Publish(c.deviceStateTopic(device.Name, channelName), fmt.Sprintf("%.2f", value))
+	return c.mqttClient.Publish(c.deviceStateTopic(device.Attributes.Name, channelName), fmt.Sprintf("%.2f", value))
 }
 
 func (c *DeviceModule) invertValueIfNeeded(channel string, value float64) float64 {
@@ -247,82 +276,98 @@ func (c *DeviceModule) deviceCommandTopic(deviceName string, channel string) str
 func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
 	configs := []homeassistant.DiscoveryConfig{}
 
-	for _, device := range c.devices {
+	devices, err := c.dsRegistry.GetDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, device := range devices {
+		functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(device.DeviceId)
+		if err != nil {
+			return nil, err
+		}
+		properties := functionBlock.Properties()
+		deviceType := functionBlock.DeviceType()
 		var config homeassistant.DiscoveryConfig
-		if device.DeviceType() == digitalstrom.Light {
+		if deviceType == digitalstrom.DeviceTypeLight {
+
+			outputs, err := c.dsRegistry.GetOutputsOfDevice(device.DeviceId)
+			if err != nil || len(outputs) == 0 {
+				log.Info().Str("deviceId", device.DeviceId).Msg("Skipping device without output channels.")
+				continue
+			}
+			lightOutput := outputs[0]
+
 			entityConfig := &homeassistant.LightConfig{
 				BaseConfig: homeassistant.BaseConfig{
 					Device: homeassistant.Device{
 						Identifiers: []string{
-							device.Dsid,
-							device.Dsuid,
+							device.DeviceId,
 						},
-						Model: device.HwInfo,
-						Name:  device.Name,
+						Model: functionBlock.Attributes.TechnicalName,
+						Name:  device.Attributes.Name,
 					},
-					Name:     device.Name,
-					UniqueId: device.Dsid + "_light",
+					Name:     device.Attributes.Name,
+					UniqueId: device.DeviceId + "_light",
 				},
 				CommandTopic: c.mqttClient.GetFullTopic(
-					c.deviceCommandTopic(device.Name, device.OutputChannelsNames()[0])),
+					c.deviceCommandTopic(device.Attributes.Name, lightOutput.OutputId)),
 				StateTopic: c.mqttClient.GetFullTopic(
-					c.deviceStateTopic(device.Name, device.OutputChannelsNames()[0])),
+					c.deviceStateTopic(device.Attributes.Name, lightOutput.OutputId)),
 				PayloadOn:  "100.00",
 				PayloadOff: "0.00",
 			}
-			if device.Properties().Dimmable {
+			if properties.Dimmable {
 				entityConfig.OnCommandType = "brightness"
 				entityConfig.BrightnessScale = 100
 				entityConfig.BrightnessStateTopic = c.mqttClient.GetFullTopic(
-					c.deviceStateTopic(device.Name, device.OutputChannelsNames()[0]))
+					c.deviceStateTopic(device.Attributes.Name, lightOutput.OutputId))
 				entityConfig.BrightnessCommandTopic = c.mqttClient.GetFullTopic(
-					c.deviceCommandTopic(device.Name, device.OutputChannelsNames()[0]))
+					c.deviceCommandTopic(device.Attributes.Name, lightOutput.OutputId))
 			}
 			config = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Light,
-				DeviceId: device.Dsid,
+				DeviceId: device.DeviceId,
 				ObjectId: "light",
 				Config:   entityConfig,
 			}
 			configs = append(configs, config)
-		} else if device.DeviceType() == digitalstrom.Blind {
-			deviceProperties := device.Properties()
+		} else if deviceType == digitalstrom.DeviceTypeBlind {
 			entityConfig := &homeassistant.CoverConfig{
 				BaseConfig: homeassistant.BaseConfig{
 					Device: homeassistant.Device{
 						Identifiers: []string{
-							device.Dsid,
-							device.Dsuid,
+							device.DeviceId,
 						},
-						Model: device.HwInfo,
-						Name:  device.Name,
+						Model: functionBlock.Attributes.TechnicalName,
+						Name:  device.Attributes.Name,
 					},
-					Name:     device.Name,
-					UniqueId: device.Dsid + "_cover",
+					Name:     device.Attributes.Name,
+					UniqueId: device.DeviceId + "_cover",
 				},
 				CommandTopic: c.mqttClient.GetFullTopic(
-					c.deviceCommandTopic(device.Name, deviceProperties.PositionChannel)),
+					c.deviceCommandTopic(device.Attributes.Name, properties.PositionChannel)),
 				PayloadOpen:  "100.00",
 				PayloadClose: "0.00",
 				PayloadStop:  "STOP",
 				StateTopic: c.mqttClient.GetFullTopic(
-					c.deviceStateTopic(device.Name, deviceProperties.PositionChannel)),
+					c.deviceStateTopic(device.Attributes.Name, properties.PositionChannel)),
 				StateOpen:        "100.00",
 				StateClosed:      "0.00",
-				PositionTopic:    c.mqttClient.GetFullTopic(c.deviceStateTopic(device.Name, deviceProperties.PositionChannel)),
-				SetPositionTopic: c.mqttClient.GetFullTopic(c.deviceCommandTopic(device.Name, deviceProperties.PositionChannel)),
+				PositionTopic:    c.mqttClient.GetFullTopic(c.deviceStateTopic(device.Attributes.Name, properties.PositionChannel)),
+				SetPositionTopic: c.mqttClient.GetFullTopic(c.deviceCommandTopic(device.Attributes.Name, properties.PositionChannel)),
 				PositionTemplate: "{{ value | int }}",
 			}
-			if deviceProperties.TiltChannel != "" {
+			if properties.TiltChannel != "" {
 				entityConfig.TiltStatusTemplate = "{{ value | int }}"
 				entityConfig.TiltStatusTopic = c.mqttClient.GetFullTopic(
-					c.deviceStateTopic(device.Name, deviceProperties.TiltChannel))
+					c.deviceStateTopic(device.Attributes.Name, properties.TiltChannel))
 				entityConfig.TiltCommandTopic = c.mqttClient.GetFullTopic(
-					c.deviceCommandTopic(device.Name, deviceProperties.TiltChannel))
+					c.deviceCommandTopic(device.Attributes.Name, properties.TiltChannel))
 			}
 			config = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Cover,
-				DeviceId: device.Dsid,
+				DeviceId: device.DeviceId,
 				ObjectId: "blind",
 				Config:   entityConfig,
 			}
@@ -345,16 +390,17 @@ func normalizeForTopicName(item string) string {
 	return output
 }
 
-func NewDeviceModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {
+func NewDeviceModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
 	return &DeviceModule{
 		mqttClient:           mqttClient,
 		dsClient:             dsClient,
+		dsRegistry:           dsRegistry,
 		normalizeDeviceName:  config.Mqtt.NormalizeDeviceName,
 		refreshAtStart:       config.RefreshAtStart,
 		invertBlindsPosition: config.InvertBlindsPosition,
-		devices:              []digitalstrom.Device{},
-		deviceLookup:         map[string]digitalstrom.Device{},
-		zoneGroupLookup:      map[int]map[int][]string{},
+		//devices:              []digitalstrom.Device{},
+		//deviceLookup:         map[string]digitalstrom.Device{},
+		//zoneGroupLookup:      map[int]map[int][]string{},
 	}
 }
 

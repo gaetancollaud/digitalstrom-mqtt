@@ -6,7 +6,6 @@ import (
 	"path"
 	"strconv"
 
-	mqtt_base "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
@@ -33,7 +32,7 @@ type SceneModule struct {
 
 // Structure to hold the information about a Scene.
 type Scene struct {
-	ZoneId    int    `json:"ZoneId"`
+	ZoneId    string `json:"ZoneId"`
 	ZoneName  string `json:"ZoneName"`
 	GroupId   int    `json:"GroupId"`
 	GroupName string `json:"GroupName"`
@@ -43,82 +42,84 @@ type Scene struct {
 }
 
 func (c *SceneModule) Start() error {
-	// First retrieve all available groups in the apartment.
-	response, err := c.dsClient.ApartmentGetReachableGroups()
-	if err != nil {
-		return fmt.Errorf("error retrieving reachable groups from apartment: %w", err)
-	}
+	// TODO implement for v2
 
-	// Retrieve all the scenes available in the apartment.
-	for _, zone := range response.Zones {
-		for _, groupId := range zone.Groups {
-			response, err := c.dsClient.ZoneGetReachableScenes(zone.Id, groupId)
-			if err != nil {
-				return fmt.Errorf("error retrieving scenes for zone %d and group %d: %w", zone.Id, groupId, err)
-			}
-			// Create a lookup map for the scenes that have names.
-			sceneNameMapping := map[int]string{}
-			for _, sceneName := range response.UserSceneNames {
-				sceneNameMapping[sceneName.Number] = sceneName.Name
-			}
-			// Take all the scenes in the response and add them into the scenes
-			// list.
-			for _, sceneId := range response.ReachableScenes {
-				sceneName, ok := sceneNameMapping[sceneId]
-				if !ok {
-					// Set a default name for scenes without user provided name.
-					sceneName = "scene-" + strconv.Itoa(sceneId)
-				}
-				scene := Scene{
-					ZoneId:    zone.Id,
-					ZoneName:  zone.Name,
-					GroupId:   groupId,
-					SceneId:   sceneId,
-					SceneName: sceneName,
-					unnamed:   !ok,
-				}
-				c.scenes = append(c.scenes, scene)
-			}
-		}
-	}
-
-	// Create maps regarding Scenes for fast lookup when a new Event is
-	// received.
-	for _, scene := range c.scenes {
-		if _, ok := c.sceneLookup[scene.ZoneId]; !ok {
-			c.sceneLookup[scene.ZoneId] = map[int]Scene{}
-		}
-		c.sceneLookup[scene.ZoneId][scene.GroupId] = scene
-	}
-
-	// Subscribe to DigitalStrom events.
-	if err := c.dsClient.EventSubscribe(digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
-		return c.onDsEvent(event)
-	}); err != nil {
-		return err
-	}
-
-	// Subscribe to MQTT events.
-	for _, scene := range c.scenes {
-		topic := c.sceneCommandTopic(scene.ZoneName, scene.SceneName)
-		log.Trace().
-			Str("topic", topic).
-			Str("zoneName", scene.ZoneName).
-			Str("sceneName", scene.SceneName).
-			Msg("Subscribing for topic.")
-		c.mqttClient.Subscribe(topic, func(mqtt_base.Client, mqtt_base.Message) {
-			// Payload is ignored. As long as we receive the message to the
-			// command topic, the scene will be called.
-			if err := c.onMqttMessage(&scene); err != nil {
-				log.Error().Str("topic", topic).Err(err).Msg("Error handling MQTT Message.")
-			}
-		})
-	}
+	//// First retrieve all available groups in the apartment.
+	//response, err := c.dsClient.ApartmentGetReachableGroups()
+	//if err != nil {
+	//	return fmt.Errorf("error retrieving reachable groups from apartment: %w", err)
+	//}
+	//
+	//// Retrieve all the scenes available in the apartment.
+	//for _, zone := range response.Zones {
+	//	for _, groupId := range zone.Groups {
+	//		response, err := c.dsClient.ZoneGetReachableScenes(zone.Id, groupId)
+	//		if err != nil {
+	//			return fmt.Errorf("error retrieving scenes for zone %d and group %d: %w", zone.Id, groupId, err)
+	//		}
+	//		// Create a lookup map for the scenes that have names.
+	//		sceneNameMapping := map[int]string{}
+	//		for _, sceneName := range response.UserSceneNames {
+	//			sceneNameMapping[sceneName.Number] = sceneName.Name
+	//		}
+	//		// Take all the scenes in the response and add them into the scenes
+	//		// list.
+	//		for _, sceneId := range response.ReachableScenes {
+	//			sceneName, ok := sceneNameMapping[sceneId]
+	//			if !ok {
+	//				// Set a default name for scenes without user provided name.
+	//				sceneName = "scene-" + strconv.Itoa(sceneId)
+	//			}
+	//			scene := Scene{
+	//				ZoneId:    zone.Id,
+	//				ZoneName:  zone.Name,
+	//				GroupId:   groupId,
+	//				SceneId:   sceneId,
+	//				SceneName: sceneName,
+	//				unnamed:   !ok,
+	//			}
+	//			c.scenes = append(c.scenes, scene)
+	//		}
+	//	}
+	//}
+	//
+	//// Create maps regarding Scenes for fast lookup when a new Event is
+	//// received.
+	//for _, scene := range c.scenes {
+	//	if _, ok := c.sceneLookup[scene.ZoneId]; !ok {
+	//		c.sceneLookup[scene.ZoneId] = map[int]Scene{}
+	//	}
+	//	c.sceneLookup[scene.ZoneId][scene.GroupId] = scene
+	//}
+	//
+	//// Subscribe to DigitalStrom events.
+	//if err := c.dsClient.EventSubscribe(digitalstrom.EventCallScene, func(client digitalstrom.Client, event digitalstrom.Event) error {
+	//	return c.onDsEvent(event)
+	//}); err != nil {
+	//	return err
+	//}
+	//
+	//// Subscribe to MQTT events.
+	//for _, scene := range c.scenes {
+	//	topic := c.sceneCommandTopic(scene.ZoneName, scene.SceneName)
+	//	log.Trace().
+	//		Str("topic", topic).
+	//		Str("zoneName", scene.ZoneName).
+	//		Str("sceneName", scene.SceneName).
+	//		Msg("Subscribing for topic.")
+	//	c.mqttClient.Subscribe(topic, func(mqtt_base.Client, mqtt_base.Message) {
+	//		// Payload is ignored. As long as we receive the message to the
+	//		// command topic, the scene will be called.
+	//		if err := c.onMqttMessage(&scene); err != nil {
+	//			log.Error().Str("topic", topic).Err(err).Msg("Error handling MQTT Message.")
+	//		}
+	//	})
+	//}
 	return nil
 }
 
 func (c *SceneModule) Stop() error {
-	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventCallScene); err != nil {
+	if err := c.dsClient.EventUnsubscribe(digitalstrom.EventTypeCallScene); err != nil {
 		return err
 	}
 	return nil
@@ -126,7 +127,7 @@ func (c *SceneModule) Stop() error {
 
 func (c *SceneModule) onMqttMessage(scene *Scene) error {
 	log.Info().
-		Int("zoneId", scene.ZoneId).
+		Str("zoneId", scene.ZoneId).
 		Int("groupId", scene.GroupId).
 		Int("sceneId", scene.SceneId).
 		Msg("Received MQTT command to set scene")
@@ -185,18 +186,18 @@ func (c *SceneModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfi
 	for _, scene := range c.scenes {
 		sceneConfig := homeassistant.DiscoveryConfig{
 			Domain:   homeassistant.Scene,
-			DeviceId: "zone_" + strconv.Itoa(scene.ZoneId),
+			DeviceId: "zone_" + scene.ZoneId,
 			ObjectId: "scene_" + strconv.Itoa(scene.SceneId),
 			Config: &homeassistant.SceneConfig{
 				BaseConfig: homeassistant.BaseConfig{
 					Device: homeassistant.Device{
 						Identifiers: []string{
-							"digitalstrom_zone_" + strconv.Itoa(scene.ZoneId),
+							"digitalstrom_zone_" + scene.ZoneId,
 						},
 						Name: scene.ZoneName,
 					},
 					Name:     scene.ZoneName + " " + scene.SceneName,
-					UniqueId: "digitalstrom_zone_" + strconv.Itoa(scene.ZoneId) + "_scene_" + strconv.Itoa(scene.SceneId),
+					UniqueId: "digitalstrom_zone_" + scene.ZoneId + "_scene_" + strconv.Itoa(scene.SceneId),
 				},
 				CommandTopic: c.mqttClient.GetFullTopic(
 					c.sceneCommandTopic(scene.ZoneName, scene.SceneName)),
@@ -209,7 +210,7 @@ func (c *SceneModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfi
 	return configs, nil
 }
 
-func NewSceneModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {
+func NewSceneModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
 	return &SceneModule{
 		mqttClient:         mqttClient,
 		dsClient:           dsClient,

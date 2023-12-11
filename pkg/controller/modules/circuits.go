@@ -150,7 +150,7 @@ func (c *CircuitModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCon
 	return configs, nil
 }
 
-func NewCircuitModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, config *config.Config) Module {
+func NewCircuitModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
 	return &CircuitModule{
 		mqttClient: mqttClient,
 		dsClient:   dsClient,

@@ -19,7 +19,7 @@ type ApartmentIncluded struct {
 	Submodules     []Submodule     `mapstructure:"submodules"`
 	FunctionBlocks []FunctionBlock `mapstructure:"functionBlocks"`
 	Zones          []Zone          `mapstructure:"zones"`
-	Scenarios      []Scenarios     `mapstructure:"scenarios"`
+	//Scenarios      []Scenarios     `mapstructure:"scenarios"`
 	// floors
 	// clusters
 	// dsServer
