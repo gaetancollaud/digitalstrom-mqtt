@@ -104,8 +104,9 @@ func (c *DeviceModule) Start() error {
 		outputs, err := c.dsRegistry.GetOutputsOfDevice(device.DeviceId)
 		if err == nil {
 			for _, output := range outputs {
-				deviceName := device.Attributes.Name
-				outputName := output.OutputId
+				deviceId := device.DeviceId          // deep copy
+				deviceName := device.Attributes.Name // deep copy
+				outputName := output.OutputId        // deep copy
 				topic := c.deviceCommandTopic(deviceName, outputName)
 				log.Trace().
 					Str("topic", topic).
@@ -120,7 +121,7 @@ func (c *DeviceModule) Start() error {
 						Str("outputName", outputName).
 						Str("payload", payload).
 						Msg("Message Received.")
-					if err := c.onMqttMessage(device.DeviceId, outputName, payload); err != nil {
+					if err := c.onMqttMessage(deviceId, outputName, payload); err != nil {
 						log.Error().
 							Str("topic", topic).
 							Err(err).
@@ -166,7 +167,7 @@ func (c *DeviceModule) onMqttMessage(deviceId string, channel string, message st
 		Str("channel", channel).
 		Float64("value", value).
 		Msg("Setting value.")
-	if err := c.dsClient.DeviceSetOutputChannelValue(device.DeviceId, map[string]int{channel: int(value)}); err != nil {
+	if err := c.dsClient.DeviceSetOutputChannelValue(device.Attributes.Dsid, map[string]int{channel: int(value)}); err != nil {
 		return err
 	}
 	if err := c.publishDeviceValue(&device, channel, value); err != nil {

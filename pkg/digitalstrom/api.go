@@ -187,3 +187,27 @@ type MeteringOrigin struct {
 	MeteringOriginId string `mapstructure:"id"`
 	Type             string `mapstructure:"type"`
 }
+
+// Websocket
+
+type NotificationType string
+
+const (
+	NotificationTypeApartmentStructureChanged NotificationType = "apartmentStructureChanged"
+	NotificationTypeApartmentStatusChanged    NotificationType = "apartmentStatusChanged"
+)
+
+type WebsocketInitMessage struct {
+	Protocol string `json:"protocol"`
+	Version  uint32 `json:"version"`
+}
+
+type WebsocketNotification struct {
+	Type      int                             `json:"type"`
+	Target    string                          `json:"target"`
+	Arguments []WebsocketNotificationArgument `json:"arguments"`
+}
+
+type WebsocketNotificationArgument struct {
+	Type NotificationType `json:"type"`
+}

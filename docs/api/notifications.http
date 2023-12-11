@@ -1,0 +1,3 @@
+// @no-cookie-jar
+WEBSOCKET {{websocketHost}}/api/v1/apartment/notifications
+Content-Type: application-json // Used for content highlighting only

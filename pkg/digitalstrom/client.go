@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -101,9 +102,10 @@ type Client interface {
 type client struct {
 	status uint32
 
-	httpClient *http.Client
-	options    ClientOptions
-	token      string
+	httpClient          *http.Client
+	options             ClientOptions
+	websocketConnection *websocket.Conn
+	token               string
 
 	eventsSubscribedCallbacks map[EventType][]EventCallback
 	eventLoopDone             chan void
@@ -145,6 +147,40 @@ func (c *client) Connect() error {
 		return err
 	}
 
+	websocketHost := "ws://" + c.options.Host + ":8090/api/v1/apartment/notifications"
+	log.Trace().Str("host", websocketHost).Msg("Connecting to websocket")
+	ws, _, err := websocket.DefaultDialer.Dial(websocketHost, nil)
+	if err != nil {
+		return fmt.Errorf("unable to connecting to notification websocket: %w", err)
+	}
+	c.websocketConnection = ws
+	// initiate event stream
+	err = c.websocketConnection.WriteJSON(WebsocketInitMessage{
+		Protocol: "json",
+		Version:  1,
+	})
+	if err != nil {
+		return fmt.Errorf("error writing to websocket: %w", err)
+	}
+
+	go func() {
+		// ignore first message
+		//c.websocketConnection.ReadMessage()
+		for {
+			var notif WebsocketNotification
+			err := c.websocketConnection.ReadJSON(&notif)
+			if err != nil {
+				log.Error().Err(err).Msg("Websocket reading error")
+				break
+			} else if notif.Arguments == nil || len(notif.Arguments) == 0 {
+				log.Warn().Msg("No argument received in notification")
+			} else {
+				log.Info().Str("target", notif.Target).Str("type", string(notif.Arguments[0].Type)).Msg("Websocket received")
+			}
+		}
+		log.Warn().Msg("Closing websocket reader")
+	}()
+
 	c.startEventLoop()
 	c.status = connected
 	return nil
@@ -170,6 +206,7 @@ func (c *client) Disconnect() error {
 
 	// Close all current connections.
 	c.httpClient.CloseIdleConnections()
+	c.websocketConnection.Close()
 
 	c.status = disconnected
 	return nil
