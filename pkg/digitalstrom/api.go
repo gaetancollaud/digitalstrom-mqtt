@@ -24,7 +24,7 @@ type ApartmentIncluded struct {
 	// floors
 	// clusters
 	// dsServer
-	// controllers
+	Controllers []Controller `mapstructure:"controllers"`
 	// apiRevision
 	Meterings []Metering `mapstructure:"meterings"`
 	// userDefinedStates
@@ -171,6 +171,16 @@ type ScenarioAttributes struct {
 	Devices     []string            `mapstructure:"dsDevices"`
 	Zone        string              `mapstructure:"zone"`
 	Application ScenarioApplication `mapstructure:"application"`
+}
+
+type Controller struct {
+	ControllerId string               `mapstructure:"id"`
+	Attributes   ControllerAttributes `mapstructure:"attributes"`
+}
+
+type ControllerAttributes struct {
+	Name     string `mapstructure:"name"`
+	TechName string `mapstructure:"technicalName"`
 }
 
 type Metering struct {

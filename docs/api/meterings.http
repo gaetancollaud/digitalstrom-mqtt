@@ -1,0 +1,9 @@
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/meterings
+Authorization: Bearer {{api-key}}
+
+###
+
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/meterings/values
+Authorization: Bearer {{api-key}}

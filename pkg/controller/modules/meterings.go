@@ -18,25 +18,26 @@ const (
 	energyMeter      string = "EnergyWs"
 )
 
-// Circuit Module encapsulates all the logic regarding the circuits. The logic
-// is the following: every 30 seconds the circuit values are being checked and
+// Metering Module encapsulates all the logic regarding the meters. The logic
+// is the following: every 30 seconds the meters values are being checked and
 // pushed to the corresponding topic in the MQTT server.
-type CircuitModule struct {
+type MeteringsModule struct {
 	mqttClient mqtt.Client
 	dsClient   digitalstrom.Client
+	dsRegistry digitalstrom.Registry
 
-	circuits   []digitalstrom.Circuit
+	meterings  []digitalstrom.Metering
 	ticker     *time.Ticker
 	tickerDone chan struct{}
 }
 
-func (c *CircuitModule) Start() error {
+func (c *MeteringsModule) Start() error {
 	// Prefetch the list of circuits available in DigitalStrom.
-	response, err := c.dsClient.ApartmentGetCircuits()
+	meterings, err := c.dsRegistry.GetMeterings()
 	if err != nil {
-		log.Panic().Err(err).Msg("Error fetching the circuits in the apartment.")
+		log.Panic().Err(err).Msg("Error fetching the meterings in the apartment.")
 	}
-	c.circuits = response.Circuits
+	c.meterings = meterings
 
 	c.ticker = time.NewTicker(30 * time.Second)
 	c.tickerDone = make(chan struct{})
@@ -54,19 +55,29 @@ func (c *CircuitModule) Start() error {
 	return nil
 }
 
-func (c *CircuitModule) Stop() error {
+func (c *MeteringsModule) Stop() error {
 	c.ticker.Stop()
 	c.tickerDone <- struct{}{}
 	c.ticker = nil
 	return nil
 }
 
-func (c *CircuitModule) updateCircuitValues() {
-	log.Info().Msg("Updating circuit values.")
-	for _, circuit := range c.circuits {
-		if !circuit.HasMetering {
-			continue
-		}
+func (c *MeteringsModule) updateCircuitValues() {
+	log.Info().Msg("Updating metering values.")
+	meteringStatus, err := c.dsClient.GetMeteringStatus()
+	if err != nil {
+		log.Error().Err(err).Msg("Error fetching metering status")
+		return
+	}
+
+	meteringStatusLookup := make(map[string]digitalstrom.MeteringValue)
+	for _, value := range meteringStatus.Values {
+		meteringStatusLookup[value.Id] = value
+	}
+
+	for _, metering := range c.meterings {
+
+		meteringValue := meteringStatusLookup[metering.MeteringId]
 
 		powerResponse, err := c.dsClient.CircuitGetConsumption(circuit.DsId)
 		if err != nil {
@@ -96,7 +107,7 @@ func circuitTopic(circuitName string, measurement string) string {
 	return path.Join(circuits, circuitName, measurement, mqtt.State)
 }
 
-func (c *CircuitModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
+func (c *MeteringsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
 	configs := []homeassistant.DiscoveryConfig{}
 
 	for _, circuit := range c.circuits {
@@ -150,14 +161,15 @@ func (c *CircuitModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCon
 	return configs, nil
 }
 
-func NewCircuitModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
-	return &CircuitModule{
+func NewMeteringsModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
+	return &MeteringsModule{
 		mqttClient: mqttClient,
 		dsClient:   dsClient,
+		dsRegistry: dsRegistry,
 		circuits:   []digitalstrom.Circuit{},
 	}
 }
 
 func init() {
-	Register("circuits", NewCircuitModule)
+	Register("meterings", NewMeteringsModule)
 }

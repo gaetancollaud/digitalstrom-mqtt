@@ -56,11 +56,14 @@ type Client interface {
 
 	GetApartment() (*Apartment, error)
 	GetApartmentStatus() (*ApartmentStatus, error)
-	GetMetering() (*Meterings, error)
+	GetMeterings() (*Meterings, error)
 	GetMeteringStatus() (*MeteringValues, error)
 
 	NotificationSubscribe(id string, callback NotificationCallback) error
 	NotificationUnsubscribe(id string) error
+
+	// DeviceSetOutputChannelValue Sets the values for the channels in the given device.
+	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
 
 	// Deprecated: use new API instead
 	// Get the list of circuits in the apartment.
@@ -85,9 +88,6 @@ type Client interface {
 	// Deprecated: use new API instead
 	// Get the values for the channels in the given device.
 	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
-	// Deprecated: use new API instead
-	// Sets the values for the channels in the given device.
-	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
 	// Deprecated: use new API instead
 	// Gets the motion time for the device.
 	DeviceGetMaxMotionTime(dsid string) (*DeviceGetMaxMotionTimeResponse, error)
@@ -258,7 +258,7 @@ func (c *client) GetApartmentStatus() (*ApartmentStatus, error) {
 	return wrapApiResponse[ApartmentStatus](response, err)
 }
 
-func (c *client) GetMetering() (*Meterings, error) {
+func (c *client) GetMeterings() (*Meterings, error) {
 	response, err := c.apiCall("api/v1/apartment/meterings", url.Values{}, apiSmarthome)
 	return wrapApiResponse[Meterings](response, err)
 }

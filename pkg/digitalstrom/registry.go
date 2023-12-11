@@ -22,12 +22,10 @@ type Registry interface {
 	GetOutputsOfDevice(deviceId string) ([]Output, error)
 	GetOutputValuesOfDevice(deviceId string) ([]OutputValue, error)
 
-	GetMeterings() []Metering
+	GetMeterings() ([]Metering, error)
 
 	DeviceChangeSubscribe(deviceId string, callback DeviceChangeCallback) error
 	DeviceChangeUnsubscribe(deviceId string) error
-
-	UpdateApartmentStatusAndFireChangeEvents() error
 }
 
 type registry struct {
@@ -57,13 +55,16 @@ func (r *registry) Start() error {
 	if err := r.updateApartment(); err != nil {
 		return err
 	}
-	err := r.UpdateApartmentStatusAndFireChangeEvents()
+	if err := r.updateMeterings(); err != nil {
+		return err
+	}
+	err := r.updateApartmentStatusAndFireChangeEvents()
 	if err != nil {
 		return err
 	}
 	callback := func(notification WebsocketNotification) {
 		// TODO handle structure changes
-		if err := r.UpdateApartmentStatusAndFireChangeEvents(); err != nil {
+		if err := r.updateApartmentStatusAndFireChangeEvents(); err != nil {
 			log.Err(err).Msg("Error updating apartment status")
 		}
 	}
@@ -150,8 +151,8 @@ func (r *registry) GetFunctionBlockForDevice(deviceId string) (FunctionBlock, er
 	return functionBlocks[0], nil
 }
 
-func (r *registry) GetMeterings() []Metering {
-	return nil
+func (r *registry) GetMeterings() ([]Metering, error) {
+	return r.meterings.Meterings, nil
 }
 
 func (r *registry) updateApartment() error {
@@ -183,6 +184,20 @@ func (r *registry) updateApartment() error {
 	return nil
 }
 
+func (r *registry) updateMeterings() error {
+	r.registryLoading.Lock()
+	defer r.registryLoading.Unlock()
+
+	meterings, err := r.digitalstromClient.GetMeterings()
+	if err != nil {
+		return err
+	}
+
+	r.meterings = meterings
+
+	return nil
+}
+
 func (r *registry) DeviceChangeSubscribe(deviceId string, callback DeviceChangeCallback) error {
 	_, exists := r.deviceChangeCallbacks[deviceId]
 	if exists {
@@ -201,7 +216,7 @@ func (r *registry) DeviceChangeUnsubscribe(deviceId string) error {
 	return nil
 }
 
-func (r *registry) UpdateApartmentStatusAndFireChangeEvents() error {
+func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
 	oldStatus := r.apartmentStatus
 	newStatus, err := r.digitalstromClient.GetApartmentStatus()
 	if err != nil {
