@@ -15,20 +15,6 @@ type DeviceProperties struct {
 	TiltChannel     string
 }
 
-// Entity that represents an electrical circuit managed by DigitaqlStrom. This
-// circuit is the controller for a set of devices and can perform extra
-// functions as power metering.
-type Circuit struct {
-	Name        string `mapstructure:"name"`
-	DsId        string `mapstructure:"dsid"`
-	DsUid       string `mapstructure:"dSUID"`
-	HwVersion   int    `mapstructure:"hwVersion"`
-	HwName      string `mapstructure:"hwName"`
-	HasMetering bool   `mapstructure:"hasMetering"`
-	IsValid     bool   `mapstructure:"isValid"`
-	IsPresent   bool   `mapstructure:"isPresent"`
-}
-
 // Channel value information obtained from the server.
 type ChannelValue struct {
 	Name  string  `mapstructure:"channel"`
@@ -85,13 +71,6 @@ type TokenResponse struct {
 	Token string `mapstructure:"token"`
 }
 
-type ApartmentGetCircuitsResponse struct {
-	Circuits []Circuit `mapstructure:"circuits"`
-}
-
-type ApartmentGetDevicesResponse []Device
-type ApartmentGetFunctionBlocksResponse []FunctionBlock
-
 type ApartmentGetReachableGroupsResponse struct {
 	Zones []Zone `mapstructure:"zones"`
 }
@@ -103,14 +82,6 @@ type DeviceGetOutputChannelValueResponse struct {
 type DeviceGetMaxMotionTimeResponse struct {
 	Supported bool  `mapstructure:"supported"`
 	Value     int64 `mapstructure:"value"`
-}
-
-type CircuitGetConsumptionResponse struct {
-	Consumption float64 `mapstructure:"consumption"`
-}
-
-type CircuitGetEnergyMeterValueResponse struct {
-	MeterValue float64 `mapstructure:"meterValue"`
 }
 
 type EventGetResponse struct {

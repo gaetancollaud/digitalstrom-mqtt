@@ -66,25 +66,11 @@ type Client interface {
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
 
 	// Deprecated: use new API instead
-	// Get the list of circuits in the apartment.
-	ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error)
-	// Deprecated: use new API instead
-	// Get the list of devices in the apartment.
-	ApartmentGetDevices() (*ApartmentGetDevicesResponse, error)
-	// Deprecated: use new API instead
-	ApartmentGetFunctionBlocks() (*ApartmentGetFunctionBlocksResponse, error)
-	// Deprecated: use new API instead
 	// Call a scene which will be immediately applied.
 	ApartmentCallScene(sceneId int) error
 	// Deprecated: use new API instead
 	// Get the list of Zones and the groups on it.
 	ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResponse, error)
-	// Deprecated: use new API instead
-	// Get the power consumption from a given circuit.
-	CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error)
-	// Deprecated: use new API instead
-	// Get the energy meter value from a given circuit.
-	CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error)
 	// Deprecated: use new API instead
 	// Get the values for the channels in the given device.
 	DeviceGetOutputChannelValue(dsid string, channels []string) (*DeviceGetOutputChannelValueResponse, error)
@@ -286,24 +272,6 @@ func (c *client) NotificationUnsubscribe(id string) error {
 	return nil
 }
 
-// Deprecated: use new API instead
-func (c *client) ApartmentGetDevices() (*ApartmentGetDevicesResponse, error) {
-	response, err := c.apiCall("api/v1/apartment/dsDevices", url.Values{}, apiSmarthome)
-	return wrapApiResponse[ApartmentGetDevicesResponse](response, err)
-}
-
-// Deprecated: use new API instead
-func (c *client) ApartmentGetFunctionBlocks() (*ApartmentGetFunctionBlocksResponse, error) {
-	response, err := c.apiCall("api/v1/apartment/functionBlocks", url.Values{}, apiSmarthome)
-	return wrapApiResponse[ApartmentGetFunctionBlocksResponse](response, err)
-}
-
-// Deprecated: use new API instead
-func (c *client) ApartmentGetCircuits() (*ApartmentGetCircuitsResponse, error) {
-	response, err := c.apiCall("json/apartment/getCircuits", url.Values{}, apiClassic)
-	return wrapApiResponse[ApartmentGetCircuitsResponse](response, err)
-}
-
 func (c *client) ApartmentCallScene(sceneId int) error {
 	params := url.Values{}
 	params.Set("sceneNumber", strconv.Itoa(sceneId))
@@ -315,22 +283,6 @@ func (c *client) ApartmentGetReachableGroups() (*ApartmentGetReachableGroupsResp
 	params := url.Values{}
 	response, err := c.apiCall("json/apartment/getReachableGroups", params, apiClassic)
 	return wrapApiResponse[ApartmentGetReachableGroupsResponse](response, err)
-}
-
-// Deprecated: use new API instead
-func (c *client) CircuitGetConsumption(dsid string) (*CircuitGetConsumptionResponse, error) {
-	params := url.Values{}
-	params.Set("id", dsid)
-	response, err := c.apiCall("json/circuit/getConsumption", params, apiClassic)
-	return wrapApiResponse[CircuitGetConsumptionResponse](response, err)
-}
-
-// Deprecated: use new API instead
-func (c *client) CircuitGetEnergyMeterValue(dsid string) (*CircuitGetEnergyMeterValueResponse, error) {
-	params := url.Values{}
-	params.Set("id", dsid)
-	response, err := c.apiCall("json/circuit/getEnergyMeterValue", params, apiClassic)
-	return wrapApiResponse[CircuitGetEnergyMeterValueResponse](response, err)
 }
 
 // Deprecated: use new API instead
