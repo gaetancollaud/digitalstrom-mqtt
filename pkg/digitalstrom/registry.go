@@ -22,6 +22,8 @@ type Registry interface {
 	GetOutputsOfDevice(deviceId string) ([]Output, error)
 	GetOutputValuesOfDevice(deviceId string) ([]OutputValue, error)
 
+	GetControllers() ([]Controller, error)
+	GetControllerById(controllerId string) (Controller, error)
 	GetMeterings() ([]Metering, error)
 
 	DeviceChangeSubscribe(deviceId string, callback DeviceChangeCallback) error
@@ -35,6 +37,7 @@ type registry struct {
 	apartmentStatus *ApartmentStatus
 	meterings       *Meterings
 
+	controllersLookup    map[string]Controller
 	devicesLookup        map[string]Device
 	submoduleLookup      map[string]Submodule
 	functionBlocksLookup map[string]FunctionBlock
@@ -151,6 +154,18 @@ func (r *registry) GetFunctionBlockForDevice(deviceId string) (FunctionBlock, er
 	return functionBlocks[0], nil
 }
 
+func (r *registry) GetControllers() ([]Controller, error) {
+	return r.apartment.Included.Controllers, nil
+}
+
+func (r *registry) GetControllerById(controllerId string) (Controller, error) {
+	controller, ok := r.controllersLookup[controllerId]
+	if ok {
+		return controller, nil
+	}
+	return Controller{}, errors.New("No controller found with id " + controllerId)
+}
+
 func (r *registry) GetMeterings() ([]Metering, error) {
 	return r.meterings.Meterings, nil
 }
@@ -166,11 +181,15 @@ func (r *registry) updateApartment() error {
 
 	r.apartment = apartment
 
+	r.controllersLookup = make(map[string]Controller)
 	r.devicesLookup = make(map[string]Device)
 	r.submoduleLookup = make(map[string]Submodule)
 	r.functionBlocksLookup = make(map[string]FunctionBlock)
 
 	// Create lookup tables for fast access.
+	for _, controller := range apartment.Included.Controllers {
+		r.controllersLookup[controller.ControllerId] = controller
+	}
 	for _, device := range apartment.Included.Devices {
 		r.devicesLookup[device.DeviceId] = device
 	}
