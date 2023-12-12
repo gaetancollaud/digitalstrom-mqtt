@@ -309,7 +309,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 			cfg = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Cover,
 				DeviceId: device.Attributes.Dsid, // retro compatibility
-				ObjectId: "blind",
+				ObjectId: "cover",
 				Config:   entityConfig,
 			}
 			configs = append(configs, cfg)
