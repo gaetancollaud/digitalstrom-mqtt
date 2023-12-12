@@ -180,3 +180,10 @@ const (
 	ScenarioApplicationWindow        ScenarioApplication = "window"
 	ScenarioApplicationJoker         ScenarioApplication = "joker"
 )
+
+type MeteringType string
+
+const (
+	MeteringTypeApartment  MeteringType = "apartment"
+	MeteringTypeController MeteringType = "controller"
+)

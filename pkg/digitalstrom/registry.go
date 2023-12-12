@@ -245,7 +245,6 @@ func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
 
 	if oldStatus != nil {
 		// Check diff and broadcast events
-		log.Info().Msg("Checking diff")
 
 		oldStatusLookup := make(map[string]map[string]OutputValue)
 		for _, device := range oldStatus.Included.Devices {

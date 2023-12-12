@@ -195,8 +195,8 @@ type MeteringAttributes struct {
 }
 
 type MeteringOrigin struct {
-	MeteringOriginId string `mapstructure:"id"`
-	Type             string `mapstructure:"type"`
+	MeteringOriginId string       `mapstructure:"id"`
+	Type             MeteringType `mapstructure:"type"`
 }
 
 // Meterings

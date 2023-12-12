@@ -13,15 +13,15 @@ import (
 )
 
 const (
-	circuits         string = "circuits"
+	meterings        string = "meterings"
 	powerConsumption string = "consumptionW"
-	energyMeter      string = "EnergyWs"
+	energyMeter      string = "energyWh"
 )
 
 // Circuits Module encapsulates all the logic regarding the controllers. The logic
 // is the following: every 30 seconds the controllers meter values are being checked and
 // pushed to the corresponding topic in the MQTT server.
-type CircuitsModule struct {
+type MeteringsModule struct {
 	mqttClient mqtt.Client
 	dsClient   digitalstrom.Client
 	dsRegistry digitalstrom.Registry
@@ -30,8 +30,8 @@ type CircuitsModule struct {
 	tickerDone chan struct{}
 }
 
-func (c *CircuitsModule) Start() error {
-	c.ticker = time.NewTicker(30 * time.Second)
+func (c *MeteringsModule) Start() error {
+	c.ticker = time.NewTicker(10 * time.Second)
 	c.tickerDone = make(chan struct{})
 
 	go func() {
@@ -40,24 +40,23 @@ func (c *CircuitsModule) Start() error {
 			case <-c.tickerDone:
 				return
 			case <-c.ticker.C:
-				c.updateCircuitValues()
+				c.updateMeteringValues()
 			}
 		}
 	}()
 	return nil
 }
 
-func (c *CircuitsModule) Stop() error {
+func (c *MeteringsModule) Stop() error {
 	c.ticker.Stop()
 	c.tickerDone <- struct{}{}
 	c.ticker = nil
 	return nil
 }
 
-func (c *CircuitsModule) updateCircuitValues() {
+func (c *MeteringsModule) updateMeteringValues() {
 	log.Info().Msg("Updating metering values.")
 
-	// Prefetch the list of circuits available in DigitalStrom.
 	meterings, err := c.dsRegistry.GetMeterings()
 	if err != nil {
 		log.Panic().Err(err).Msg("Error fetching the meterings in the apartment.")
@@ -75,15 +74,23 @@ func (c *CircuitsModule) updateCircuitValues() {
 	}
 
 	for _, metering := range meterings {
-		controller, err := c.dsRegistry.GetControllerById(metering.Attributes.Origin.MeteringOriginId)
-		if err != nil {
-			// This is expected sometimes, for example for the "apartment"
-			log.Trace().
-				Err(err).
-				Str("controllerId", metering.Attributes.Origin.MeteringOriginId).
-				Str("meteringId", metering.MeteringId).
-				Msg("No controller found for metering ")
-			continue
+
+		var itemName string
+
+		if metering.Attributes.Origin.Type == digitalstrom.MeteringTypeController {
+			controller, err := c.dsRegistry.GetControllerById(metering.Attributes.Origin.MeteringOriginId)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("controllerId", metering.Attributes.Origin.MeteringOriginId).
+					Str("meteringId", metering.MeteringId).
+					Msg("No controller found for metering ")
+				continue
+			}
+			itemName = controller.Attributes.Name
+		} else {
+			// apartment
+			itemName = "apartment"
 		}
 
 		meteringValue := meteringStatusLookup[metering.MeteringId]
@@ -98,22 +105,22 @@ func (c *CircuitsModule) updateCircuitValues() {
 		}
 
 		valueStr := fmt.Sprintf("%.0f", meteringValue.Attributes.Value)
-		if err := c.mqttClient.Publish(circuitTopic(controller.Attributes.Name, measurement), valueStr); err != nil {
+		if err := c.mqttClient.Publish(meteringTopic(itemName, measurement), valueStr); err != nil {
 			log.Error().
 				Err(err).
-				Str("controller", controller.Attributes.Name).
+				Str("itemName", itemName).
 				Str("unit", metering.Attributes.Unit).
-				Msg("Error updating metering of circuit")
+				Msg("Error updating metering")
 			continue
 		}
 	}
 }
 
-func circuitTopic(circuitName string, measurement string) string {
-	return path.Join(circuits, circuitName, measurement, mqtt.State)
+func meteringTopic(itemName string, measurement string) string {
+	return path.Join(meterings, itemName, measurement, mqtt.State)
 }
 
-func (c *CircuitsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
+func (c *MeteringsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
 	configs := []homeassistant.DiscoveryConfig{}
 
 	controllers, err := c.dsRegistry.GetControllers()
@@ -121,23 +128,32 @@ func (c *CircuitsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCo
 		return nil, err
 	}
 
-	for _, circuit := range controllers {
+	// manually add apartment
+	controllers = append(controllers, digitalstrom.Controller{
+		ControllerId: "apartment",
+		Attributes: digitalstrom.ControllerAttributes{
+			Name:     "apartment",
+			TechName: "apartment",
+		},
+	})
+
+	for _, controller := range controllers {
 		powerConfig := homeassistant.DiscoveryConfig{
 			Domain:   homeassistant.Sensor,
-			DeviceId: circuit.ControllerId,
+			DeviceId: controller.ControllerId,
 			ObjectId: "power",
 			Config: &homeassistant.SensorConfig{
 				BaseConfig: homeassistant.BaseConfig{
 					Device: homeassistant.Device{
-						Identifiers: []string{circuit.ControllerId},
-						Model:       circuit.Attributes.TechName,
-						Name:        circuit.Attributes.Name,
+						Identifiers: []string{controller.ControllerId},
+						Model:       controller.Attributes.TechName,
+						Name:        controller.Attributes.Name,
 					},
-					Name:     "Power " + circuit.Attributes.Name,
-					UniqueId: circuit.ControllerId + "_power",
+					Name:     "Power " + controller.Attributes.Name,
+					UniqueId: controller.ControllerId + "_power",
 				},
 				StateTopic: c.mqttClient.GetFullTopic(
-					circuitTopic(circuit.Attributes.Name, powerConsumption)),
+					meteringTopic(controller.Attributes.Name, powerConsumption)),
 				UnitOfMeasurement: "W",
 				DeviceClass:       "power",
 				Icon:              "mdi:flash",
@@ -146,20 +162,20 @@ func (c *CircuitsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCo
 		configs = append(configs, powerConfig)
 		energyConfig := homeassistant.DiscoveryConfig{
 			Domain:   homeassistant.Sensor,
-			DeviceId: circuit.ControllerId,
+			DeviceId: controller.ControllerId,
 			ObjectId: "energy",
 			Config: &homeassistant.SensorConfig{
 				BaseConfig: homeassistant.BaseConfig{
 					Device: homeassistant.Device{
-						Identifiers: []string{circuit.ControllerId},
-						Model:       circuit.Attributes.TechName,
-						Name:        circuit.Attributes.Name,
+						Identifiers: []string{controller.ControllerId},
+						Model:       controller.Attributes.TechName,
+						Name:        controller.Attributes.Name,
 					},
-					Name:     "Energy " + circuit.Attributes.Name,
-					UniqueId: circuit.ControllerId + "_energy",
+					Name:     "Energy " + controller.Attributes.Name,
+					UniqueId: controller.ControllerId + "_energy",
 				},
 				StateTopic: c.mqttClient.GetFullTopic(
-					circuitTopic(circuit.Attributes.Name, energyMeter)),
+					meteringTopic(controller.Attributes.Name, energyMeter)),
 				UnitOfMeasurement: "kWh",
 				DeviceClass:       "energy",
 				StateClass:        "total_increasing",
@@ -173,7 +189,7 @@ func (c *CircuitsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCo
 }
 
 func NewMeteringsModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
-	return &CircuitsModule{
+	return &MeteringsModule{
 		mqttClient: mqttClient,
 		dsClient:   dsClient,
 		dsRegistry: dsRegistry,
