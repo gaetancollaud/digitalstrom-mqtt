@@ -268,7 +268,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 			}
 			cfg = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Light,
-				DeviceId: device.DeviceId,
+				DeviceId: device.Attributes.Dsid, // retro compatibility
 				ObjectId: "light",
 				Config:   entityConfig,
 			}
@@ -308,7 +308,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 			}
 			cfg = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Cover,
-				DeviceId: device.DeviceId,
+				DeviceId: device.Attributes.Dsid, // retro compatibility
 				ObjectId: "blind",
 				Config:   entityConfig,
 			}
