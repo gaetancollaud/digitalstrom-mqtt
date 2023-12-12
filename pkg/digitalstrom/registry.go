@@ -260,23 +260,22 @@ func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
 			for _, functionBlock := range device.Attributes.FunctionBlocks {
 				for _, newOutput := range functionBlock.Outputs {
 					oldOutput := oldStatusLookup[device.DeviceId][newOutput.OutputId]
-					if oldOutput.Value != newOutput.Value {
+					if oldOutput.TargetValue != newOutput.TargetValue {
 						log.Info().
 							Str("DeviceId", device.DeviceId).
 							Str("Output", newOutput.OutputId).
-							Float64("oldValue", oldOutput.Value).
-							Float64("newValue", newOutput.Value).
+							Float64("oldValue", oldOutput.TargetValue).
+							Float64("newValue", newOutput.TargetValue).
 							Msg("Output value changed")
 
 						callback, exists := r.deviceChangeCallbacks[device.DeviceId]
 						if exists {
-							callback(device.DeviceId, newOutput.OutputId, oldOutput.Value, newOutput.Value)
+							callback(device.DeviceId, newOutput.OutputId, oldOutput.TargetValue, newOutput.TargetValue)
 						}
 					}
 				}
 			}
 		}
-
 	}
 	return nil
 }

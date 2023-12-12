@@ -187,3 +187,15 @@ const (
 	MeteringTypeApartment  MeteringType = "apartment"
 	MeteringTypeController MeteringType = "controller"
 )
+
+type OutputValueStatus string
+
+const (
+	OutputValueStatusOk       OutputValueStatus = "ok"
+	OutputValueStatusMoving   OutputValueStatus = "moving"
+	OutputValueStatusDimming  OutputValueStatus = "dimming"
+	OutputValueStatusOverload OutputValueStatus = "overload"
+	OutputValueStatusBlocked  OutputValueStatus = "blocked"
+	OutputValueStatusError    OutputValueStatus = "error"
+	OutputValueStatusStandby  OutputValueStatus = "standby"
+)

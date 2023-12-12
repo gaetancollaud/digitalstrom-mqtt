@@ -135,9 +135,11 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 	if err := c.dsClient.DeviceSetOutputChannelValue(device.Attributes.Dsid, map[string]int{outputId: int(value)}); err != nil {
 		return err
 	}
-	if err := c.publishDeviceValue(&device, outputId, value); err != nil {
-		return err
-	}
+
+	// TODO do we want to publish here ?
+	//if err := c.publishDeviceValue(&device, outputId, value); err != nil {
+	//	return err
+	//}
 	return nil
 
 }
@@ -176,7 +178,7 @@ func (c *DeviceModule) updateDevice(deviceId string) error {
 
 	for _, output := range outputs {
 		outputValue := outputValuesLookup[output.OutputId]
-		value := c.invertValueIfNeeded(output.OutputId, outputValue.Value)
+		value := c.invertValueIfNeeded(output.OutputId, outputValue.TargetValue)
 		if err := c.publishDeviceValue(&device, output.OutputId, value); err != nil {
 			return fmt.Errorf("error publishing device '%s' value: %w", device.Attributes.Name, err)
 		}

@@ -249,11 +249,11 @@ type DeviceStatusAttributes struct {
 }
 
 type OutputValue struct {
-	OutputId    string  `mapstructure:"id"`
-	Value       float64 `mapstructure:"value"`
-	Status      string  `mapstructure:"status"`
-	TargetValue float64 `mapstructure:"targetValue"`
-	Level       int     `mapstructure:"level,omitempty"`
+	OutputId    string            `mapstructure:"id"`
+	Value       float64           `mapstructure:"value"`
+	Status      OutputValueStatus `mapstructure:"status"`
+	TargetValue float64           `mapstructure:"targetValue"`
+	Level       int               `mapstructure:"level,omitempty"`
 }
 
 // Websocket

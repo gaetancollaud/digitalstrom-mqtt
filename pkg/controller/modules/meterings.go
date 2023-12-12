@@ -55,7 +55,7 @@ func (c *MeteringsModule) Stop() error {
 }
 
 func (c *MeteringsModule) updateMeteringValues() {
-	log.Info().Msg("Updating metering values.")
+	log.Debug().Msg("Updating metering values.")
 
 	meterings, err := c.dsRegistry.GetMeterings()
 	if err != nil {
