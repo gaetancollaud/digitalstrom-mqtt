@@ -113,15 +113,6 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		return err
 	}
 
-	// In case stop is being passed as part of the message.
-	if strings.ToLower(message) == stop {
-		if err := c.dsClient.ZoneCallAction(device.Attributes.Zone, digitalstrom.ActionStop); err != nil {
-			return err
-		}
-		return nil
-	}
-	// Alternatively, the actual value is given and must be pushed to
-	// Digitalstrom.
 	value, err := strconv.ParseFloat(message, 64)
 	if err != nil {
 		return fmt.Errorf("error parsing message as float value: %w", err)
@@ -144,7 +135,6 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 	}
 
 	return nil
-
 }
 
 func (c *DeviceModule) updateDevice(deviceId string) error {

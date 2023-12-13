@@ -5,9 +5,7 @@ import (
 	"time"
 )
 
-type EventHandler func(Client, Event)
-
-// ClientOptions contains configurable options for a DigitalStrom Client.
+// ClientOptions contains configurable options for a Digitalstrom Client.
 type ClientOptions struct {
 	Host                string
 	Port                int

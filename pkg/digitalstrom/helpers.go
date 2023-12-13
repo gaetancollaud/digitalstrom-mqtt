@@ -16,6 +16,15 @@ func (functionBlock *FunctionBlock) DeviceType() DeviceType {
 	}
 }
 
+// Properties a device can have and helps us better understand how it works.
+// Note that all these properties are inferred from the attributes in the Device
+// structure.
+type DeviceProperties struct {
+	Dimmable        bool
+	PositionChannel string
+	TiltChannel     string
+}
+
 // Returns some inferred properties from the device.
 func (functionBlock *FunctionBlock) Properties() DeviceProperties {
 	positionChannel := ""
