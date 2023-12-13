@@ -70,7 +70,7 @@ func NewClient(options *ClientOptions) Client {
 
 // Connect retrieves the token from the server by performing the login call.
 func (c *client) Connect() error {
-
+	// TODO handle reconnection
 	websocketHost := "ws://" + c.options.Host + ":8090/api/v1/apartment/notifications"
 	log.Trace().Str("host", websocketHost).Msg("Connecting to websocket")
 	headers := http.Header{}

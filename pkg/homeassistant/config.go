@@ -108,9 +108,9 @@ type CoverConfig struct {
 	PositionTopic      string `json:"position_topic,omitempty"`
 	SetPositionTopic   string `json:"set_position_topic,omitempty"`
 	PositionTemplate   string `json:"position_template,omitempty"`
-	TiltStatusTopic    string `json:"tilt_status_topic"`
-	TiltCommandTopic   string `json:"tilt_command_topic"`
-	TiltStatusTemplate string `json:"tilt_status_template"`
+	TiltStatusTopic    string `json:"tilt_status_topic,omitempty"`
+	TiltCommandTopic   string `json:"tilt_command_topic,omitempty"`
+	TiltStatusTemplate string `json:"tilt_status_template,omitempty"`
 }
 
 // Sensor configuration:

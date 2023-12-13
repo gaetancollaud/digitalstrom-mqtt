@@ -134,6 +134,11 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		return err
 	}
 
+	// for fast deliveries we confirm the state
+	if err := c.publishDeviceValue(&device, outputId, value); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -243,7 +248,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 						Model: functionBlock.Attributes.TechnicalName,
 						Name:  device.Attributes.Name,
 					},
-					Name:     device.Attributes.Name,
+					Name:     "light",
 					UniqueId: device.DeviceId + "_light",
 				},
 				CommandTopic: c.mqttClient.GetFullTopic(
@@ -278,7 +283,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 						Model: functionBlock.Attributes.TechnicalName,
 						Name:  device.Attributes.Name,
 					},
-					Name:     device.Attributes.Name,
+					Name:     "cover",
 					UniqueId: device.DeviceId + "_cover",
 				},
 				CommandTopic: c.mqttClient.GetFullTopic(
