@@ -256,6 +256,12 @@ type OutputValue struct {
 	Level       int               `mapstructure:"level,omitempty"`
 }
 
+type SetOutputValue struct {
+	Op    SetOutputValueOperation `json:"op"`
+	Path  string                  `json:"path"`
+	Value string                  `json:"value"`
+}
+
 // Websocket
 
 type NotificationType string

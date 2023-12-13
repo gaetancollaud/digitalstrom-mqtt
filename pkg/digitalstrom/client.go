@@ -59,9 +59,13 @@ type Client interface {
 	GetMeterings() (*Meterings, error)
 	GetMeteringStatus() (*MeteringValues, error)
 
+	// DeviceSetOutputValue Sets a list of outputs to a give values
+	DeviceSetOutputValue(deviceId string, functionBlockId string, outputId string, value float64) error
+
 	NotificationSubscribe(id string, callback NotificationCallback) error
 	NotificationUnsubscribe(id string) error
 
+	// Deprecated: use new API instead
 	// DeviceSetOutputChannelValue Sets the values for the channels in the given device.
 	DeviceSetOutputChannelValue(dsid string, channelValues map[string]int) error
 
@@ -126,6 +130,8 @@ type client struct {
 	eventsSubscribedCallbacks map[EventType][]EventCallback
 	eventLoopDone             chan void
 	eventMutex                sync.Mutex
+
+	decoder *mapstructure.Decoder
 
 	// Protect the login process with a Mutex to avoid multiple goroutines
 	// performing login in parallel and not have in sync the subscriptions for
@@ -252,6 +258,17 @@ func (c *client) GetMeterings() (*Meterings, error) {
 func (c *client) GetMeteringStatus() (*MeteringValues, error) {
 	response, err := c.apiCall("api/v1/apartment/meterings/values", url.Values{}, apiSmarthome)
 	return wrapApiResponse[MeteringValues](response, err)
+}
+
+func (c *client) DeviceSetOutputValue(deviceId string, functionBlockId string, outputId string, value float64) error {
+	var request = SetOutputValue{
+		Op:    SetOutputValueOperationReplace,
+		Path:  fmt.Sprintf("/functionBlocks/%s/outputs/%s/value", functionBlockId, outputId),
+		Value: fmt.Sprintf("%.0f", value),
+	}
+
+	path := fmt.Sprintf("api/v1/apartment/dsDevices/%s/status", deviceId)
+	return c.patchRequest(path, request)
 }
 
 func (c *client) NotificationSubscribe(id string, callback NotificationCallback) error {
@@ -485,6 +502,33 @@ func (c *client) apiCall(path string, params url.Values, version ApiVersion) (in
 	return response, nil
 }
 
+// TODO generic request function to group patch and get requests
+func (c *client) patchRequest(path string, body interface{}) error {
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	// If Client is not connected refuse to make the request.
+	if c.status == disconnected {
+		return fmt.Errorf("error performing request: client disconnected")
+	}
+	callUrl := "https://" + c.options.Host + ":" + strconv.Itoa(c.options.Port) + "/" + path
+
+	request, err := http.NewRequest(http.MethodPatch, callUrl, strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return fmt.Errorf("error building the request: %w", err)
+	}
+	resp, err := c.httpClient.Do(request)
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("error doing the request: %w", err)
+	}
+	return nil
+}
+
 // getRequest performs a GET request to the DigitalStrom server given the path
 // and parameters. It will parse the returned message to identify errors in the
 // request and return a generic interface that corresponds to the `result` item
@@ -494,12 +538,12 @@ func (c *client) getRequest(path string, params url.Values, version ApiVersion) 
 	if c.status == disconnected {
 		return nil, fmt.Errorf("error performing request: client disconnected")
 	}
-	url := "https://" + c.options.Host +
+	callUrl := "https://" + c.options.Host +
 		":" + strconv.Itoa(c.options.Port) +
 		"/" + path +
 		"?" + params.Encode()
 
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequest(http.MethodGet, callUrl, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error building the request: %w", err)
 	}
@@ -518,7 +562,7 @@ func (c *client) getRequest(path string, params url.Values, version ApiVersion) 
 	}
 
 	log.Debug().
-		Str("url", url).
+		Str("url", callUrl).
 		Str("status", resp.Status).
 		Msg("Response received")
 	log.Trace().

@@ -199,3 +199,14 @@ const (
 	OutputValueStatusError    OutputValueStatus = "error"
 	OutputValueStatusStandby  OutputValueStatus = "standby"
 )
+
+type SetOutputValueOperation string
+
+const (
+	SetOutputValueOperationAdd     SetOutputValueOperation = "add"
+	SetOutputValueOperationRemove  SetOutputValueOperation = "remove"
+	SetOutputValueOperationReplace SetOutputValueOperation = "replace"
+	SetOutputValueOperationMove    SetOutputValueOperation = "move"
+	SetOutputValueOperationCopy    SetOutputValueOperation = "copy"
+	SetOutputValueOperationTest    SetOutputValueOperation = "test"
+)

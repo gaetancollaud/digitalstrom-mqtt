@@ -121,7 +121,7 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		return nil
 	}
 	// Alternatively, the actual value is given and must be pushed to
-	// DigitalStrom.
+	// Digitalstrom.
 	value, err := strconv.ParseFloat(message, 64)
 	if err != nil {
 		return fmt.Errorf("error parsing message as float value: %w", err)
@@ -132,14 +132,17 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		Str("outputId", outputId).
 		Float64("value", value).
 		Msg("Setting value.")
-	if err := c.dsClient.DeviceSetOutputChannelValue(device.Attributes.Dsid, map[string]int{outputId: int(value)}); err != nil {
+
+	functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(deviceId)
+	if err != nil {
+		return fmt.Errorf("no function block found for device %s: %w", deviceId, err)
+	}
+
+	err = c.dsClient.DeviceSetOutputValue(deviceId, functionBlock.FunctionBlockId, outputId, value)
+	if err != nil {
 		return err
 	}
 
-	// TODO do we want to publish here ?
-	//if err := c.publishDeviceValue(&device, outputId, value); err != nil {
-	//	return err
-	//}
 	return nil
 
 }
