@@ -113,7 +113,7 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		return err
 	}
 
-	value, err := strconv.ParseFloat(message, 64)
+	value, err := strconv.ParseFloat(strings.TrimSpace(message), 64)
 	if err != nil {
 		return fmt.Errorf("error parsing message as float value: %w", err)
 	}
@@ -263,7 +263,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 			}
 			cfg = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Light,
-				DeviceId: device.Attributes.Dsid, // retro compatibility
+				DeviceId: device.DeviceId,
 				ObjectId: "light",
 				Config:   entityConfig,
 			}
@@ -303,7 +303,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 			}
 			cfg = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Cover,
-				DeviceId: device.Attributes.Dsid, // retro compatibility
+				DeviceId: device.DeviceId,
 				ObjectId: "cover",
 				Config:   entityConfig,
 			}
