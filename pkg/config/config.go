@@ -2,15 +2,17 @@ package config
 
 import (
 	"fmt"
-
 	"github.com/spf13/viper"
 )
 
 type ConfigDigitalstrom struct {
-	Host     string
-	Port     int
+	Host string
+	Port int
+	// Deprecated: use apiKey instead
 	Username string
+	// Deprecated: use apiKey instead
 	Password string
+	ApiKey   string
 }
 type ConfigMqtt struct {
 	MqttUrl             string
@@ -44,6 +46,7 @@ const (
 	envKeyDigitalstromPort                  string = "digitalstrom_port"
 	envKeyDigitalstromUsername              string = "digitalstrom_username"
 	envKeyDigitalstromPassword              string = "digitalstrom_password"
+	envKeyDigitalstromApiKey                string = "digitalstrom_api_key"
 	envKeyMqttUrl                           string = "mqtt_url"
 	envKeyMqttUsername                      string = "mqtt_username"
 	envKeyMqttPassword                      string = "mqtt_password"
@@ -62,8 +65,9 @@ const (
 var defaultConfig = map[string]interface{}{
 	envKeyDigitalstromHost:                  undefined,
 	envKeyDigitalstromPort:                  8080,
-	envKeyDigitalstromUsername:              undefined,
-	envKeyDigitalstromPassword:              undefined,
+	envKeyDigitalstromUsername:              deprecated,
+	envKeyDigitalstromPassword:              deprecated,
+	envKeyDigitalstromApiKey:                undefined,
 	envKeyMqttUrl:                           undefined,
 	envKeyMqttUsername:                      undefined,
 	envKeyMqttPassword:                      undefined,
@@ -113,6 +117,7 @@ func ReadConfig() (*Config, error) {
 			Port:     viper.GetInt(envKeyDigitalstromPort),
 			Username: viper.GetString(envKeyDigitalstromUsername),
 			Password: viper.GetString(envKeyDigitalstromPassword),
+			ApiKey:   viper.GetString(envKeyDigitalstromApiKey),
 		},
 		Mqtt: ConfigMqtt{
 			MqttUrl:             viper.GetString(envKeyMqttUrl),

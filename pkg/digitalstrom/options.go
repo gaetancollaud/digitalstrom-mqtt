@@ -11,8 +11,7 @@ type EventHandler func(Client, Event)
 type ClientOptions struct {
 	Host                string
 	Port                int
-	Username            string
-	Password            string
+	ApiKey              string
 	MaxRetries          int
 	RetryDuration       time.Duration
 	EventSubscriptionId int
@@ -22,13 +21,14 @@ type ClientOptions struct {
 
 // NewClientOptions will create a new ClientClientOptions type with some
 // default values.
-//   Host: dss.local
-//   Port: 8080
-//   MaxRetries: 3
-// 	 RetryDuration: 2 seconds
-//	 EventSubscriptionId: (randomly generated)
-//	 RunEventLoop: true
-//	 EventRequestTimeout: 10 seconds
+//
+//	  Host: dss.local
+//	  Port: 8080
+//	  MaxRetries: 3
+//		 RetryDuration: 2 seconds
+//		 EventSubscriptionId: (randomly generated)
+//		 RunEventLoop: true
+//		 EventRequestTimeout: 10 seconds
 func NewClientOptions() *ClientOptions {
 	// Random generate subscriptionId in order to not have collisions of
 	// multiple instances running at the same time.
@@ -37,8 +37,7 @@ func NewClientOptions() *ClientOptions {
 	return &ClientOptions{
 		Host:                "dss.local",
 		Port:                8080,
-		Username:            "",
-		Password:            "",
+		ApiKey:              "",
 		MaxRetries:          3,
 		RetryDuration:       2 * time.Second,
 		EventSubscriptionId: int(rand.Int31n(1 << 20)),
@@ -61,15 +60,8 @@ func (o *ClientOptions) SetPort(port int) *ClientOptions {
 
 // SetUsername will set the username to be used by this client when connecting
 // to the DigitalStrom server.
-func (o *ClientOptions) SetUsername(u string) *ClientOptions {
-	o.Username = u
-	return o
-}
-
-// SetPassword will set the password to be used by this client when connecting
-// to the DigitalStrom server.
-func (o *ClientOptions) SetPassword(p string) *ClientOptions {
-	o.Password = p
+func (o *ClientOptions) SetApiKey(u string) *ClientOptions {
+	o.ApiKey = u
 	return o
 }
 

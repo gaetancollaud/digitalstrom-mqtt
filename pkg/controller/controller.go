@@ -25,8 +25,7 @@ func NewController(config *config.Config) *Controller {
 	dsOptions := digitalstrom.NewClientOptions().
 		SetHost(config.Digitalstrom.Host).
 		SetPort(config.Digitalstrom.Port).
-		SetUsername(config.Digitalstrom.Username).
-		SetPassword(config.Digitalstrom.Password)
+		SetApiKey(config.Digitalstrom.ApiKey)
 	dsClient := digitalstrom.NewClient(dsOptions)
 
 	dsRegistry := digitalstrom.NewRegistry(dsClient)

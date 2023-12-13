@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -166,9 +167,6 @@ func (c *client) Connect() error {
 		return nil
 	}
 	c.status = connecting
-	if _, err := c.getToken(); err != nil {
-		return err
-	}
 
 	websocketHost := "ws://" + c.options.Host + ":8090/api/v1/apartment/notifications"
 	log.Trace().Str("host", websocketHost).Msg("Connecting to websocket")
@@ -209,7 +207,7 @@ func (c *client) Connect() error {
 		log.Warn().Msg("Closing websocket reader")
 	}()
 
-	c.startEventLoop()
+	//c.startEventLoop()
 	c.status = connected
 	return nil
 }
@@ -261,14 +259,15 @@ func (c *client) GetMeteringStatus() (*MeteringValues, error) {
 }
 
 func (c *client) DeviceSetOutputValue(deviceId string, functionBlockId string, outputId string, value float64) error {
-	var request = SetOutputValue{
+	var contents []SetOutputValue
+	contents = append(contents, SetOutputValue{
 		Op:    SetOutputValueOperationReplace,
 		Path:  fmt.Sprintf("/functionBlocks/%s/outputs/%s/value", functionBlockId, outputId),
 		Value: fmt.Sprintf("%.0f", value),
-	}
+	})
 
 	path := fmt.Sprintf("api/v1/apartment/dsDevices/%s/status", deviceId)
-	return c.patchRequest(path, request)
+	return c.patchRequest(path, contents)
 }
 
 func (c *client) NotificationSubscribe(id string, callback NotificationCallback) error {
@@ -426,6 +425,7 @@ func (c *client) EventGet() (*EventGetResponse, error) {
 	return wrapApiResponse[EventGetResponse](response, err)
 }
 
+// Deprecated: use new API instead
 // getToken will retrieve the token of the current connection into the server.
 // If already login, it will return the current connection token. Alternatively,
 // if the token has been invalidated (e.g. expired), it will do login again and
@@ -439,8 +439,8 @@ func (c *client) getToken() (string, error) {
 	}
 	// Get token by making login to the server.
 	params := url.Values{}
-	params.Set("user", c.options.Username)
-	params.Set("password", c.options.Password)
+	//params.Set("user", c.options.Username)
+	//params.Set("password", c.options.Password)
 	response, err := c.getRequest("json/system/login", params, apiClassic)
 	res, err := wrapApiResponse[TokenResponse](response, err)
 	if err != nil {
@@ -463,102 +463,83 @@ func (c *client) getToken() (string, error) {
 	return c.token, nil
 }
 
+// Deprecated: use getRequest instead
 // apiCall performs a request to the DigitalStrom server by using retry and
 // automatically populating the token on the request.
 func (c *client) apiCall(path string, params url.Values, version ApiVersion) (interface{}, error) {
-	var token string
-	var err error
-	var response interface{}
+	return c.getRequest(path, params, version)
 
-	for i := 0; i < c.options.MaxRetries; i++ {
-		token, err = c.getToken()
-		if err != nil {
-			// In case of error retrieving token, wait some time and continue to
-			// next retry.
-			log.Warn().Err(err).Msg("Failed to retrieve tokenn. Will wait for next retry.")
-			time.Sleep(c.options.RetryDuration)
-			continue
-		}
-		params.Set("token", token)
-		response, err = c.getRequest(path, params, version)
-		if err == nil {
-			break
-		}
-		if strings.Contains(err.Error(), "not logged in") {
-			// Issue with token, invalidate the old one before retrying.
-			c.token = "" // Invalidate current token.
-			log.Warn().Err(err).Msg("Not logged error. Retrying...")
-		} else {
-			// Don't retry in case its not an authetication error.
-			break
-		}
-		// This is a retry, wait a bit before we retry to avoid loops.
-		time.Sleep(c.options.RetryDuration)
-	}
-	if err != nil {
-		log.Error().Err(err).Msg("Failed API GET request")
-		return nil, fmt.Errorf("unable to refresh token after "+strconv.Itoa(c.options.MaxRetries)+" retries: %w", err)
-	}
-	return response, nil
+	//
+	////var token string
+	//var err error
+	//var response interface{}
+	//
+	//for i := 0; i < c.options.MaxRetries; i++ {
+	//	//token, err = c.getToken()
+	//	if err != nil {
+	//		// In case of error retrieving token, wait some time and continue to
+	//		// next retry.
+	//		log.Warn().Err(err).Msg("Failed to retrieve token. Will wait for next retry.")
+	//		time.Sleep(c.options.RetryDuration)
+	//		continue
+	//	}
+	//	//params.Set("token", token)
+	//	response, err = c.getRequest(path, params, version)
+	//	if err == nil {
+	//		break
+	//	}
+	//	if strings.Contains(err.Error(), "not logged in") {
+	//		// Issue with token, invalidate the old one before retrying.
+	//		c.token = "" // Invalidate current token.
+	//		log.Warn().Err(err).Msg("Not logged error. Retrying...")
+	//	} else {
+	//		// Don't retry in case its not an authetication error.
+	//		break
+	//	}
+	//	// This is a retry, wait a bit before we retry to avoid loops.
+	//	time.Sleep(c.options.RetryDuration)
+	//}
+	//if err != nil {
+	//	log.Error().Err(err).Msg("Failed API GET request")
+	//	return nil, fmt.Errorf("unable to refresh token after "+strconv.Itoa(c.options.MaxRetries)+" retries: %w", err)
+	//}
+	//return response, nil
 }
 
-// TODO generic request function to group patch and get requests
-func (c *client) patchRequest(path string, body interface{}) error {
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	// If Client is not connected refuse to make the request.
-	if c.status == disconnected {
-		return fmt.Errorf("error performing request: client disconnected")
+func (c *client) doRequest(method string, path string, params url.Values, body interface{}) ([]byte, error) {
+	var bodyReader io.Reader = nil
+	if body != nil {
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = strings.NewReader(string(jsonBody))
 	}
 	callUrl := "https://" + c.options.Host + ":" + strconv.Itoa(c.options.Port) + "/" + path
+	if params != nil && len(params) > 0 {
+		callUrl = callUrl + "?" + params.Encode()
+	}
 
-	request, err := http.NewRequest(http.MethodPatch, callUrl, strings.NewReader(string(jsonBody)))
-	if err != nil {
-		return fmt.Errorf("error building the request: %w", err)
-	}
-	resp, err := c.httpClient.Do(request)
-	if resp.Body != nil {
-		defer resp.Body.Close()
-	}
-	if err != nil {
-		return fmt.Errorf("error doing the request: %w", err)
-	}
-	return nil
-}
-
-// getRequest performs a GET request to the DigitalStrom server given the path
-// and parameters. It will parse the returned message to identify errors in the
-// request and return a generic interface that corresponds to the `result` item
-// in the response.
-func (c *client) getRequest(path string, params url.Values, version ApiVersion) (interface{}, error) {
-	// If Client is not connected refuse to make the request.
-	if c.status == disconnected {
-		return nil, fmt.Errorf("error performing request: client disconnected")
-	}
-	callUrl := "https://" + c.options.Host +
-		":" + strconv.Itoa(c.options.Port) +
-		"/" + path +
-		"?" + params.Encode()
-
-	request, err := http.NewRequest(http.MethodGet, callUrl, nil)
+	request, err := http.NewRequest(method, callUrl, bodyReader)
+	request.Header.Set("Authorization", "Bearer "+c.options.ApiKey)
 	if err != nil {
 		return nil, fmt.Errorf("error building the request: %w", err)
 	}
 	resp, err := c.httpClient.Do(request)
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error doing the request: %w", err)
 	}
 
-	if resp.Body != nil {
-		defer resp.Body.Close()
-	}
-
-	body, readErr := ioutil.ReadAll(resp.Body)
+	responseBody, readErr := ioutil.ReadAll(resp.Body)
 	if readErr != nil {
 		return nil, fmt.Errorf("error reading the request: %w", err)
+	}
+
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("error response from server, httpStatus=%d: %s", resp.StatusCode, responseBody)
 	}
 
 	log.Debug().
@@ -566,13 +547,33 @@ func (c *client) getRequest(path string, params url.Values, version ApiVersion) 
 		Str("status", resp.Status).
 		Msg("Response received")
 	log.Trace().
-		Str("body", string(body)).
+		Str("body", string(responseBody)).
 		Msg("Response body")
 
-	var jsonResponse map[string]interface{}
-	json.Unmarshal(body, &jsonResponse)
+	return responseBody, nil
+}
 
-	// TODO handle version
+func (c *client) patchRequest(path string, body interface{}) error {
+	_, err := c.doRequest(http.MethodPatch, path, nil, body)
+	return err
+}
+
+// getRequest performs a GET request to the DigitalStrom server given the path
+// and parameters. It will parse the returned message to identify errors in the
+// request and return a generic interface that corresponds to the `result` item
+// in the response.
+func (c *client) getRequest(path string, params url.Values, version ApiVersion) (interface{}, error) {
+	body, err := c.doRequest(http.MethodGet, path, params, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var jsonResponse map[string]interface{}
+	err = json.Unmarshal(body, &jsonResponse)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing response for path %s: %w", path, err)
+	}
+
 	if version == apiClassic {
 		if val, ok := jsonResponse["ok"]; ok {
 			if !val.(bool) {
