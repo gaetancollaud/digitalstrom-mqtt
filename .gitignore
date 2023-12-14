@@ -3,6 +3,8 @@ vendor/
 dist/
 tests/
 
+digitalstrom-mqtt
+
 docs/docker/homeassistant
 .env
 /config.yaml

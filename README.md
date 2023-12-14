@@ -8,7 +8,7 @@ You can set the output values using the command topic and get the current value 
 
 ## Migrating from version 1.x to version 2.x
 
-// TODO
+See [Migration from V1.x to V2.x](./migration_v1_v2.md)
 
 ## Motivation
 
@@ -64,7 +64,28 @@ variables.
 
 ## Obtaining the API key
 
-// TODO
+There is a build-in tool to get the API key. You can run it with the following command:
+
+```shell
+./digitalstrom-mqtt -mode=get-api-key -host 192.168.1.x -username=dssadmin -password=XXX
+```
+
+Just copy the API key spilled out in the console in your config file. Be sure to save the key, you want be able to see
+it again and you will have to create another key.
+The key will then be visible in the digitalSTROM web api under System -> Access Authorization. You can also remove it
+from there if you want to.
+
+To see all available option, you can do:
+
+```shell    
+./digitalstrom-mqtt -h
+```
+
+From docker you can run this:
+
+```shell
+docker run --rm gaetancollaud/digitalstrom-mqtt -mode=get-api-key -host 192.168.1.x -username=dssadmin -password=XXX
+```
 
 ## Minimal config file
 
@@ -166,7 +187,8 @@ digitalSTROM-MQTT was tested successfully with these devices:
 
 Some devices are known to have issues or limitations:
 
-* BL-KM300 (see [#7](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/7) [#19](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/19))
+* BL-KM300 (
+  see [#7](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/7) [#19](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/19))
 * GE-UMv200 (see [#22](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/22))
 
 Feel free to create an issue or to directly edit this file if you have tested this software with your devices.
