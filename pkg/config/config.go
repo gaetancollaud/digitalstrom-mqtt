@@ -74,11 +74,11 @@ var defaultConfig = map[string]interface{}{
 	envKeyMqttTopicPrefix:                   "digitalstrom",
 	envKeyMqttTopicFormat:                   deprecated,
 	envKeyMqttNormalizeTopicName:            true,
-	envKeyMqttRetain:                        false,
+	envKeyMqttRetain:                        true,
 	envKeyRefreshAtStart:                    true,
 	envKeyLogLevel:                          "INFO",
 	envKeyInvertBlindsPosition:              false,
-	envKeyHomeAssistantDiscoveryEnabled:     false,
+	envKeyHomeAssistantDiscoveryEnabled:     true,
 	envKeyHomeAssistantDiscoveryPrefix:      "homeassistant",
 	envKeyHomeAssistantRemoveRegexpFromName: "",
 }

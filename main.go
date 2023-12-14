@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,10 +16,41 @@ import (
 
 func main() {
 
-	// TODO put in config
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
+	mode := flag.String("mode", "standard", "Operation mode (standard, get-api-key)")
+
+	host := flag.String("host", "test", "DigitalSTROM server host")
+	port := flag.Int("port", 8080, "DigitalSTROM server port")
+	username := flag.String("username", "dssadmin", "DigitalSTROM user name")
+	password := flag.String("password", "", "DigitalSTROM password")
+	integrationName := flag.String("integrationName", "digitalstrom-to-mqtt", "Name of the integration. It will appear in digitalSTROM system panel")
+
+	flag.Parse()
+
+	if *mode == "standard" {
+		modeStandard()
+	} else if *mode == "get-api-key" {
+		modeGetApiKey(*host, *port, *username, *password, *integrationName)
+	} else {
+		log.Error().Str("mode", *mode).Msg("Unknown mode")
+		flag.PrintDefaults()
+	}
+}
+
+func modeGetApiKey(host string, port int, user string, password string, integrationName string) {
+	apiKey, err := digitalstrom.GetApiKey(host, port, user, password, integrationName)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Unable to get API key.")
+	} else {
+		log.Info().
+			Str("DIGITALSTROM_API_KEY", apiKey).
+			Msg("API key successfully retrieved. Please save it in the config file, this cannot be retrieved a second time. You will have to create a new API key.")
+	}
+}
+
+func modeStandard() {
 	config, err := config.ReadConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error found when reading the config.")
@@ -38,8 +71,8 @@ func main() {
 	log.Info().Msg("Starting DigitalStrom MQTT!")
 
 	// Initialize controller responsible for all the bridge logic.
-	controller := controller.NewController(config)
-	if err := controller.Start(); err != nil {
+	ctrl := controller.NewController(config)
+	if err := ctrl.Start(); err != nil {
 		log.Fatal().Err(err).Msg("Error on starting the controller")
 	}
 
@@ -49,7 +82,7 @@ func main() {
 	<-exitSignal
 
 	// Gracefulle stop all the modules loops and logic.
-	if err := controller.Stop(); err != nil {
+	if err := ctrl.Stop(); err != nil {
 		log.Fatal().Err(err).Msg("Error when stopping the controller")
 	}
 }

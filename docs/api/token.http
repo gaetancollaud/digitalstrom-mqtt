@@ -17,13 +17,14 @@ DELETE {{host}}/api/v1/apartment/applicationTokens/dbaa8fec2cd7841ce7cc0071d2094
 
 
 ###
-POST {{host}}/api/v1/apartment/applicationTokens
+// @no-cookie-jar
+POST {{host}}/api/v1/apartment/applicationTokens?token={{token}}
 
 {
   "data": {
     "type": "applicationToken",
     "attributes": {
-      "name": "digitalstrom-mqtt-intellij"
+      "name": "test"
     }
   }
 }

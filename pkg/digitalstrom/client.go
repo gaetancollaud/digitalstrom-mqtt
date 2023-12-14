@@ -9,7 +9,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -196,14 +195,14 @@ func (c *client) doRequest(method string, path string, params url.Values, body i
 		return nil, fmt.Errorf("error building the request: %w", err)
 	}
 	resp, err := c.httpClient.Do(request)
-	if resp.Body != nil {
-		defer resp.Body.Close()
-	}
 	if err != nil {
 		return nil, fmt.Errorf("error doing the request: %w", err)
 	}
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 
-	responseBody, readErr := ioutil.ReadAll(resp.Body)
+	responseBody, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
 		return nil, fmt.Errorf("error reading the request: %w", err)
 	}
