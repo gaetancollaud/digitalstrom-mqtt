@@ -161,7 +161,7 @@ digitalstrom/devices/DEVICE_NAME/shadeOpeningAngleOutside/state
 digitalstrom/devices/DEVICE_NAME/shadeOpeningAngleOutside/command
 ```
 
-### dSS20 (meterings)
+### dSS20 (controllers)
 
 ```
 digitalstrom/meterings/chambres/consumptionW/state
