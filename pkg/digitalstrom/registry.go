@@ -8,6 +8,7 @@ import (
 
 type DeviceChangeCallback func(deviceId string, outputId string, oldValue float64, newValue float64)
 
+// Registry The registry hold the current structure of the appartement and the latest known state
 type Registry interface {
 	Start() error
 

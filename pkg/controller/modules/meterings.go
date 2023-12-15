@@ -18,8 +18,8 @@ const (
 	energyMeter      string = "energyWh"
 )
 
-// Circuits Module encapsulates all the logic regarding the controllers. The logic
-// is the following: every 30 seconds the controllers meter values are being checked and
+// Meterings Module encapsulates all the logic regarding the meterings of the controllers. The logic
+// is the following: every 10 seconds the meterings values are being checked and
 // pushed to the corresponding topic in the MQTT server.
 type MeteringsModule struct {
 	mqttClient mqtt.Client

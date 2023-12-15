@@ -13,6 +13,10 @@ import (
 	"strings"
 )
 
+/**
+ * This file is here only to generate a new API key for the integration. It should never be used for another purpose.
+ */
+
 type NewApiKeyRequest struct {
 	Data NewApiKeyRequestData `json:"data"`
 }

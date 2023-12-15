@@ -67,7 +67,6 @@ func NewClient(options *ClientOptions) Client {
 	}
 }
 
-// Connect retrieves the token from the server by performing the login call.
 func (c *client) Connect() error {
 	// TODO handle reconnection
 	websocketHost := "ws://" + c.options.Host + ":8090/api/v1/apartment/notifications"
@@ -114,11 +113,9 @@ func (c *client) Connect() error {
 	return nil
 }
 
-// Disconnect stops all work on the  It stops any running event loop,
-// unsubscribe from any event in the server and closes any idle connection.
+// Disconnect stops all the ongoing calls and unsubscribe from the notification websocket
 func (c *client) Disconnect() error {
 
-	// Close all current connections.
 	c.httpClient.CloseIdleConnections()
 	c.websocketConnection.Close()
 
@@ -227,10 +224,6 @@ func (c *client) patchRequest(path string, body interface{}) error {
 	return err
 }
 
-// getRequest performs a GET request to the DigitalStrom server given the path
-// and parameters. It will parse the returned message to identify errors in the
-// request and return a generic interface that corresponds to the `result` item
-// in the response.
 func (c *client) getRequest(path string, params url.Values) (interface{}, error) {
 	body, err := c.doRequest(http.MethodGet, path, params, nil)
 	if err != nil {

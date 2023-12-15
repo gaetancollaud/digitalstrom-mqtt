@@ -20,7 +20,7 @@ You can now manage the api-key in the digitalSTROM web api under System -> Acces
 Circuits don't exist anymore. They are replaced by the concept of "controllers". In addition, the power consumption
 has been moved to a new entity called "metering". Thus, the MQTT interface don't expose circuits anymore but
 "meterings". On top of that there is one metering for the "apartment", which basically just sum up all the meterings of
-thecontrollers.
+the controllers.
 
 ## Metering interval
 
