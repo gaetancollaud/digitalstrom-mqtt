@@ -1,23 +1,8 @@
-package digitalstrom_mqtt
+package mqtt
 
 import (
 	"testing"
-
-	"github.com/gaetancollaud/digitalstrom-mqtt/config"
 )
-
-func TestTopicGeneration(t *testing.T) {
-
-	config := config.ConfigMqtt{
-		TopicFormat: "digitalstrom/{deviceType}/{deviceName}/{deviceId}/{channel}/{commandState}",
-	}
-
-	mqtt := DigitalstromMqtt{
-		config: &config,
-	}
-
-	expect(t, mqtt.getTopic("circuits", "id", "abc", "chan", "test"), "digitalstrom/circuits/abc/id/chan/test", "wrong topic")
-}
 
 func TestNormalize(t *testing.T) {
 	expect(t, normalizeForTopicName("test"), "test", "Error with normalize")

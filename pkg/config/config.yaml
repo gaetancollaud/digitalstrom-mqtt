@@ -1,0 +1,7 @@
+---
+# For testing purposes.
+digitalstrom_host: "192.168.1.1"
+digitalstrom_api_key: "foo"
+mqtt_url: "192.168.1.2"
+mqtt_username: mqtt
+mqtt_password: "12345678"

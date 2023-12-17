@@ -1,0 +1,30 @@
+GET {{host}}/json/system/login?user={{username}}&password={{password}}
+
+> {%
+    client.test("Request executed successfully", function() {
+        client.assert(response.status === 200, "Response status is not 200");
+    });
+    client.log(`Response Json: ${response.body.result.token}`)
+    client.global.set("token", response.body.result.token);
+%}
+
+###
+GET {{host}}/json/system/login?user={{username}}&password={{password}}
+
+###
+DELETE {{host}}/api/v1/apartment/applicationTokens/dbaa8fec2cd7841ce7cc0071d2094dcfe05d53be8c554d383085de5b43a425cd
+
+
+
+###
+// @no-cookie-jar
+POST {{host}}/api/v1/apartment/applicationTokens?token={{token}}
+
+{
+  "data": {
+    "type": "applicationToken",
+    "attributes": {
+      "name": "test"
+    }
+  }
+}
