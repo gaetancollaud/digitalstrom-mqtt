@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -98,7 +99,7 @@ func ReadConfig() (*Config, error) {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		return nil, fmt.Errorf("ReadInConfig error: %w", err)
+		log.Info().Err(err).Msg("No config file found, using environment variables only")
 	}
 
 	// Check for deprecated and undefined fields.
