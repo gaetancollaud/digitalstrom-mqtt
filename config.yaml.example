@@ -1,4 +1,4 @@
-digitalstrom_host: 192.168.1.X
-digitalstrom_api_key: XXX
-mqtt_url: tcp://192.168.1.X:1883
-refresh_at_start: false
+DIGITALSTROM_HOST: 192.168.1.X
+DIGITALSTROM_API_KEY: XXX
+MQTT_URL: tcp://192.168.1.X:1883
+REFRESH_AT_START: true
