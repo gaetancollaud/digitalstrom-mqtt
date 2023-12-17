@@ -86,6 +86,7 @@ type LightConfig struct {
 	BaseConfig
 	CommandTopic           string `json:"command_topic,omitempty"`
 	StateTopic             string `json:"state_topic,omitempty"`
+	StateValueTemplate     string `json:"state_value_template,omitempty"`
 	PayloadOn              string `json:"payload_on,omitempty"`
 	PayloadOff             string `json:"payload_off,omitempty"`
 	OnCommandType          string `json:"on_command_type,omitempty"`

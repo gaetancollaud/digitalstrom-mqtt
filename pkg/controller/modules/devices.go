@@ -265,6 +265,7 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 					c.deviceStateTopic(device.Attributes.Name, lightOutput.OutputId))
 				entityConfig.BrightnessCommandTopic = c.mqttClient.GetFullTopic(
 					c.deviceCommandTopic(device.Attributes.Name, lightOutput.OutputId))
+				entityConfig.StateValueTemplate = "{% if value|int > 0 %}100.00{% else %}0.00{% endif %}"
 			}
 			cfg = homeassistant.DiscoveryConfig{
 				Domain:   homeassistant.Light,
