@@ -46,7 +46,7 @@ func (c *DeviceModule) Start() error {
 		}
 	}
 
-	if err != nil {
+	if err == nil {
 		// Refresh devices values.
 		if c.refreshAtStart {
 			go func() {
