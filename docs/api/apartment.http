@@ -1,5 +1,5 @@
 // @no-cookie-jar
-GET {{host}}/api/v1/apartment?include=dsDevice
+GET {{host}}/api/v1/apartment
 Authorization: Bearer {{api-key}}
 
 ###
