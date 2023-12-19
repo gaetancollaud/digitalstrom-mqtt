@@ -123,12 +123,16 @@ func (c *client) Disconnect() error {
 }
 
 func (c *client) GetApartment() (*Apartment, error) {
-	response, err := c.getRequest("api/v1/apartment", nil)
+	params := url.Values{}
+	params.Set("include", "installation,dsDevices,submodules,functionBlocks,zones,controllers,meterings")
+	response, err := c.getRequest("api/v1/apartment", params)
 	return wrapApiResponse[Apartment](response, err)
 }
 
 func (c *client) GetApartmentStatus() (*ApartmentStatus, error) {
-	response, err := c.getRequest("api/v1/apartment/status", nil)
+	params := url.Values{}
+	params.Set("include", "dsDevices,zones")
+	response, err := c.getRequest("api/v1/apartment/status", params)
 	return wrapApiResponse[ApartmentStatus](response, err)
 }
 

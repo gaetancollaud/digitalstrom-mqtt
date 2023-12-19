@@ -15,20 +15,14 @@ type ApartmentAttributes struct {
 }
 
 type ApartmentIncluded struct {
+	// Before mapping this, you need to add the "include" in the query
 	Installation   Installation    `mapstructure:"installation"`
 	Devices        []Device        `mapstructure:"dsDevices"`
 	Submodules     []Submodule     `mapstructure:"submodules"`
 	FunctionBlocks []FunctionBlock `mapstructure:"functionBlocks"`
 	Zones          []Zone          `mapstructure:"zones"`
-	//Scenarios      []Scenarios     `mapstructure:"scenarios"`
-	// floors
-	// clusters
-	// dsServer
-	Controllers []Controller `mapstructure:"controllers"`
-	// apiRevision
-	Meterings []Metering `mapstructure:"meterings"`
-	// userDefinedStates
-	// applications
+	Controllers    []Controller    `mapstructure:"controllers"`
+	Meterings      []Metering      `mapstructure:"meterings"`
 }
 
 type Installation struct {
