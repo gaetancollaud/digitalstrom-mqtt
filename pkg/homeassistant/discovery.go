@@ -62,9 +62,9 @@ func (hass *HomeAssistantDiscovery) AddConfigs(configs []DiscoveryConfig) {
 		config.Config.
 			SetName(
 				utils.RemoveRegexp(
-					entityName,
-					hass.config.RemoveRegexpFromName)).
-			SetRetain(hass.config.Retain).
+							entityName,
+							hass.config.RemoveRegexpFromName)).
+			SetRetain(false). // do not retain, otherwise when we restart we would apply previous commands
 			AddAvailability(systemAvailability).
 			SetAvailabilityMode("all")
 		// Update the config with some generic attributes for all

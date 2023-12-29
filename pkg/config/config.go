@@ -28,7 +28,6 @@ type ConfigHomeAssistant struct {
 	DiscoveryTopicPrefix string
 	RemoveRegexpFromName string
 	DigitalStromHost     string
-	Retain               bool
 }
 type Config struct {
 	Digitalstrom         ConfigDigitalstrom
@@ -133,7 +132,6 @@ func ReadConfig() (*Config, error) {
 			DiscoveryTopicPrefix: viper.GetString(envKeyHomeAssistantDiscoveryPrefix),
 			RemoveRegexpFromName: viper.GetString(envKeyHomeAssistantRemoveRegexpFromName),
 			DigitalStromHost:     viper.GetString(envKeyDigitalstromHost),
-			Retain:               viper.GetBool(envKeyMqttRetain),
 		},
 		RefreshAtStart:       viper.GetBool(envKeyRefreshAtStart),
 		LogLevel:             viper.GetString(envKeyLogLevel),
