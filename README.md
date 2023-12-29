@@ -189,7 +189,6 @@ Some devices are known to have issues or limitations:
 
 * BL-KM300 (
   see [#7](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/7) [#19](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/19))
-* GE-UMv200 (see [#22](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/22))
 
 Feel free to create an issue or to directly edit this file if you have tested this software with your devices.
 
