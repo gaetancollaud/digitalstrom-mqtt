@@ -5,6 +5,8 @@ tests/
 
 digitalstrom-mqtt
 
+node_modules/
+
 docs/docker/homeassistant
 .env
 /config.yaml

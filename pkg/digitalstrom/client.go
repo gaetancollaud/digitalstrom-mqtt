@@ -13,7 +13,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const WEBSOCKET_RECONNECT_DELAY = 5 * time.Second
 
 type NotificationCallback func(notification WebsocketNotification)
 
@@ -43,9 +46,10 @@ type Client interface {
 // client implements the DigitalStrom interface.
 // Clients are safe for concurrent use by multiple goroutines.
 type client struct {
-	httpClient          *http.Client
-	options             ClientOptions
-	websocketConnection *websocket.Conn
+	httpClient              *http.Client
+	options                 ClientOptions
+	websocketConnection     *websocket.Conn
+	websocketConnectionOpen bool
 
 	notificationCallbacks map[string]NotificationCallback
 }
@@ -67,8 +71,7 @@ func NewClient(options *ClientOptions) Client {
 	}
 }
 
-func (c *client) Connect() error {
-	// TODO handle reconnection
+func (c *client) websocketConnect() error {
 	websocketHost := "ws://" + c.options.Host + ":8090/api/v1/apartment/notifications"
 	log.Trace().Str("host", websocketHost).Msg("Connecting to websocket")
 	headers := http.Header{}
@@ -86,15 +89,36 @@ func (c *client) Connect() error {
 	if err != nil {
 		return fmt.Errorf("error writing to websocket: %w", err)
 	}
+	log.Info().Msg("Connected to websocket for notifications")
+	c.websocketConnectionOpen = true
+	return nil
+}
 
+func (c *client) Connect() error {
+	c.websocketConnectionOpen = false
+	err := c.websocketConnect()
+	if err != nil {
+		return err
+	}
+
+	// websocket message reader
 	go func() {
 		firstMessage := true
 		for {
 			var notification WebsocketNotification
 			err := c.websocketConnection.ReadJSON(&notification)
 			if err != nil {
-				log.Error().Err(err).Msg("Websocket reading error")
-				break
+				if !c.websocketConnectionOpen {
+					// we're closing, ignore read errors
+					break
+				} else {
+					log.Error().Err(err).Msg("Websocket reading error, will try to reconnect")
+					time.Sleep(WEBSOCKET_RECONNECT_DELAY)
+					err = c.websocketConnect()
+					if err != nil {
+						log.Error().Err(err).Msg("Websocket reconnect error")
+					}
+				}
 			} else if notification.Arguments == nil || len(notification.Arguments) == 0 {
 				if !firstMessage {
 					log.Warn().Msg("No argument received in notification")
@@ -107,7 +131,7 @@ func (c *client) Connect() error {
 			}
 			firstMessage = false
 		}
-		log.Warn().Msg("Closing websocket reader")
+		log.Info().Msg("Closing websocket reader")
 	}()
 
 	return nil
@@ -115,10 +139,9 @@ func (c *client) Connect() error {
 
 // Disconnect stops all the ongoing calls and unsubscribe from the notification websocket
 func (c *client) Disconnect() error {
-
+	c.websocketConnectionOpen = false
 	c.httpClient.CloseIdleConnections()
-	c.websocketConnection.Close()
-
+	_ = c.websocketConnection.Close()
 	return nil
 }
 
