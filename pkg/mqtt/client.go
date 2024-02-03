@@ -55,7 +55,11 @@ func NewClient(options *ClientOptions) Client {
 		SetClientID("digitalstrom-mqtt-" + uuid.New().String()).
 		SetOrderMatters(false).
 		SetUsername(options.Username).
-		SetPassword(options.Password)
+		SetPassword(options.Password).
+		SetAutoReconnect(true).
+		SetReconnectingHandler(func(client mqtt.Client, options *mqtt.ClientOptions) {
+			log.Info().Msg("Reconnecting to MQTT server.")
+		})
 
 	return &client{
 		mqttClient: mqtt.NewClient(mqttOptions),
@@ -64,6 +68,7 @@ func NewClient(options *ClientOptions) Client {
 }
 
 func (c *client) Connect() error {
+
 	t := c.mqttClient.Connect()
 	<-t.Done()
 	if t.Error() != nil {

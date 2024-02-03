@@ -1,0 +1,26 @@
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/zones
+Authorization: Bearer {{api-key}}
+
+###
+
+// @no-cookie-jar
+GET {{host}}/api/v1/apartment/zones/status
+Authorization: Bearer {{api-key}}
+
+
+###
+// @no-cookie-jar
+PATCH {{host}}/api/v1/apartment/zones/5/status
+Authorization: Bearer {{api-key}}
+Content-Type: application/json
+
+[
+  {
+    "op": "replace",
+    "path": "/applications/temperature/setpoint",
+    "value": 20
+  }
+]
+
+
