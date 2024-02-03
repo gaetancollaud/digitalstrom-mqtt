@@ -57,8 +57,11 @@ func NewClient(options *ClientOptions) Client {
 		SetUsername(options.Username).
 		SetPassword(options.Password).
 		SetAutoReconnect(true).
-		SetReconnectingHandler(func(client mqtt.Client, options *mqtt.ClientOptions) {
-			log.Info().Msg("Reconnecting to MQTT server.")
+		SetReconnectingHandler(func(client mqtt.Client, opts *mqtt.ClientOptions) {
+			log.Info().Str("url", options.MqttUrl).Msg("Reconnecting to MQTT server.")
+		}).
+		SetOnConnectHandler(func(client mqtt.Client) {
+			log.Info().Str("url", options.MqttUrl).Msg("Connected to MQTT server.")
 		})
 
 	return &client{
