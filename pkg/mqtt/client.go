@@ -9,6 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const QOS byte = 0
+
 const (
 	Online  string = "online"
 	Offline string = "offline"
@@ -21,6 +23,11 @@ const (
 	Event        string = "event"
 	serverStatus string = "server/status"
 )
+
+type SubscriptionHandler struct {
+	Topic          string
+	MessageHandler mqtt.MessageHandler
+}
 
 type Client interface {
 	// Connect to the MQTT server.
@@ -45,11 +52,20 @@ type Client interface {
 }
 
 type client struct {
-	mqttClient mqtt.Client
-	options    ClientOptions
+	mqttClient    mqtt.Client
+	options       ClientOptions
+	subscriptions *Subscriptions
+}
+
+type Subscriptions struct {
+	shouldReconnect bool
+	list            []SubscriptionHandler
 }
 
 func NewClient(options *ClientOptions) Client {
+	subscriptions := Subscriptions{
+		list: []SubscriptionHandler{},
+	}
 	mqttOptions := mqtt.NewClientOptions().
 		AddBroker(options.MqttUrl).
 		SetClientID("digitalstrom-mqtt-" + uuid.New().String()).
@@ -59,14 +75,32 @@ func NewClient(options *ClientOptions) Client {
 		SetAutoReconnect(true).
 		SetReconnectingHandler(func(client mqtt.Client, opts *mqtt.ClientOptions) {
 			log.Info().Str("url", options.MqttUrl).Msg("Reconnecting to MQTT server.")
+			subscriptions.shouldReconnect = true
 		}).
 		SetOnConnectHandler(func(client mqtt.Client) {
 			log.Info().Str("url", options.MqttUrl).Msg("Connected to MQTT server.")
+
+			if subscriptions.shouldReconnect {
+				subscriptions.shouldReconnect = false
+				log.Info().Int("count", len(subscriptions.list)).Msg("Re-subscribing to topics")
+				for _, sub := range subscriptions.list {
+					log.Debug().Str("topic", sub.Topic).Msg("Re-subscribing to topic")
+					t := client.Subscribe(
+						sub.Topic,
+						QOS,
+						sub.MessageHandler)
+					<-t.Done()
+					if t.Error() != nil {
+						log.Error().Err(t.Error()).Str("topic", sub.Topic).Msg("Error re-subscribing to topic")
+					}
+				}
+			}
 		})
 
 	return &client{
-		mqttClient: mqtt.NewClient(mqttOptions),
-		options:    *options,
+		mqttClient:    mqtt.NewClient(mqttOptions),
+		options:       *options,
+		subscriptions: &subscriptions,
 	}
 }
 
@@ -97,7 +131,7 @@ func (c *client) Disconnect() error {
 func (c *client) publish(topic string, message interface{}, forceRetain bool) error {
 	t := c.mqttClient.Publish(
 		path.Join(c.options.TopicPrefix, topic),
-		c.options.QoS,
+		QOS,
 		c.options.Retain || forceRetain,
 		message)
 	<-t.Done()
@@ -113,9 +147,15 @@ func (c *client) PublishAndRetain(topic string, message interface{}) error {
 }
 
 func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) error {
+	topic = path.Join(c.options.TopicPrefix, topic)
+	c.subscriptions.list = append(c.subscriptions.list, SubscriptionHandler{
+		Topic:          topic,
+		MessageHandler: messageHandler,
+	})
+	log.Debug().Int("count", len(c.subscriptions.list)).Str("topic", topic).Msg("Subscribing to topic")
 	t := c.mqttClient.Subscribe(
-		path.Join(c.options.TopicPrefix, topic),
-		c.options.QoS,
+		topic,
+		QOS,
 		messageHandler)
 	<-t.Done()
 	return t.Error()
