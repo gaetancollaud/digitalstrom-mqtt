@@ -68,11 +68,12 @@ func NewClient(options *ClientOptions) Client {
 	}
 	mqttOptions := mqtt.NewClientOptions().
 		AddBroker(options.MqttUrl).
-		SetClientID("digitalstrom-mqtt-" + uuid.New().String()).
+		SetClientID("digitalstrom-mqtt-"+uuid.New().String()).
 		SetOrderMatters(false).
 		SetUsername(options.Username).
 		SetPassword(options.Password).
 		SetAutoReconnect(true).
+		SetWill(serverStatus, Offline, QOS, true).
 		SetReconnectingHandler(func(client mqtt.Client, opts *mqtt.ClientOptions) {
 			log.Info().Str("url", options.MqttUrl).Msg("Reconnecting to MQTT server.")
 			subscriptions.shouldReconnect = true
