@@ -3,12 +3,12 @@ PLATFORM=local
 
 # Build all files.
 build:
-	@echo "==> Building ./dist/sdm"
+	@echo "==> Building..."
 	env GOOS=linux GOARCH=amd64 go build -o dist/digitalstrom-mqtt-amd64 ./main.go
 .PHONY: build
 
 build-arm:
-	@echo "==> Building ./dist/sdm"
+	@echo "==> Building..."
 	env GOOS=linux GOARCH=arm GOARM=5 go build -o dist/digitalstrom-mqtt-arm ./main.go
 .PHONY: build
 
