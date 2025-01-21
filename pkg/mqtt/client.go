@@ -72,8 +72,8 @@ func NewClient(options *ClientOptions) Client {
 		SetOrderMatters(false).
 		SetUsername(options.Username).
 		SetPassword(options.Password).
-		SetWill(serverStatus, Offline, QOS, true).
 		SetAutoReconnect(true).
+		SetWill(serverStatus, Offline, QOS, true).
 		SetReconnectingHandler(func(client mqtt.Client, opts *mqtt.ClientOptions) {
 			log.Info().Str("url", options.MqttUrl).Msg("Reconnecting to MQTT server.")
 			subscriptions.shouldReconnect = true
@@ -120,10 +120,10 @@ func (c *client) Connect() error {
 }
 
 func (c *client) Disconnect() error {
-	//log.Info().Msg("Publishing Offline status to MQTT server.")
-	//if err := c.publishServerStatus(Offline); err != nil {
-	//	return err
-	//}
+	log.Info().Msg("Publishing Offline status to MQTT server.")
+	if err := c.publishServerStatus(Offline); err != nil {
+		return err
+	}
 	c.mqttClient.Disconnect(uint(c.options.DisconnectTimeout.Milliseconds()))
 	log.Info().Msg("Disconnected from MQTT server.")
 	return nil
