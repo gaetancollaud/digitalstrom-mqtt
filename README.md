@@ -36,8 +36,8 @@ it.
 ### Technical
 
 This app use the [Smarthome API from digitalSTROM](https://developer.digitalstrom.org/api/). It doesn't use the old
-`json/device/` api. The documentation is sometimes lacking, so I had to browser various forum and discussion groups to
-find all the relevant information.
+`json/device/` api. The documentation is sometimes lacking, some information where found on forum and discussion groups.
+Accuracy may not be the best but that's all we have.
 
 ## Configuration
 
