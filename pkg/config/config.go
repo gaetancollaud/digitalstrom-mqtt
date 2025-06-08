@@ -29,10 +29,14 @@ type ConfigHomeAssistant struct {
 	RemoveRegexpFromName string
 	DigitalStromHost     string
 }
+type HealthCheckConfig struct {
+	Port int
+}
 type Config struct {
 	Digitalstrom         ConfigDigitalstrom
 	Mqtt                 ConfigMqtt
 	HomeAssistant        ConfigHomeAssistant
+	HealthCheck          HealthCheckConfig
 	RefreshAtStart       bool
 	LogLevel             string
 	InvertBlindsPosition bool
@@ -60,6 +64,7 @@ const (
 	envKeyHomeAssistantDiscoveryEnabled     string = "home_assistant_discovery_enabled"
 	envKeyHomeAssistantDiscoveryPrefix      string = "home_assistant_discovery_prefix"
 	envKeyHomeAssistantRemoveRegexpFromName string = "home_assistant_remove_regexp_from_name"
+	envKeyHealthCheckPort                   string = "healthcheck_port"
 )
 
 var defaultConfig = map[string]interface{}{
@@ -81,6 +86,7 @@ var defaultConfig = map[string]interface{}{
 	envKeyHomeAssistantDiscoveryEnabled:     true,
 	envKeyHomeAssistantDiscoveryPrefix:      "homeassistant",
 	envKeyHomeAssistantRemoveRegexpFromName: "",
+	envKeyHealthCheckPort:                   8080,
 }
 
 // FromEnv returns a Config from env variables
@@ -132,6 +138,9 @@ func ReadConfig() (*Config, error) {
 			DiscoveryTopicPrefix: viper.GetString(envKeyHomeAssistantDiscoveryPrefix),
 			RemoveRegexpFromName: viper.GetString(envKeyHomeAssistantRemoveRegexpFromName),
 			DigitalStromHost:     viper.GetString(envKeyDigitalstromHost),
+		},
+		HealthCheck: HealthCheckConfig{
+			Port: viper.GetInt(envKeyHealthCheckPort),
 		},
 		RefreshAtStart:       viper.GetBool(envKeyRefreshAtStart),
 		LogLevel:             viper.GetString(envKeyLogLevel),
