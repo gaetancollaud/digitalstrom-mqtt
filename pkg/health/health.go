@@ -44,7 +44,7 @@ func NewHealth(config config.HealthCheckConfig, mqttClient mqtt.Client) Health {
 		SkipOnErr: false,
 		Check: func(ctx context.Context) error {
 			if mqttClient.RawClient().IsConnectionOpen() {
-				log.Info().Msg("MQTT client is connected")
+				log.Trace().Msg("MQTT client is connected")
 				return nil
 			}
 			return errors.New("MQTT client is not connected")
@@ -90,6 +90,7 @@ func (h *health) Stop() error {
 func (h *health) service() http.Handler {
 	r := chi.NewRouter()
 	r.Get("/health", h.health.HandlerFunc)
+	r.Get("/health/started", h.health.HandlerFunc)
 	r.Get("/health/ready", h.health.HandlerFunc)
 	r.Get("/health/live", h.health.HandlerFunc)
 	return r
