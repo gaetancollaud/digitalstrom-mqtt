@@ -6,6 +6,7 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/controller/modules"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/health"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
@@ -16,6 +17,7 @@ type Controller struct {
 	dsRegistry    digitalstrom.Registry
 	mqttClient    mqtt.Client
 	hassDiscovery *homeassistant.HomeAssistantDiscovery
+	healthCheck   health.Health
 
 	modules map[string]modules.Module
 }
@@ -42,11 +44,14 @@ func NewController(config *config.Config) *Controller {
 		mqttClient,
 		&config.HomeAssistant)
 
+	healthCheck := health.NewHealth(config.HealthCheck, mqttClient)
+
 	controller := Controller{
 		dsClient:      dsClient,
 		dsRegistry:    dsRegistry,
 		mqttClient:    mqttClient,
 		hassDiscovery: hass,
+		healthCheck:   healthCheck,
 		modules:       map[string]modules.Module{},
 	}
 
@@ -68,6 +73,9 @@ func (c *Controller) Start() error {
 	}
 	if err := c.dsRegistry.Start(); err != nil {
 		return fmt.Errorf("error starting DigitalStrom registry: %w", err)
+	}
+	if err := c.healthCheck.Start(); err != nil {
+		return fmt.Errorf("error starting Healthcheck: %w", err)
 	}
 
 	for name, module := range c.modules {
@@ -115,6 +123,9 @@ func (c *Controller) Stop() error {
 	}
 	if err := c.dsClient.Disconnect(); err != nil {
 		return fmt.Errorf("error disconnecting to DigitalStrom client: %w", err)
+	}
+	if err := c.healthCheck.Stop(); err != nil {
+		return fmt.Errorf("error stopping the healthcheck: %w", err)
 	}
 
 	return nil
