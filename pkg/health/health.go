@@ -70,7 +70,7 @@ func (h *health) Start() error {
 	go func() {
 		log.Info().Msgf("Starting health check server on %s", listenAddr)
 		err := h.server.ListenAndServe()
-		if err != nil {
+		if err != nil && err != http.ErrServerClosed {
 			log.Error().Err(err).Msg("Unable to start health check server")
 		}
 	}()
@@ -83,6 +83,7 @@ func (h *health) Stop() error {
 		return err
 	}
 	h.serverStopCtx()
+	log.Info().Msg("Health check server stopped")
 	return nil
 }
 
