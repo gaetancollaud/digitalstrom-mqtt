@@ -21,6 +21,25 @@ func TestReadConfig(t *testing.T) {
 	assert.Equal(t, "foo", c.Digitalstrom.ApiKey, "DigitalStrom api key is wrong.")
 	assert.Equal(t, "mqtt", c.Mqtt.Username, "MQTT username is wrong.")
 	assert.Equal(t, "digitalstrom", c.Mqtt.TopicPrefix, "MQTT prefix is wrong.")
+	assert.True(t, c.MeteringsEnabled, "Meterings should be enabled by default.")
+	assert.Equal(t, 10, c.MeteringsInterval, "Meterings interval is wrong.")
+}
+
+func TestReadConfigWithMeteringsEnv(t *testing.T) {
+	os.Setenv("DIGITALSTROM_HOST", "test_ip")
+	os.Setenv("DIGITALSTROM_API_KEY", "foo")
+	os.Setenv("METERINGS_ENABLED", "false")
+	os.Setenv("METERINGS_INTERVAL_SECONDS", "300")
+	defer os.Clearenv()
+
+	c, err := ReadConfig()
+	if err != nil {
+		t.Fail()
+		t.Logf("Error found: %s", err.Error())
+	}
+
+	assert.False(t, c.MeteringsEnabled, "Meterings enabled setting is wrong.")
+	assert.Equal(t, 300, c.MeteringsInterval, "Meterings interval setting is wrong.")
 }
 
 func TestReadConfigWithDeprecatedFields(t *testing.T) {
