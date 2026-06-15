@@ -50,7 +50,18 @@ func TestReadConfigWithInvalidMeteringsInterval(t *testing.T) {
 	defer os.Clearenv()
 
 	_, err := ReadConfig()
-	assert.EqualError(t, err, "meterings_interval_seconds must be at least 1 when meterings_enabled is enabled")
+	assert.EqualError(t, err, "meterings_interval_seconds must be at least 1")
+}
+
+func TestReadConfigWithInvalidMeteringsIntervalWhenDisabled(t *testing.T) {
+	os.Setenv("DIGITALSTROM_HOST", "test_ip")
+	os.Setenv("DIGITALSTROM_API_KEY", "foo")
+	os.Setenv("METERINGS_ENABLED", "false")
+	os.Setenv("METERINGS_INTERVAL_SECONDS", "0")
+	defer os.Clearenv()
+
+	_, err := ReadConfig()
+	assert.EqualError(t, err, "meterings_interval_seconds must be at least 1")
 }
 
 func TestReadConfigWithDeprecatedFields(t *testing.T) {
