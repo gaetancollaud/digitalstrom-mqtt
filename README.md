@@ -204,3 +204,10 @@ Feel free to create an issue or to directly edit this file if you have tested th
 ## Development
 
 See [CONTRIBUTION.md](./CONTRIBUTION.md)
+
+
+## Contributors
+
+<a href="https://github.com/gaetancollaud/digitalstrom-mqtt/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=gaetancollaud/digitalstrom-mqtt" />
+</a>
