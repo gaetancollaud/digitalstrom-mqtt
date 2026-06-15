@@ -155,6 +155,10 @@ func ReadConfig() (*Config, error) {
 		MeteringsInterval:    viper.GetInt(envKeyMeteringsInterval),
 	}
 
+	if config.MeteringsEnabled && config.MeteringsInterval < 1 {
+		return nil, fmt.Errorf("%s must be at least 1 when %s is enabled", envKeyMeteringsInterval, envKeyMeteringsEnabled)
+	}
+
 	return config, nil
 }
 

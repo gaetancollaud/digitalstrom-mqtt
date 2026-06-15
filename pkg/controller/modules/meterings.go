@@ -37,9 +37,9 @@ func (c *MeteringsModule) Start() error {
 		log.Info().Msg("Meterings module disabled.")
 		return nil
 	}
-	if c.intervalSeconds < 1 {
-		c.intervalSeconds = 10
-	}
+	log.Debug().
+		Int("intervalSeconds", c.intervalSeconds).
+		Msg("Meterings module enabled.")
 	c.ticker = time.NewTicker(time.Duration(c.intervalSeconds) * time.Second)
 	c.tickerDone = make(chan struct{})
 
