@@ -58,9 +58,18 @@ variables.
 |          | REFRESH_AT_START                       | should the states be refreshed at start                                          | true            |                             |
 |          | LOG_LEVEL                              | log level                                                                        | INFO            | TRACE,DEBUG,INFO,WARN,ERROR |
 |          | INVERT_BLINDS_POSITION                 | 100% is fully close                                                              | false           |                             |
+|          | METERINGS_ENABLED                      | Whether to poll digitalSTROM metering values                                     | true            | false                       |
+|          | METERINGS_INTERVAL_SECONDS             | Polling interval for digitalSTROM metering values                                | 10              | 300                         |
 |          | HOME_ASSISTANT_DISCOVERY_ENABLED       | Whether or not publish MQTT Discovery messages for Home Assistant                | true            |                             |
 |          | HOME_ASSISTANT_DISCOVERY_PREFIX        | Topic prefix where to publish the MQTT Discovery messaged for Home Assistant     | `homeassistant` |                             |
 |          | HOME_ASSISTANT_REMOVE_REGEXP_FROM_NAME | Regular expression to remove from device names when announcing to Home Assistant |                 | `"(light\|cover)"`          
+
+### Metering traffic
+
+The meterings module polls `api/v1/apartment/meterings/values` periodically. Large digitalSTROM installations can return
+large payloads for this endpoint, so the default 10 second interval may create noticeable baseline network traffic. Set
+`METERINGS_ENABLED=false` if you do not need MQTT/HA energy and power sensors, or increase
+`METERINGS_INTERVAL_SECONDS` if slower updates are acceptable.
 
 ## Obtaining the API key
 

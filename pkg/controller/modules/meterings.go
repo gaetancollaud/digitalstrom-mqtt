@@ -26,12 +26,21 @@ type MeteringsModule struct {
 	dsClient   digitalstrom.Client
 	dsRegistry digitalstrom.Registry
 
-	ticker     *time.Ticker
-	tickerDone chan struct{}
+	enabled         bool
+	intervalSeconds int
+	ticker          *time.Ticker
+	tickerDone      chan struct{}
 }
 
 func (c *MeteringsModule) Start() error {
-	c.ticker = time.NewTicker(10 * time.Second)
+	if !c.enabled {
+		log.Info().Msg("Meterings module disabled.")
+		return nil
+	}
+	log.Debug().
+		Int("intervalSeconds", c.intervalSeconds).
+		Msg("Meterings module enabled.")
+	c.ticker = time.NewTicker(time.Duration(c.intervalSeconds) * time.Second)
 	c.tickerDone = make(chan struct{})
 
 	go func() {
@@ -48,6 +57,9 @@ func (c *MeteringsModule) Start() error {
 }
 
 func (c *MeteringsModule) Stop() error {
+	if !c.enabled || c.ticker == nil {
+		return nil
+	}
 	c.ticker.Stop()
 	c.tickerDone <- struct{}{}
 	c.ticker = nil
@@ -122,6 +134,9 @@ func meteringTopic(itemName string, measurement string) string {
 
 func (c *MeteringsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
 	configs := []homeassistant.DiscoveryConfig{}
+	if !c.enabled {
+		return configs, nil
+	}
 
 	controllers, err := c.dsRegistry.GetControllers()
 	if err != nil {
@@ -190,9 +205,11 @@ func (c *MeteringsModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryC
 
 func NewMeteringsModule(mqttClient mqtt.Client, dsClient digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
 	return &MeteringsModule{
-		mqttClient: mqttClient,
-		dsClient:   dsClient,
-		dsRegistry: dsRegistry,
+		mqttClient:      mqttClient,
+		dsClient:        dsClient,
+		dsRegistry:      dsRegistry,
+		enabled:         config.MeteringsEnabled,
+		intervalSeconds: config.MeteringsInterval,
 	}
 }
 

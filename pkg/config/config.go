@@ -40,6 +40,8 @@ type Config struct {
 	RefreshAtStart       bool
 	LogLevel             string
 	InvertBlindsPosition bool
+	MeteringsEnabled     bool
+	MeteringsInterval    int
 }
 
 const (
@@ -59,6 +61,8 @@ const (
 	envKeyMqttNormalizeTopicName            string = "mqtt_normalize_device_name"
 	envKeyMqttRetain                        string = "mqtt_retain"
 	envKeyInvertBlindsPosition              string = "invert_blinds_position"
+	envKeyMeteringsEnabled                  string = "meterings_enabled"
+	envKeyMeteringsInterval                 string = "meterings_interval_seconds"
 	envKeyRefreshAtStart                    string = "refresh_at_start"
 	envKeyLogLevel                          string = "log_level"
 	envKeyHomeAssistantDiscoveryEnabled     string = "home_assistant_discovery_enabled"
@@ -83,6 +87,8 @@ var defaultConfig = map[string]interface{}{
 	envKeyRefreshAtStart:                    true,
 	envKeyLogLevel:                          "INFO",
 	envKeyInvertBlindsPosition:              false,
+	envKeyMeteringsEnabled:                  true,
+	envKeyMeteringsInterval:                 10,
 	envKeyHomeAssistantDiscoveryEnabled:     true,
 	envKeyHomeAssistantDiscoveryPrefix:      "homeassistant",
 	envKeyHomeAssistantRemoveRegexpFromName: "",
@@ -145,6 +151,12 @@ func ReadConfig() (*Config, error) {
 		RefreshAtStart:       viper.GetBool(envKeyRefreshAtStart),
 		LogLevel:             viper.GetString(envKeyLogLevel),
 		InvertBlindsPosition: viper.GetBool(envKeyInvertBlindsPosition),
+		MeteringsEnabled:     viper.GetBool(envKeyMeteringsEnabled),
+		MeteringsInterval:    viper.GetInt(envKeyMeteringsInterval),
+	}
+
+	if config.MeteringsInterval < 1 {
+		return nil, fmt.Errorf("%s must be at least 1", envKeyMeteringsInterval)
 	}
 
 	return config, nil
