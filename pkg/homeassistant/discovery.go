@@ -14,6 +14,7 @@ type Domain string
 
 const (
 	Sensor           Domain = "sensor"
+	BinarySensor     Domain = "binary_sensor"
 	Light            Domain = "light"
 	DeviceAutomation Domain = "device_automation"
 	Cover            Domain = "cover"
