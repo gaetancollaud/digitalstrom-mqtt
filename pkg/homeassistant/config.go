@@ -126,6 +126,18 @@ type SensorConfig struct {
 	ValueTemplate     string `json:"value_template,omitempty"`
 }
 
+// Binary sensor configuration:
+// https://www.home-assistant.io/integrations/binary_sensor.mqtt/
+type BinarySensorConfig struct {
+	BaseConfig
+	StateTopic    string `json:"state_topic,omitempty"`
+	DeviceClass   string `json:"device_class,omitempty"`
+	PayloadOn     string `json:"payload_on,omitempty"`
+	PayloadOff    string `json:"payload_off,omitempty"`
+	Icon          string `json:"icon,omitempty"`
+	ValueTemplate string `json:"value_template,omitempty"`
+}
+
 // Scene configuration:
 // https://www.home-assistant.io/integrations/scene.mqtt/
 type SceneConfig struct {
