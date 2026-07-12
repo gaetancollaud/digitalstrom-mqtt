@@ -177,6 +177,16 @@ digitalstrom/meterings/chambres/consumptionW/state
 digitalstrom/meterings/chambres/energyWs/state
 ```
 
+### dS-Weather
+
+```
+digitalstrom/weather_station_sensors/DEVICE_NAME/temperature/state
+digitalstrom/weather_station_sensors/DEVICE_NAME/illuminance/state
+digitalstrom/weather_station_sensors/DEVICE_NAME/wind_speed_10min_average/state
+digitalstrom/weather_station_sensors/DEVICE_NAME/wind_gust/state
+digitalstrom/weather_station_sensors/DEVICE_NAME/rain/state
+```
+
 ## Tested devices
 
 digitalSTROM-MQTT was tested successfully with these devices:
@@ -193,6 +203,7 @@ digitalSTROM-MQTT was tested successfully with these devices:
 * GR-KL210
 * GR-KL220
 * GN-KM200 (see [#21](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/21))
+* dS Ready Theben weather station (dS-Weather)
 
 Some devices are known to have issues or limitations:
 

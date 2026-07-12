@@ -7,6 +7,7 @@ import (
 )
 
 type DeviceChangeCallback func(deviceId string, outputId string, oldValue float64, newValue float64)
+type ApartmentStatusChangeCallback func(oldStatus *ApartmentStatus, newStatus *ApartmentStatus)
 
 // Registry The registry hold the current structure of the appartement and the latest known state
 type Registry interface {
@@ -26,9 +27,12 @@ type Registry interface {
 	GetControllers() ([]Controller, error)
 	GetControllerById(controllerId string) (Controller, error)
 	GetMeterings() ([]Metering, error)
+	GetApartmentStatus() (*ApartmentStatus, error)
 
 	DeviceChangeSubscribe(deviceId string, callback DeviceChangeCallback) error
 	DeviceChangeUnsubscribe(deviceId string) error
+	ApartmentStatusChangeSubscribe(id string, callback ApartmentStatusChangeCallback) error
+	ApartmentStatusChangeUnsubscribe(id string) error
 }
 
 type registry struct {
@@ -43,15 +47,18 @@ type registry struct {
 	submoduleLookup      map[string]Submodule
 	functionBlocksLookup map[string]FunctionBlock
 
-	deviceChangeCallbacks map[string]DeviceChangeCallback
+	deviceChangeCallbacks          map[string]DeviceChangeCallback
+	apartmentStatusChangeCallbacks map[string]ApartmentStatusChangeCallback
 
-	registryLoading sync.Mutex
+	registryLoading   sync.Mutex
+	apartmentStatusMu sync.RWMutex
 }
 
 func NewRegistry(digitalstromClient Client) Registry {
 	return &registry{
-		digitalstromClient:    digitalstromClient,
-		deviceChangeCallbacks: make(map[string]DeviceChangeCallback),
+		digitalstromClient:             digitalstromClient,
+		deviceChangeCallbacks:          make(map[string]DeviceChangeCallback),
+		apartmentStatusChangeCallbacks: make(map[string]ApartmentStatusChangeCallback),
 	}
 }
 
@@ -115,8 +122,15 @@ func (r *registry) GetOutputsOfDevice(deviceId string) ([]Output, error) {
 }
 
 func (r *registry) GetOutputValuesOfDevice(deviceId string) ([]OutputValue, error) {
+	r.apartmentStatusMu.RLock()
+	apartmentStatus := r.apartmentStatus
+	r.apartmentStatusMu.RUnlock()
+	if apartmentStatus == nil {
+		return nil, errors.New("Apartment status is not loaded")
+	}
+
 	outputs := []OutputValue{}
-	for _, device := range r.apartmentStatus.Included.Devices {
+	for _, device := range apartmentStatus.Included.Devices {
 		if device.DeviceId == deviceId {
 			for _, functionBlockValue := range device.Attributes.FunctionBlocks {
 				for _, outputValue := range functionBlockValue.Outputs {
@@ -169,6 +183,15 @@ func (r *registry) GetControllerById(controllerId string) (Controller, error) {
 
 func (r *registry) GetMeterings() ([]Metering, error) {
 	return r.meterings.Meterings, nil
+}
+
+func (r *registry) GetApartmentStatus() (*ApartmentStatus, error) {
+	r.apartmentStatusMu.RLock()
+	defer r.apartmentStatusMu.RUnlock()
+	if r.apartmentStatus == nil {
+		return nil, errors.New("Apartment status is not loaded")
+	}
+	return r.apartmentStatus, nil
 }
 
 func (r *registry) updateApartment() error {
@@ -236,13 +259,44 @@ func (r *registry) DeviceChangeUnsubscribe(deviceId string) error {
 	return nil
 }
 
+func (r *registry) ApartmentStatusChangeSubscribe(id string, callback ApartmentStatusChangeCallback) error {
+	r.apartmentStatusMu.Lock()
+	defer r.apartmentStatusMu.Unlock()
+	if _, exists := r.apartmentStatusChangeCallbacks[id]; exists {
+		return errors.New("Apartment status callback with id " + id + " already exists")
+	}
+	r.apartmentStatusChangeCallbacks[id] = callback
+	return nil
+}
+
+func (r *registry) ApartmentStatusChangeUnsubscribe(id string) error {
+	r.apartmentStatusMu.Lock()
+	defer r.apartmentStatusMu.Unlock()
+	if _, exists := r.apartmentStatusChangeCallbacks[id]; !exists {
+		return errors.New("No apartment status callback with id " + id + " exists")
+	}
+	delete(r.apartmentStatusChangeCallbacks, id)
+	return nil
+}
+
 func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
-	oldStatus := r.apartmentStatus
 	newStatus, err := r.digitalstromClient.GetApartmentStatus()
 	if err != nil {
 		return err
 	}
+
+	r.apartmentStatusMu.Lock()
+	oldStatus := r.apartmentStatus
 	r.apartmentStatus = newStatus
+	callbacks := make([]ApartmentStatusChangeCallback, 0, len(r.apartmentStatusChangeCallbacks))
+	for _, callback := range r.apartmentStatusChangeCallbacks {
+		callbacks = append(callbacks, callback)
+	}
+	r.apartmentStatusMu.Unlock()
+
+	for _, callback := range callbacks {
+		callback(oldStatus, newStatus)
+	}
 
 	if oldStatus != nil {
 		// Check diff and broadcast events
