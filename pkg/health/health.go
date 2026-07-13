@@ -24,10 +24,7 @@ type health struct {
 	mqttClient mqtt.Client
 	health     *healthgo.Health
 
-	server        *http.Server
-	serverCtx     context.Context
-	serverStopCtx context.CancelFunc
-	shutdownCtx   context.Context
+	server *http.Server
 }
 
 func NewHealth(config config.HealthCheckConfig, mqttClient mqtt.Client) Health {
@@ -65,8 +62,6 @@ func NewHealth(config config.HealthCheckConfig, mqttClient mqtt.Client) Health {
 func (h *health) Start() error {
 	listenAddr := fmt.Sprintf("0.0.0.0:%d", h.config.Port)
 	h.server = &http.Server{Addr: listenAddr, Handler: h.service()}
-	h.serverCtx, h.serverStopCtx = context.WithCancel(context.Background())
-	h.shutdownCtx, _ = context.WithTimeout(h.serverCtx, 30*time.Second)
 	go func() {
 		log.Info().Msgf("Starting health check server on %s", listenAddr)
 		err := h.server.ListenAndServe()
@@ -78,13 +73,18 @@ func (h *health) Start() error {
 }
 
 func (h *health) Stop() error {
-	err := h.server.Shutdown(h.shutdownCtx)
+	err := shutdownHTTPServer(h.server, 30*time.Second)
 	if err != nil {
 		return err
 	}
-	h.serverStopCtx()
 	log.Info().Msg("Health check server stopped")
 	return nil
+}
+
+func shutdownHTTPServer(server *http.Server, timeout time.Duration) error {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return server.Shutdown(shutdownCtx)
 }
 
 func (h *health) service() http.Handler {
