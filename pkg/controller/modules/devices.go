@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	devices string = "devices"
-	stop    string = "stop"
+	devices            string = "devices"
+	stop               string = "stop"
+	deviceStopActionID        = "std.stop"
 )
 
 // Device Module encapsulates all the logic regarding the devices. The logic
@@ -113,7 +114,28 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		return err
 	}
 
-	value, err := strconv.ParseFloat(strings.TrimSpace(message), 64)
+	trimmedMessage := strings.TrimSpace(message)
+	if strings.EqualFold(trimmedMessage, "STOP") {
+		functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(deviceId)
+		if err != nil {
+			return fmt.Errorf("no function block found for device %s: %w", deviceId, err)
+		}
+		if functionBlock.DeviceType() != digitalstrom.DeviceTypeBlind {
+			return fmt.Errorf("STOP payload is only valid for blind devices")
+		}
+		scenarioInvoker, ok := c.dsClient.(digitalstrom.ScenarioInvoker)
+		if !ok {
+			return fmt.Errorf("digitalstrom client does not support scenario invocation")
+		}
+		log.Info().
+			Str("device", device.Attributes.Name).
+			Str("deviceId", device.DeviceId).
+			Str("zone", device.Attributes.Zone).
+			Msg("Stopping blind device.")
+		return scenarioInvoker.InvokeScenarioByID(fmt.Sprintf("device-%s-%s", deviceId, deviceStopActionID))
+	}
+
+	value, err := strconv.ParseFloat(trimmedMessage, 64)
 	if err != nil {
 		return fmt.Errorf("error parsing message as float value: %w", err)
 	}
