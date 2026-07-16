@@ -93,23 +93,27 @@ func (r *deviceRegistryStub) GetOutputsOfDevice(deviceID string) ([]digitalstrom
 	return functionBlock.Attributes.Outputs, nil
 }
 
-func TestDeviceModuleInvokesPerDeviceStopScenarioForBlind(t *testing.T) {
-	dsClient := &deviceDigitalstromClientStub{}
-	module := testDeviceModule(dsClient, "blind-1", "Office Blind", testBlindFunctionBlock())
+func TestDeviceModuleInvokesAdvertisedStopScenarioCaseInsensitively(t *testing.T) {
+	for _, payload := range []string{" STOP ", "stop"} {
+		t.Run(payload, func(t *testing.T) {
+			dsClient := &deviceDigitalstromClientStub{}
+			module := testDeviceModule(dsClient, "blind-1", "Office Blind", testBlindFunctionBlock())
 
-	err := module.onMqttMessage("blind-1", "shadePositionOutside", " STOP ")
+			err := module.onMqttMessage("blind-1", "shadePositionOutside", payload)
 
-	if err != nil {
-		t.Fatalf("expected blind STOP payload to invoke device action, got error: %v", err)
-	}
-	if len(dsClient.setOutputCalls) != 0 {
-		t.Fatalf("expected no output writes for STOP payload, got %d", len(dsClient.setOutputCalls))
-	}
-	if len(dsClient.scenarioIDs) != 1 {
-		t.Fatalf("expected one device scenario, got %d", len(dsClient.scenarioIDs))
-	}
-	if dsClient.scenarioIDs[0] != "device-blind-1-std.stop" {
-		t.Fatalf("unexpected device scenario ID: %q", dsClient.scenarioIDs[0])
+			if err != nil {
+				t.Fatalf("expected blind stop payload to invoke device action, got error: %v", err)
+			}
+			if len(dsClient.setOutputCalls) != 0 {
+				t.Fatalf("expected no output writes for stop payload, got %d", len(dsClient.setOutputCalls))
+			}
+			if len(dsClient.scenarioIDs) != 1 {
+				t.Fatalf("expected one device scenario, got %d", len(dsClient.scenarioIDs))
+			}
+			if dsClient.scenarioIDs[0] != "advertised-blind-stop-std.stop" {
+				t.Fatalf("unexpected device scenario ID: %q", dsClient.scenarioIDs[0])
+			}
+		})
 	}
 }
 
@@ -136,6 +140,24 @@ func TestDeviceModuleReturnsErrorWhenClientCannotInvokeScenarios(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "does not support scenario invocation") {
 		t.Fatalf("expected unsupported scenario error, got %v", err)
+	}
+}
+
+func TestDeviceModuleRejectsStopWhenDeviceDoesNotAdvertiseScenario(t *testing.T) {
+	dsClient := &deviceDigitalstromClientStub{}
+	module := testDeviceModule(dsClient, "blind-1", "Office Blind", testBlindFunctionBlock())
+	registry := module.dsRegistry.(*deviceRegistryStub)
+	device := registry.devices["blind-1"]
+	device.Attributes.Scenarios = nil
+	registry.devices["blind-1"] = device
+
+	err := module.onMqttMessage("blind-1", "shadePositionOutside", "STOP")
+
+	if err == nil || !strings.Contains(err.Error(), "does not advertise") {
+		t.Fatalf("expected missing stop scenario error, got %v", err)
+	}
+	if len(dsClient.scenarioIDs) != 0 {
+		t.Fatalf("expected no scenario invocation, got %d", len(dsClient.scenarioIDs))
 	}
 }
 
@@ -193,8 +215,8 @@ func TestDeviceModuleCoverDiscoveryAdvertisesStopCommand(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected cover config, got %T", configs[0].Config)
 	}
-	if coverConfig.PayloadStop != "STOP" {
-		t.Fatalf("expected payload_stop STOP, got %q", coverConfig.PayloadStop)
+	if coverConfig.PayloadStop != mqttStopCommand {
+		t.Fatalf("expected payload_stop %s, got %q", mqttStopCommand, coverConfig.PayloadStop)
 	}
 	expectedTopic := "digitalstrom/devices/Office Blind/shadePositionOutside/command"
 	if coverConfig.CommandTopic != expectedTopic {
@@ -208,11 +230,71 @@ func TestDeviceModuleCoverDiscoveryAdvertisesStopCommand(t *testing.T) {
 	if err := json.Unmarshal(payload, &discoveryPayload); err != nil {
 		t.Fatalf("decode cover discovery config: %v", err)
 	}
-	if discoveryPayload["payload_stop"] != "STOP" {
-		t.Fatalf("expected serialized payload_stop STOP, got %#v", discoveryPayload["payload_stop"])
+	if discoveryPayload["payload_stop"] != mqttStopCommand {
+		t.Fatalf("expected serialized payload_stop %s, got %#v", mqttStopCommand, discoveryPayload["payload_stop"])
 	}
 	if discoveryPayload["command_topic"] != expectedTopic {
 		t.Fatalf("expected serialized command_topic %q, got %#v", expectedTopic, discoveryPayload["command_topic"])
+	}
+}
+
+func TestDeviceModuleCoverDiscoveryOmitsStopWithoutAdvertisedScenario(t *testing.T) {
+	module := testDeviceModule(&deviceDigitalstromClientStub{}, "blind-1", "Office Blind", testBlindFunctionBlock())
+	registry := module.dsRegistry.(*deviceRegistryStub)
+	device := registry.devices["blind-1"]
+	device.Attributes.Scenarios = nil
+	registry.devices["blind-1"] = device
+
+	configs, err := module.GetHomeAssistantEntities()
+
+	if err != nil {
+		t.Fatalf("expected discovery config, got error: %v", err)
+	}
+	coverConfig, ok := configs[0].Config.(*homeassistant.CoverConfig)
+	if !ok {
+		t.Fatalf("expected cover config, got %T", configs[0].Config)
+	}
+	if coverConfig.PayloadStop != "" {
+		t.Fatalf("expected no payload_stop without advertised scenario, got %q", coverConfig.PayloadStop)
+	}
+	payload, err := json.Marshal(coverConfig)
+	if err != nil {
+		t.Fatalf("marshal cover discovery config: %v", err)
+	}
+	var discoveryPayload map[string]interface{}
+	if err := json.Unmarshal(payload, &discoveryPayload); err != nil {
+		t.Fatalf("decode cover discovery config: %v", err)
+	}
+	if _, found := discoveryPayload["payload_stop"]; found {
+		t.Fatalf("expected serialized discovery to omit payload_stop: %#v", discoveryPayload)
+	}
+}
+
+func TestDeviceModuleCoverDiscoveryOmitsStopWhenClientCannotInvokeScenarios(t *testing.T) {
+	module := testDeviceModule(&deviceClientWithoutScenarioStub{}, "blind-1", "Office Blind", testBlindFunctionBlock())
+
+	configs, err := module.GetHomeAssistantEntities()
+
+	if err != nil {
+		t.Fatalf("expected discovery config, got error: %v", err)
+	}
+	coverConfig, ok := configs[0].Config.(*homeassistant.CoverConfig)
+	if !ok {
+		t.Fatalf("expected cover config, got %T", configs[0].Config)
+	}
+	if coverConfig.PayloadStop != "" {
+		t.Fatalf("expected no payload_stop without scenario invocation support, got %q", coverConfig.PayloadStop)
+	}
+	payload, err := json.Marshal(coverConfig)
+	if err != nil {
+		t.Fatalf("marshal cover discovery config: %v", err)
+	}
+	var discoveryPayload map[string]interface{}
+	if err := json.Unmarshal(payload, &discoveryPayload); err != nil {
+		t.Fatalf("decode cover discovery config: %v", err)
+	}
+	if _, found := discoveryPayload["payload_stop"]; found {
+		t.Fatalf("expected serialized discovery to omit payload_stop: %#v", discoveryPayload)
 	}
 }
 
@@ -225,6 +307,10 @@ func (c *deviceClientWithoutScenarioStub) DeviceSetOutputValue(string, string, s
 }
 
 func testDeviceModule(dsClient digitalstrom.Client, deviceID string, name string, functionBlock digitalstrom.FunctionBlock) *DeviceModule {
+	scenarios := []string{}
+	if functionBlock.DeviceType() == digitalstrom.DeviceTypeBlind {
+		scenarios = append(scenarios, "advertised-blind-stop-std.stop")
+	}
 	return &DeviceModule{
 		dsClient:   dsClient,
 		mqttClient: &deviceMQTTClientStub{prefix: "digitalstrom"},
@@ -233,8 +319,9 @@ func testDeviceModule(dsClient digitalstrom.Client, deviceID string, name string
 				deviceID: {
 					DeviceId: deviceID,
 					Attributes: digitalstrom.DeviceAttributes{
-						Name: name,
-						Zone: "9",
+						Name:      name,
+						Zone:      "9",
+						Scenarios: scenarios,
 					},
 				},
 			},
