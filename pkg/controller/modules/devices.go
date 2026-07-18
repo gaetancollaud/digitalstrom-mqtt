@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	devices string = "devices"
-	stop    string = "stop"
+	devices            string = "devices"
+	mqttStopCommand           = "STOP"
+	deviceStopActionID        = "std.stop"
 )
 
 // Device Module encapsulates all the logic regarding the devices. The logic
@@ -113,10 +114,46 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		return err
 	}
 
-	value, err := strconv.ParseFloat(strings.TrimSpace(message), 64)
-	if err != nil {
-		return fmt.Errorf("error parsing message as float value: %w", err)
+	trimmedMessage := strings.TrimSpace(message)
+	if strings.EqualFold(trimmedMessage, mqttStopCommand) {
+		err = c.handleStopCommand(device)
+	} else {
+		var value float64
+		value, err = strconv.ParseFloat(trimmedMessage, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing message as float value: %w", err)
+		}
+		err = c.handleNumericCommand(device, outputId, value)
 	}
+	return err
+}
+
+func (c *DeviceModule) handleStopCommand(device digitalstrom.Device) error {
+	functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(device.DeviceId)
+	if err != nil {
+		return fmt.Errorf("no function block found for device %s: %w", device.DeviceId, err)
+	}
+	if functionBlock.DeviceType() != digitalstrom.DeviceTypeBlind {
+		return fmt.Errorf("%s payload is only valid for blind devices", mqttStopCommand)
+	}
+	stopScenarioID, ok := deviceStopScenarioID(device)
+	if !ok {
+		return fmt.Errorf("device %s does not advertise a %s scenario", device.DeviceId, deviceStopActionID)
+	}
+	scenarioInvoker, ok := c.dsClient.(digitalstrom.ScenarioInvoker)
+	if !ok {
+		return fmt.Errorf("digitalstrom client does not support scenario invocation")
+	}
+	log.Info().
+		Str("device", device.Attributes.Name).
+		Str("deviceId", device.DeviceId).
+		Str("zone", device.Attributes.Zone).
+		Str("scenarioId", stopScenarioID).
+		Msg("Stopping blind device.")
+	return scenarioInvoker.InvokeScenarioByID(stopScenarioID)
+}
+
+func (c *DeviceModule) handleNumericCommand(device digitalstrom.Device, outputId string, value float64) error {
 	value = c.invertValueIfNeeded(outputId, value)
 	log.Info().
 		Str("device", device.Attributes.Name).
@@ -124,12 +161,12 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 		Float64("value", value).
 		Msg("Setting value.")
 
-	functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(deviceId)
+	functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(device.DeviceId)
 	if err != nil {
-		return fmt.Errorf("no function block found for device %s: %w", deviceId, err)
+		return fmt.Errorf("no function block found for device %s: %w", device.DeviceId, err)
 	}
 
-	err = c.dsClient.DeviceSetOutputValue(deviceId, functionBlock.FunctionBlockId, outputId, value)
+	err = c.dsClient.DeviceSetOutputValue(device.DeviceId, functionBlock.FunctionBlockId, outputId, value)
 	if err != nil {
 		return err
 	}
@@ -140,6 +177,21 @@ func (c *DeviceModule) onMqttMessage(deviceId string, outputId string, message s
 	}
 
 	return nil
+}
+
+func deviceStopScenarioID(device digitalstrom.Device) (string, bool) {
+	suffix := "-" + deviceStopActionID
+	for _, scenarioID := range device.Attributes.Scenarios {
+		if strings.HasSuffix(scenarioID, suffix) {
+			return scenarioID, true
+		}
+	}
+	return "", false
+}
+
+func (c *DeviceModule) supportsScenarioInvocation() bool {
+	_, ok := c.dsClient.(digitalstrom.ScenarioInvoker)
+	return ok
 }
 
 func (c *DeviceModule) updateDevice(deviceId string) error {
@@ -291,7 +343,6 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 					c.deviceCommandTopic(device.Attributes.Name, properties.PositionChannel)),
 				PayloadOpen:  "100.00",
 				PayloadClose: "0.00",
-				PayloadStop:  "STOP",
 				StateTopic: c.mqttClient.GetFullTopic(
 					c.deviceStateTopic(device.Attributes.Name, properties.PositionChannel)),
 				StateOpen:        "100.00",
@@ -299,6 +350,21 @@ func (c *DeviceModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConf
 				PositionTopic:    c.mqttClient.GetFullTopic(c.deviceStateTopic(device.Attributes.Name, properties.PositionChannel)),
 				SetPositionTopic: c.mqttClient.GetFullTopic(c.deviceCommandTopic(device.Attributes.Name, properties.PositionChannel)),
 				PositionTemplate: "{{ value | int }}",
+			}
+			if !c.supportsScenarioInvocation() {
+				log.Warn().
+					Str("device", device.Attributes.Name).
+					Str("deviceId", device.DeviceId).
+					Str("zone", device.Attributes.Zone).
+					Msg("Digitalstrom client does not support scenario invocation; omitting Home Assistant stop command.")
+			} else if _, ok := deviceStopScenarioID(device); ok {
+				entityConfig.PayloadStop = mqttStopCommand
+			} else {
+				log.Warn().
+					Str("device", device.Attributes.Name).
+					Str("deviceId", device.DeviceId).
+					Str("zone", device.Attributes.Zone).
+					Msg("Blind device does not advertise a stop scenario; omitting Home Assistant stop command.")
 			}
 			if properties.TiltChannel != "" {
 				entityConfig.TiltStatusTemplate = "{{ value | int }}"
