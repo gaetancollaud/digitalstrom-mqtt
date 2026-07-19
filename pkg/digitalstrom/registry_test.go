@@ -99,6 +99,69 @@ func TestRegistryApartmentStatusCallbackCanUnsubscribe(t *testing.T) {
 	}
 }
 
+func TestRegistryReturnsAllFunctionBlocksForDevice(t *testing.T) {
+	registry := &registry{
+		devicesLookup: map[string]Device{
+			"device-1": {
+				DeviceId:   "device-1",
+				Attributes: DeviceAttributes{Submodules: []string{"submodule-1", "submodule-2"}},
+			},
+		},
+		submoduleLookup: map[string]Submodule{
+			"submodule-1": {Attributes: SubmoduleAttributes{FunctionBlocks: []string{"function-block-1"}}},
+			"submodule-2": {Attributes: SubmoduleAttributes{FunctionBlocks: []string{"function-block-2"}}},
+		},
+		functionBlocksLookup: map[string]FunctionBlock{
+			"function-block-1": {FunctionBlockId: "function-block-1"},
+			"function-block-2": {FunctionBlockId: "function-block-2"},
+		},
+	}
+
+	functionBlocks, err := registry.GetFunctionBlocksForDevice("device-1")
+	if err != nil {
+		t.Fatalf("expected function blocks: %v", err)
+	}
+	if len(functionBlocks) != 2 {
+		t.Fatalf("expected two function blocks, got %#v", functionBlocks)
+	}
+	if functionBlocks[0].FunctionBlockId != "function-block-1" || functionBlocks[1].FunctionBlockId != "function-block-2" {
+		t.Fatalf("unexpected function blocks: %#v", functionBlocks)
+	}
+}
+
+func TestRegistrySingleFunctionBlockErrorsDescribeCardinality(t *testing.T) {
+	tests := []struct {
+		name           string
+		functionBlocks []string
+		expected       string
+	}{
+		{name: "none", expected: "No function block found for device device-1"},
+		{name: "multiple", functionBlocks: []string{"function-block-1", "function-block-2"}, expected: "Multiple function blocks found for device device-1"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			registry := &registry{
+				devicesLookup: map[string]Device{
+					"device-1": {DeviceId: "device-1", Attributes: DeviceAttributes{Submodules: []string{"submodule-1"}}},
+				},
+				submoduleLookup: map[string]Submodule{
+					"submodule-1": {Attributes: SubmoduleAttributes{FunctionBlocks: test.functionBlocks}},
+				},
+				functionBlocksLookup: map[string]FunctionBlock{
+					"function-block-1": {FunctionBlockId: "function-block-1"},
+					"function-block-2": {FunctionBlockId: "function-block-2"},
+				},
+			}
+
+			_, err := registry.GetFunctionBlockForDevice("device-1")
+			if err == nil || err.Error() != test.expected {
+				t.Fatalf("expected %q, got %v", test.expected, err)
+			}
+		})
+	}
+}
+
 func TestRegistryApartmentStatusCallbacksAreConcurrentSafe(t *testing.T) {
 	status := &ApartmentStatus{}
 	registry := &registry{

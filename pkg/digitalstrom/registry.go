@@ -146,9 +146,25 @@ func (r *registry) GetOutputValuesOfDevice(deviceId string) ([]OutputValue, erro
 }
 
 func (r *registry) GetFunctionBlockForDevice(deviceId string) (FunctionBlock, error) {
-	device, err := r.GetDevice(deviceId)
+	functionBlocks, err := r.GetFunctionBlocksForDevice(deviceId)
 	if err != nil {
 		return FunctionBlock{}, err
+	}
+
+	length := len(functionBlocks)
+	if length == 0 {
+		return FunctionBlock{}, errors.New("No function block found for device " + deviceId)
+	}
+	if length > 1 {
+		return FunctionBlock{}, errors.New("Multiple function blocks found for device " + deviceId)
+	}
+	return functionBlocks[0], nil
+}
+
+func (r *registry) GetFunctionBlocksForDevice(deviceId string) ([]FunctionBlock, error) {
+	device, err := r.GetDevice(deviceId)
+	if err != nil {
+		return nil, err
 	}
 
 	var functionBlocks []FunctionBlock
@@ -161,14 +177,7 @@ func (r *registry) GetFunctionBlockForDevice(deviceId string) (FunctionBlock, er
 		}
 	}
 
-	length := len(functionBlocks)
-	if length == 0 {
-		return FunctionBlock{}, errors.New("Multiple function blocks found for device " + deviceId)
-	}
-	if length > 1 {
-		return FunctionBlock{}, errors.New("No function block found for device " + deviceId)
-	}
-	return functionBlocks[0], nil
+	return functionBlocks, nil
 }
 
 func (r *registry) GetControllers() ([]Controller, error) {

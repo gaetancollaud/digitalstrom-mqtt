@@ -5,6 +5,7 @@ import (
 	"path"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
@@ -33,6 +34,12 @@ type WeatherModule struct {
 	normalizeDeviceName bool
 	weatherSourceID     string
 	subscribed          bool
+	publishMu           sync.Mutex
+	lastPublished       *apartmentWeatherValues
+}
+
+type functionBlocksForDeviceRegistry interface {
+	GetFunctionBlocksForDevice(deviceId string) ([]digitalstrom.FunctionBlock, error)
 }
 
 func (c *WeatherModule) Start() error {
@@ -54,14 +61,11 @@ func (c *WeatherModule) Start() error {
 		Int("weather_stations", stationCount).
 		Str("weather_source", c.weatherSourceID).
 		Msg("Weather module enabled with apartment-wide weather data.")
-	if err := c.publishWeatherStatus(status); err != nil {
+	if err := c.publishWeatherStatusIfChanged(status); err != nil {
 		return err
 	}
-	if err := c.dsRegistry.ApartmentStatusChangeSubscribe(weatherModuleID, func(oldStatus *digitalstrom.ApartmentStatus, newStatus *digitalstrom.ApartmentStatus) {
-		if weatherStatusEqual(oldStatus, newStatus) {
-			return
-		}
-		if err := c.publishWeatherStatus(newStatus); err != nil {
+	if err := c.dsRegistry.ApartmentStatusChangeSubscribe(weatherModuleID, func(_ *digitalstrom.ApartmentStatus, newStatus *digitalstrom.ApartmentStatus) {
+		if err := c.publishWeatherStatusIfChanged(newStatus); err != nil {
 			log.Error().Err(err).Msg("Error publishing dS-Weather status")
 		}
 	}); err != nil {
@@ -75,8 +79,11 @@ func (c *WeatherModule) Stop() error {
 	if !c.subscribed {
 		return nil
 	}
+	if err := c.dsRegistry.ApartmentStatusChangeUnsubscribe(weatherModuleID); err != nil {
+		return err
+	}
 	c.subscribed = false
-	return c.dsRegistry.ApartmentStatusChangeUnsubscribe(weatherModuleID)
+	return nil
 }
 
 func (c *WeatherModule) countWeatherStations() (int, error) {
@@ -86,15 +93,45 @@ func (c *WeatherModule) countWeatherStations() (int, error) {
 	}
 	stationCount := 0
 	for _, device := range devices {
-		functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(device.DeviceId)
+		functionBlocks, err := c.getFunctionBlocksForDevice(device.DeviceId)
 		if err != nil {
+			log.Debug().Err(err).Str("device_id", device.DeviceId).Msg("Unable to inspect device for dS-Weather support")
 			continue
 		}
-		if strings.EqualFold(functionBlock.Attributes.TechnicalName, "Weather") {
-			stationCount++
+		for _, functionBlock := range functionBlocks {
+			if strings.EqualFold(functionBlock.Attributes.TechnicalName, "Weather") {
+				stationCount++
+				break
+			}
 		}
 	}
 	return stationCount, nil
+}
+
+func (c *WeatherModule) getFunctionBlocksForDevice(deviceID string) ([]digitalstrom.FunctionBlock, error) {
+	if registry, ok := c.dsRegistry.(functionBlocksForDeviceRegistry); ok {
+		return registry.GetFunctionBlocksForDevice(deviceID)
+	}
+	functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(deviceID)
+	if err != nil {
+		return nil, err
+	}
+	return []digitalstrom.FunctionBlock{functionBlock}, nil
+}
+
+func (c *WeatherModule) publishWeatherStatusIfChanged(status *digitalstrom.ApartmentStatus) error {
+	c.publishMu.Lock()
+	defer c.publishMu.Unlock()
+
+	values := weatherValues(status)
+	if reflect.DeepEqual(c.lastPublished, values) {
+		return nil
+	}
+	if err := c.publishWeatherStatus(status); err != nil {
+		return err
+	}
+	c.lastPublished = values
+	return nil
 }
 
 func (c *WeatherModule) publishWeatherStatus(status *digitalstrom.ApartmentStatus) error {
@@ -130,10 +167,6 @@ func (c *WeatherModule) publishWeatherStatus(status *digitalstrom.ApartmentStatu
 		}
 	}
 	return nil
-}
-
-func weatherStatusEqual(oldStatus *digitalstrom.ApartmentStatus, newStatus *digitalstrom.ApartmentStatus) bool {
-	return reflect.DeepEqual(weatherValues(oldStatus), weatherValues(newStatus))
 }
 
 type apartmentWeatherValues struct {
