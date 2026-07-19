@@ -2,8 +2,10 @@ package digitalstrom
 
 import (
 	"errors"
-	"github.com/rs/zerolog/log"
+	"maps"
 	"sync"
+
+	"github.com/rs/zerolog/log"
 )
 
 type DeviceChangeCallback func(deviceId string, outputId string, oldValue float64, newValue float64)
@@ -288,10 +290,8 @@ func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
 	r.apartmentStatusMu.Lock()
 	oldStatus := r.apartmentStatus
 	r.apartmentStatus = newStatus
-	callbacks := make([]ApartmentStatusChangeCallback, 0, len(r.apartmentStatusChangeCallbacks))
-	for _, callback := range r.apartmentStatusChangeCallbacks {
-		callbacks = append(callbacks, callback)
-	}
+	// Invoke callbacks outside the lock so they may safely subscribe or unsubscribe.
+	callbacks := maps.Clone(r.apartmentStatusChangeCallbacks)
 	r.apartmentStatusMu.Unlock()
 
 	for _, callback := range callbacks {

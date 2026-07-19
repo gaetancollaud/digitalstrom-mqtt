@@ -70,6 +70,35 @@ func TestRegistryPublishesApartmentStatusChanges(t *testing.T) {
 	}
 }
 
+func TestRegistryApartmentStatusCallbackCanUnsubscribe(t *testing.T) {
+	status := &ApartmentStatus{}
+	registry := &registry{
+		digitalstromClient:             &constantApartmentStatusClientStub{status: status},
+		deviceChangeCallbacks:          map[string]DeviceChangeCallback{},
+		apartmentStatusChangeCallbacks: map[string]ApartmentStatusChangeCallback{},
+		apartmentStatus:                status,
+	}
+
+	called := false
+	var unsubscribeErr error
+	if err := registry.ApartmentStatusChangeSubscribe("test", func(*ApartmentStatus, *ApartmentStatus) {
+		called = true
+		unsubscribeErr = registry.ApartmentStatusChangeUnsubscribe("test")
+	}); err != nil {
+		t.Fatalf("expected callback subscription: %v", err)
+	}
+
+	if err := registry.updateApartmentStatusAndFireChangeEvents(); err != nil {
+		t.Fatalf("expected status update: %v", err)
+	}
+	if !called {
+		t.Fatal("expected apartment status callback")
+	}
+	if unsubscribeErr != nil {
+		t.Fatalf("expected callback to unsubscribe itself: %v", unsubscribeErr)
+	}
+}
+
 func TestRegistryApartmentStatusCallbacksAreConcurrentSafe(t *testing.T) {
 	status := &ApartmentStatus{}
 	registry := &registry{

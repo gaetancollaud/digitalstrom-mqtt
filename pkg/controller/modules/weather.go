@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"path"
+	"reflect"
 	"strings"
 
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
@@ -15,6 +16,8 @@ import (
 const (
 	weatherModuleID       = "weather"
 	weatherStationSensors = "weather_station_sensors"
+	weatherSourceName     = "dS-Weather"
+	weatherSourceIDPrefix = "apartment-weather"
 	weatherTemperature    = "temperature"
 	weatherIlluminance    = "illuminance"
 	weatherWindSpeed      = "wind_speed_10min_average"
@@ -28,28 +31,29 @@ type WeatherModule struct {
 	mqttClient          mqtt.Client
 	dsRegistry          digitalstrom.Registry
 	normalizeDeviceName bool
-	weatherStation      *digitalstrom.Device
+	weatherSourceID     string
 	subscribed          bool
 }
 
 func (c *WeatherModule) Start() error {
-	station, err := c.findWeatherStation()
+	stationCount, err := c.countWeatherStations()
 	if err != nil {
 		return err
 	}
-	if station == nil {
+	if stationCount == 0 {
 		log.Debug().Msg("No dS-Weather station found. Weather module disabled.")
 		return nil
 	}
-	c.weatherStation = station
-	log.Debug().
-		Str("device", station.Attributes.Name).
-		Msg("Weather module enabled.")
 
 	status, err := c.dsRegistry.GetApartmentStatus()
 	if err != nil {
 		return fmt.Errorf("error getting apartment weather status: %w", err)
 	}
+	c.weatherSourceID = weatherDeviceID(status)
+	log.Debug().
+		Int("weather_stations", stationCount).
+		Str("weather_source", c.weatherSourceID).
+		Msg("Weather module enabled with apartment-wide weather data.")
 	if err := c.publishWeatherStatus(status); err != nil {
 		return err
 	}
@@ -75,26 +79,26 @@ func (c *WeatherModule) Stop() error {
 	return c.dsRegistry.ApartmentStatusChangeUnsubscribe(weatherModuleID)
 }
 
-func (c *WeatherModule) findWeatherStation() (*digitalstrom.Device, error) {
+func (c *WeatherModule) countWeatherStations() (int, error) {
 	devices, err := c.dsRegistry.GetDevices()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
+	stationCount := 0
 	for _, device := range devices {
 		functionBlock, err := c.dsRegistry.GetFunctionBlockForDevice(device.DeviceId)
 		if err != nil {
 			continue
 		}
 		if strings.EqualFold(functionBlock.Attributes.TechnicalName, "Weather") {
-			station := device
-			return &station, nil
+			stationCount++
 		}
 	}
-	return nil, nil
+	return stationCount, nil
 }
 
 func (c *WeatherModule) publishWeatherStatus(status *digitalstrom.ApartmentStatus) error {
-	if status == nil || c.weatherStation == nil {
+	if status == nil || c.weatherSourceID == "" {
 		return nil
 	}
 	measurements := status.Attributes.Measurements
@@ -129,34 +133,40 @@ func (c *WeatherModule) publishWeatherStatus(status *digitalstrom.ApartmentStatu
 }
 
 func weatherStatusEqual(oldStatus *digitalstrom.ApartmentStatus, newStatus *digitalstrom.ApartmentStatus) bool {
-	if oldStatus == nil || newStatus == nil {
-		return oldStatus == newStatus
-	}
-	oldMeasurements := oldStatus.Attributes.Measurements
-	newMeasurements := newStatus.Attributes.Measurements
-	return equalFloat(oldMeasurements.Temperature, newMeasurements.Temperature) &&
-		equalFloat(oldMeasurements.Brightness, newMeasurements.Brightness) &&
-		equalFloat(oldMeasurements.WindSpeed, newMeasurements.WindSpeed) &&
-		equalFloat(oldMeasurements.WindGust, newMeasurements.WindGust) &&
-		equalBool(oldStatus.Attributes.Weather.Rain, newStatus.Attributes.Weather.Rain)
+	return reflect.DeepEqual(weatherValues(oldStatus), weatherValues(newStatus))
 }
 
-func equalFloat(left *float64, right *float64) bool {
-	if left == nil || right == nil {
-		return left == right
-	}
-	return *left == *right
+type apartmentWeatherValues struct {
+	temperature *float64
+	brightness  *float64
+	windSpeed   *float64
+	windGust    *float64
+	rain        *bool
 }
 
-func equalBool(left *bool, right *bool) bool {
-	if left == nil || right == nil {
-		return left == right
+func weatherValues(status *digitalstrom.ApartmentStatus) *apartmentWeatherValues {
+	if status == nil {
+		return nil
 	}
-	return *left == *right
+	measurements := status.Attributes.Measurements
+	return &apartmentWeatherValues{
+		temperature: measurements.Temperature,
+		brightness:  measurements.Brightness,
+		windSpeed:   measurements.WindSpeed,
+		windGust:    measurements.WindGust,
+		rain:        status.Attributes.Weather.Rain,
+	}
+}
+
+func weatherDeviceID(status *digitalstrom.ApartmentStatus) string {
+	if status == nil || status.ApartmentId == "" {
+		return weatherSourceIDPrefix
+	}
+	return weatherSourceIDPrefix + "-" + status.ApartmentId
 }
 
 func (c *WeatherModule) weatherStateTopic(measurement string) string {
-	deviceName := c.weatherStation.Attributes.Name
+	deviceName := weatherSourceName
 	if c.normalizeDeviceName {
 		deviceName = normalizeForTopicName(deviceName)
 	}
@@ -164,14 +174,14 @@ func (c *WeatherModule) weatherStateTopic(measurement string) string {
 }
 
 func (c *WeatherModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
-	if c.weatherStation == nil {
+	if c.weatherSourceID == "" {
 		return []homeassistant.DiscoveryConfig{}, nil
 	}
 
 	device := homeassistant.Device{
-		Identifiers: []string{c.weatherStation.DeviceId},
+		Identifiers: []string{c.weatherSourceID},
 		Model:       "dS-Weather",
-		Name:        c.weatherStation.Attributes.Name,
+		Name:        weatherSourceName,
 	}
 	configs := []homeassistant.DiscoveryConfig{
 		c.sensorConfig(device, weatherTemperature, "°C", "temperature"),
@@ -180,13 +190,13 @@ func (c *WeatherModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCon
 		c.sensorConfig(device, weatherWindGust, "m/s", "wind_speed"),
 		{
 			Domain:   homeassistant.BinarySensor,
-			DeviceId: c.weatherStation.DeviceId,
+			DeviceId: c.weatherSourceID,
 			ObjectId: weatherRain,
 			Config: &homeassistant.BinarySensorConfig{
 				BaseConfig: homeassistant.BaseConfig{
 					Device:   device,
 					Name:     weatherRain,
-					UniqueId: c.weatherStation.DeviceId + "_" + weatherRain,
+					UniqueId: c.weatherSourceID + "_" + weatherRain,
 				},
 				StateTopic:  c.mqttClient.GetFullTopic(c.weatherStateTopic(weatherRain)),
 				DeviceClass: "moisture",
@@ -202,13 +212,13 @@ func (c *WeatherModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryCon
 func (c *WeatherModule) sensorConfig(device homeassistant.Device, measurement string, unit string, deviceClass string) homeassistant.DiscoveryConfig {
 	return homeassistant.DiscoveryConfig{
 		Domain:   homeassistant.Sensor,
-		DeviceId: c.weatherStation.DeviceId,
+		DeviceId: c.weatherSourceID,
 		ObjectId: measurement,
 		Config: &homeassistant.SensorConfig{
 			BaseConfig: homeassistant.BaseConfig{
 				Device:   device,
 				Name:     measurement,
-				UniqueId: c.weatherStation.DeviceId + "_" + measurement,
+				UniqueId: c.weatherSourceID + "_" + measurement,
 			},
 			StateTopic:        c.mqttClient.GetFullTopic(c.weatherStateTopic(measurement)),
 			UnitOfMeasurement: unit,

@@ -61,6 +61,7 @@ func TestWeatherModulePublishesModernApartmentStatus(t *testing.T) {
 	windGust := 4.75
 	rain := true
 	status := &digitalstrom.ApartmentStatus{
+		ApartmentId: "apartment-1",
 		Attributes: digitalstrom.ApartmentStatusAttributes{
 			Measurements: digitalstrom.ApartmentMeasurements{
 				Temperature: &temperature,
@@ -89,11 +90,11 @@ func TestWeatherModulePublishesModernApartmentStatus(t *testing.T) {
 	if err := module.Start(); err != nil {
 		t.Fatalf("expected weather module to start: %v", err)
 	}
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/temperature/state", "21.50")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/illuminance/state", "12345")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/wind_speed_10min_average/state", "2.25")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/wind_gust/state", "4.75")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/rain/state", "ON")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/temperature/state", "21.50")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/illuminance/state", "12345")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/wind_speed_10min_average/state", "2.25")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/wind_gust/state", "4.75")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/rain/state", "ON")
 	if registry.callback == nil {
 		t.Fatal("expected apartment status subscription")
 	}
@@ -103,8 +104,8 @@ func TestWeatherModulePublishesModernApartmentStatus(t *testing.T) {
 	updatedStatus.Attributes.Measurements.WindSpeed = &updatedWindSpeed
 	updatedStatus.Attributes.Weather.Rain = &updatedRain
 	registry.callback(status, &updatedStatus)
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/wind_speed_10min_average/state", "3.00")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/Roof_Weather/rain/state", "OFF")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/wind_speed_10min_average/state", "3.00")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/rain/state", "OFF")
 
 	configs, err := module.GetHomeAssistantEntities()
 	if err != nil {
@@ -141,14 +142,90 @@ func TestWeatherModuleUsesTechnicalNameInsteadOfDisplayName(t *testing.T) {
 	if err := module.Start(); err != nil {
 		t.Fatalf("expected weather module to recognize technical name: %v", err)
 	}
-	if module.weatherStation == nil || module.weatherStation.DeviceId != "weather-1" {
-		t.Fatalf("expected weather station detection, got %#v", module.weatherStation)
+	if module.weatherSourceID != weatherSourceIDPrefix {
+		t.Fatalf("expected weather source detection, got %q", module.weatherSourceID)
+	}
+}
+
+func TestWeatherModuleRepresentsMultipleStationsAsOneApartmentSource(t *testing.T) {
+	status := &digitalstrom.ApartmentStatus{ApartmentId: "apartment-1"}
+	registry := &weatherRegistryStub{
+		devices: []digitalstrom.Device{
+			{DeviceId: "weather-1", Attributes: digitalstrom.DeviceAttributes{Name: "North Weather"}},
+			{DeviceId: "weather-2", Attributes: digitalstrom.DeviceAttributes{Name: "South Weather"}},
+		},
+		functionBlocks: map[string]digitalstrom.FunctionBlock{
+			"weather-1": {Attributes: digitalstrom.FunctionBlockAttributes{TechnicalName: "Weather"}},
+			"weather-2": {Attributes: digitalstrom.FunctionBlockAttributes{TechnicalName: "weather"}},
+		},
+		status: status,
+	}
+	module := &WeatherModule{
+		mqttClient: &weatherMQTTClientStub{prefix: "digitalstrom", published: map[string]interface{}{}},
+		dsRegistry: registry,
+	}
+
+	if err := module.Start(); err != nil {
+		t.Fatalf("expected weather module to start: %v", err)
+	}
+	if module.weatherSourceID != "apartment-weather-apartment-1" {
+		t.Fatalf("expected apartment-scoped weather source, got %q", module.weatherSourceID)
+	}
+	configs, err := module.GetHomeAssistantEntities()
+	if err != nil {
+		t.Fatalf("expected Home Assistant configs: %v", err)
+	}
+	if len(configs) != 5 {
+		t.Fatalf("expected one apartment weather source with five entities, got %d", len(configs))
+	}
+	for _, config := range configs {
+		if config.DeviceId != "apartment-weather-apartment-1" {
+			t.Fatalf("expected apartment-scoped device id, got %q", config.DeviceId)
+		}
+	}
+}
+
+func TestWeatherStatusEqualComparesOnlyWeatherValues(t *testing.T) {
+	temperature := 21.5
+	sameTemperature := 21.5
+	differentTemperature := 22.0
+	oldStatus := &digitalstrom.ApartmentStatus{
+		Attributes: digitalstrom.ApartmentStatusAttributes{
+			Measurements: digitalstrom.ApartmentMeasurements{Temperature: &temperature},
+		},
+		Included: digitalstrom.ApartmentStatusIncluded{
+			Devices: []digitalstrom.DeviceStatus{{DeviceId: "device-1"}},
+		},
+	}
+	sameWeather := &digitalstrom.ApartmentStatus{
+		Attributes: digitalstrom.ApartmentStatusAttributes{
+			Measurements: digitalstrom.ApartmentMeasurements{Temperature: &sameTemperature},
+		},
+		Included: digitalstrom.ApartmentStatusIncluded{
+			Devices: []digitalstrom.DeviceStatus{{DeviceId: "device-2"}},
+		},
+	}
+	changedWeather := &digitalstrom.ApartmentStatus{
+		Attributes: digitalstrom.ApartmentStatusAttributes{
+			Measurements: digitalstrom.ApartmentMeasurements{Temperature: &differentTemperature},
+		},
+	}
+
+	if !weatherStatusEqual(oldStatus, sameWeather) {
+		t.Fatal("expected equal weather values with different pointers and unrelated device status")
+	}
+	if weatherStatusEqual(oldStatus, changedWeather) {
+		t.Fatal("expected changed weather values to differ")
+	}
+	if !weatherStatusEqual(nil, nil) || weatherStatusEqual(nil, oldStatus) {
+		t.Fatal("expected nil apartment status to compare safely")
 	}
 }
 
 func TestWeatherModuleDiscoversAllEntitiesWithPartialInitialStatus(t *testing.T) {
 	temperature := 19.25
 	status := &digitalstrom.ApartmentStatus{
+		ApartmentId: "apartment-1",
 		Attributes: digitalstrom.ApartmentStatusAttributes{
 			Measurements: digitalstrom.ApartmentMeasurements{Temperature: &temperature},
 		},
@@ -195,7 +272,7 @@ func assertWeatherConfig(t *testing.T, configs []homeassistant.DiscoveryConfig, 
 			if config.Domain != domain {
 				t.Fatalf("expected %s domain %s, got %s", objectID, domain, config.Domain)
 			}
-			if config.DeviceId != "weather-1" {
+			if config.DeviceId != "apartment-weather-apartment-1" {
 				t.Fatalf("expected stable device id, got %s", config.DeviceId)
 			}
 			return
