@@ -2,7 +2,6 @@ package digitalstrom
 
 import (
 	"errors"
-	"maps"
 	"sync"
 
 	"github.com/rs/zerolog/log"
@@ -299,8 +298,11 @@ func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
 	r.apartmentStatusMu.Lock()
 	oldStatus := r.apartmentStatus
 	r.apartmentStatus = newStatus
-	// Invoke callbacks outside the lock so they may safely subscribe or unsubscribe.
-	callbacks := maps.Clone(r.apartmentStatusChangeCallbacks)
+	// Snapshot callbacks so user code runs without holding the registry lock.
+	callbacks := make([]ApartmentStatusChangeCallback, 0, len(r.apartmentStatusChangeCallbacks))
+	for _, callback := range r.apartmentStatusChangeCallbacks {
+		callbacks = append(callbacks, callback)
+	}
 	r.apartmentStatusMu.Unlock()
 
 	for _, callback := range callbacks {

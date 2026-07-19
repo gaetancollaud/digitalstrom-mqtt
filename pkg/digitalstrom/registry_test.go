@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 )
 
 type apartmentStatusClientStub struct {
@@ -79,23 +80,41 @@ func TestRegistryApartmentStatusCallbackCanUnsubscribe(t *testing.T) {
 		apartmentStatus:                status,
 	}
 
-	called := false
+	callbackCalls := 0
 	var unsubscribeErr error
 	if err := registry.ApartmentStatusChangeSubscribe("test", func(*ApartmentStatus, *ApartmentStatus) {
-		called = true
+		callbackCalls++
 		unsubscribeErr = registry.ApartmentStatusChangeUnsubscribe("test")
 	}); err != nil {
 		t.Fatalf("expected callback subscription: %v", err)
 	}
 
-	if err := registry.updateApartmentStatusAndFireChangeEvents(); err != nil {
-		t.Fatalf("expected status update: %v", err)
+	updateDone := make(chan error, 1)
+	go func() {
+		updateDone <- registry.updateApartmentStatusAndFireChangeEvents()
+	}()
+
+	select {
+	case err := <-updateDone:
+		if err != nil {
+			t.Fatalf("expected status update: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("status update deadlocked while callback unsubscribed itself")
 	}
-	if !called {
-		t.Fatal("expected apartment status callback")
-	}
+
 	if unsubscribeErr != nil {
 		t.Fatalf("expected callback to unsubscribe itself: %v", unsubscribeErr)
+	}
+	if callbackCalls != 1 {
+		t.Fatalf("expected callback once, got %d calls", callbackCalls)
+	}
+
+	if err := registry.updateApartmentStatusAndFireChangeEvents(); err != nil {
+		t.Fatalf("expected second status update: %v", err)
+	}
+	if callbackCalls != 1 {
+		t.Fatalf("expected unsubscribed callback to remain at one call, got %d", callbackCalls)
 	}
 }
 
