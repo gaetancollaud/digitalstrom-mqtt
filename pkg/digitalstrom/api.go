@@ -213,8 +213,25 @@ type MeteringValueAttributes struct {
 // Status
 
 type ApartmentStatus struct {
-	ApartmentId string                  `mapstructure:"id"`
-	Included    ApartmentStatusIncluded `mapstructure:"included"`
+	ApartmentId string                    `mapstructure:"id"`
+	Attributes  ApartmentStatusAttributes `mapstructure:"attributes"`
+	Included    ApartmentStatusIncluded   `mapstructure:"included"`
+}
+
+type ApartmentStatusAttributes struct {
+	Weather      ApartmentWeatherStatus `mapstructure:"weather"`
+	Measurements ApartmentMeasurements  `mapstructure:"measurements"`
+}
+
+type ApartmentWeatherStatus struct {
+	Rain *bool `mapstructure:"rain"`
+}
+
+type ApartmentMeasurements struct {
+	Temperature *float64 `mapstructure:"temperature"`
+	Brightness  *float64 `mapstructure:"brightness"`
+	WindSpeed   *float64 `mapstructure:"windSpeed"`
+	WindGust    *float64 `mapstructure:"windGust"`
 }
 
 type ApartmentStatusIncluded struct {
