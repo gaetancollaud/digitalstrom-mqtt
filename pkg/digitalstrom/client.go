@@ -43,6 +43,11 @@ type Client interface {
 	NotificationUnsubscribe(id string) error
 }
 
+// ScenarioInvoker is implemented by clients that can invoke a scenario resource directly.
+type ScenarioInvoker interface {
+	InvokeScenarioByID(scenarioID string) error
+}
+
 // client implements the DigitalStrom interface.
 // Clients are safe for concurrent use by multiple goroutines.
 type client struct {
@@ -181,6 +186,11 @@ func (c *client) DeviceSetOutputValue(deviceId string, functionBlockId string, o
 	return c.patchRequest(path, contents)
 }
 
+func (c *client) InvokeScenarioByID(scenarioID string) error {
+	path := fmt.Sprintf("api/v1/apartment/scenarios/%s/invoke", url.PathEscape(scenarioID))
+	return c.postRequest(path, struct{}{})
+}
+
 func (c *client) NotificationSubscribe(id string, callback NotificationCallback) error {
 	_, exists := c.notificationCallbacks[id]
 	if exists {
@@ -248,6 +258,11 @@ func (c *client) doRequest(method string, path string, params url.Values, body i
 
 func (c *client) patchRequest(path string, body interface{}) error {
 	_, err := c.doRequest(http.MethodPatch, path, nil, body)
+	return err
+}
+
+func (c *client) postRequest(path string, body interface{}) error {
+	_, err := c.doRequest(http.MethodPost, path, nil, body)
 	return err
 }
 
