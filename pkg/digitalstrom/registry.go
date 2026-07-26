@@ -123,11 +123,9 @@ func (r *registry) GetOutputsOfDevice(deviceId string) ([]Output, error) {
 }
 
 func (r *registry) GetOutputValuesOfDevice(deviceId string) ([]OutputValue, error) {
-	r.apartmentStatusMu.RLock()
-	apartmentStatus := r.apartmentStatus
-	r.apartmentStatusMu.RUnlock()
-	if apartmentStatus == nil {
-		return nil, errors.New("Apartment status is not loaded")
+	apartmentStatus, err := r.GetApartmentStatus()
+	if err != nil {
+		return nil, err
 	}
 
 	outputs := []OutputValue{}
@@ -289,22 +287,26 @@ func (r *registry) ApartmentStatusChangeUnsubscribe(id string) error {
 	return nil
 }
 
+func (r *registry) setApartmentStatusAndGetChangeCallbacks(newStatus *ApartmentStatus) (*ApartmentStatus, []ApartmentStatusChangeCallback) {
+	r.apartmentStatusMu.Lock()
+	defer r.apartmentStatusMu.Unlock()
+
+	oldStatus := r.apartmentStatus
+	r.apartmentStatus = newStatus
+	callbacks := make([]ApartmentStatusChangeCallback, 0, len(r.apartmentStatusChangeCallbacks))
+	for _, callback := range r.apartmentStatusChangeCallbacks {
+		callbacks = append(callbacks, callback)
+	}
+	return oldStatus, callbacks
+}
+
 func (r *registry) updateApartmentStatusAndFireChangeEvents() error {
 	newStatus, err := r.digitalstromClient.GetApartmentStatus()
 	if err != nil {
 		return err
 	}
 
-	r.apartmentStatusMu.Lock()
-	oldStatus := r.apartmentStatus
-	r.apartmentStatus = newStatus
-	// Snapshot callbacks so user code runs without holding the registry lock.
-	callbacks := make([]ApartmentStatusChangeCallback, 0, len(r.apartmentStatusChangeCallbacks))
-	for _, callback := range r.apartmentStatusChangeCallbacks {
-		callbacks = append(callbacks, callback)
-	}
-	r.apartmentStatusMu.Unlock()
-
+	oldStatus, callbacks := r.setApartmentStatusAndGetChangeCallbacks(newStatus)
 	for _, callback := range callbacks {
 		callback(oldStatus, newStatus)
 	}

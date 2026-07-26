@@ -19,6 +19,7 @@ const (
 	weatherStationSensors = "weather_station_sensors"
 	weatherSourceName     = "dS-Weather"
 	weatherSourceIDPrefix = "apartment-weather"
+	weatherSourceTopicID  = "ds_weather"
 	weatherTemperature    = "temperature"
 	weatherIlluminance    = "illuminance"
 	weatherWindSpeed      = "wind_speed_10min_average"
@@ -29,13 +30,12 @@ const (
 )
 
 type WeatherModule struct {
-	mqttClient          mqtt.Client
-	dsRegistry          digitalstrom.Registry
-	normalizeDeviceName bool
-	weatherSourceID     string
-	subscribed          bool
-	publishMu           sync.Mutex
-	lastPublished       *apartmentWeatherValues
+	mqttClient      mqtt.Client
+	dsRegistry      digitalstrom.Registry
+	weatherSourceID string
+	subscribed      bool
+	publishMu       sync.Mutex
+	lastPublished   *apartmentWeatherValues
 }
 
 type functionBlocksForDeviceRegistry interface {
@@ -199,11 +199,7 @@ func weatherDeviceID(status *digitalstrom.ApartmentStatus) string {
 }
 
 func (c *WeatherModule) weatherStateTopic(measurement string) string {
-	deviceName := weatherSourceName
-	if c.normalizeDeviceName {
-		deviceName = normalizeForTopicName(deviceName)
-	}
-	return path.Join(weatherStationSensors, deviceName, measurement, mqtt.State)
+	return path.Join(weatherStationSensors, weatherSourceTopicID, measurement, mqtt.State)
 }
 
 func (c *WeatherModule) GetHomeAssistantEntities() ([]homeassistant.DiscoveryConfig, error) {
@@ -263,9 +259,8 @@ func (c *WeatherModule) sensorConfig(device homeassistant.Device, measurement st
 
 func NewWeatherModule(mqttClient mqtt.Client, _ digitalstrom.Client, dsRegistry digitalstrom.Registry, config *config.Config) Module {
 	return &WeatherModule{
-		mqttClient:          mqttClient,
-		dsRegistry:          dsRegistry,
-		normalizeDeviceName: config.Mqtt.NormalizeDeviceName,
+		mqttClient: mqttClient,
+		dsRegistry: dsRegistry,
 	}
 }
 

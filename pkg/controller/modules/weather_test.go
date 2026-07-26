@@ -123,16 +123,16 @@ func TestWeatherModulePublishesModernApartmentStatus(t *testing.T) {
 		},
 		status: status,
 	}
-	module := &WeatherModule{mqttClient: mqttClient, dsRegistry: registry, normalizeDeviceName: true}
+	module := &WeatherModule{mqttClient: mqttClient, dsRegistry: registry}
 
 	if err := module.Start(); err != nil {
 		t.Fatalf("expected weather module to start: %v", err)
 	}
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/temperature/state", "21.50")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/illuminance/state", "12345")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/wind_speed_10min_average/state", "2.25")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/wind_gust/state", "4.75")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/rain/state", "ON")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/temperature/state", "21.50")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/illuminance/state", "12345")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/wind_speed_10min_average/state", "2.25")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/wind_gust/state", "4.75")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/rain/state", "ON")
 	if registry.callback == nil {
 		t.Fatal("expected apartment status subscription")
 	}
@@ -142,8 +142,8 @@ func TestWeatherModulePublishesModernApartmentStatus(t *testing.T) {
 	updatedStatus.Attributes.Measurements.WindSpeed = &updatedWindSpeed
 	updatedStatus.Attributes.Weather.Rain = &updatedRain
 	registry.callback(status, &updatedStatus)
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/wind_speed_10min_average/state", "3.00")
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/rain/state", "OFF")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/wind_speed_10min_average/state", "3.00")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/rain/state", "OFF")
 
 	configs, err := module.GetHomeAssistantEntities()
 	if err != nil {
@@ -356,7 +356,7 @@ func TestWeatherModuleRetriesFailedRuntimePublish(t *testing.T) {
 	if mqttClient.publishCalls <= failedCallCount {
 		t.Fatal("expected unchanged apartment notification to retry failed weather publication")
 	}
-	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/dS-Weather/temperature/state", "21.00")
+	assertPublishedWeatherValue(t, mqttClient, "weather_station_sensors/ds_weather/temperature/state", "21.00")
 }
 
 func TestWeatherModuleRetriesFailedUnsubscribe(t *testing.T) {

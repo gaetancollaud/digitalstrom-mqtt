@@ -182,11 +182,11 @@ digitalstrom/meterings/chambres/energyWs/state
 The dSS apartment status exposes weather measurements as one apartment-wide source, including when multiple weather stations are configured.
 
 ```
-digitalstrom/weather_station_sensors/dS-Weather/temperature/state
-digitalstrom/weather_station_sensors/dS-Weather/illuminance/state
-digitalstrom/weather_station_sensors/dS-Weather/wind_speed_10min_average/state
-digitalstrom/weather_station_sensors/dS-Weather/wind_gust/state
-digitalstrom/weather_station_sensors/dS-Weather/rain/state
+digitalstrom/weather_station_sensors/ds_weather/temperature/state
+digitalstrom/weather_station_sensors/ds_weather/illuminance/state
+digitalstrom/weather_station_sensors/ds_weather/wind_speed_10min_average/state
+digitalstrom/weather_station_sensors/ds_weather/wind_gust/state
+digitalstrom/weather_station_sensors/ds_weather/rain/state
 ```
 
 ## Tested devices
