@@ -144,7 +144,7 @@ func (c *DeviceModule) handleStopCommand(device digitalstrom.Device) error {
 	if !ok {
 		return fmt.Errorf("digitalstrom client does not support scenario invocation")
 	}
-	log.Info().
+	log.Debug().
 		Str("device", device.Attributes.Name).
 		Str("deviceId", device.DeviceId).
 		Str("zone", device.Attributes.Zone).
