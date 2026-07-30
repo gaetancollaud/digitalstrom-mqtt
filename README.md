@@ -177,6 +177,18 @@ digitalstrom/meterings/chambres/consumptionW/state
 digitalstrom/meterings/chambres/energyWs/state
 ```
 
+### dS-Weather
+
+The dSS apartment status exposes weather measurements as one apartment-wide source, including when multiple weather stations are configured.
+
+```
+digitalstrom/weather_station_sensors/ds_weather/temperature/state
+digitalstrom/weather_station_sensors/ds_weather/illuminance/state
+digitalstrom/weather_station_sensors/ds_weather/wind_speed_10min_average/state
+digitalstrom/weather_station_sensors/ds_weather/wind_gust/state
+digitalstrom/weather_station_sensors/ds_weather/rain/state
+```
+
 ## Tested devices
 
 digitalSTROM-MQTT was tested successfully with these devices:
@@ -193,6 +205,7 @@ digitalSTROM-MQTT was tested successfully with these devices:
 * GR-KL210
 * GR-KL220
 * GN-KM200 (see [#21](https://github.com/gaetancollaud/digitalstrom-mqtt/issues/21))
+* dS-Weather (tested with the Theben version)
 
 Some devices are known to have issues or limitations:
 
