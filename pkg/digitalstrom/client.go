@@ -224,10 +224,10 @@ func (c *client) doRequest(method string, path string, params url.Values, body i
 	}
 
 	request, err := http.NewRequest(method, callUrl, bodyReader)
-	request.Header.Set("Authorization", "Bearer "+c.options.ApiKey)
 	if err != nil {
 		return nil, fmt.Errorf("error building the request: %w", err)
 	}
+	request.Header.Set("Authorization", "Bearer "+c.options.ApiKey)
 	resp, err := c.httpClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("error doing the request: %w", err)

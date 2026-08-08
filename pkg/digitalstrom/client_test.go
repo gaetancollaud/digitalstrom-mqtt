@@ -9,6 +9,22 @@ import (
 	"testing"
 )
 
+func TestDoRequestReturnsErrorForInvalidServerAddress(t *testing.T) {
+	client := &client{
+		httpClient: http.DefaultClient,
+		options: ClientOptions{
+			Host: "[",
+			Port: 8080,
+		},
+	}
+
+	_, err := client.doRequest(http.MethodGet, "api/v1/apartment", nil, nil)
+
+	if err == nil {
+		t.Fatal("expected invalid server address to return an error")
+	}
+}
+
 func TestGetApartmentDecodesDeviceScenariosWithoutAdditionalInclude(t *testing.T) {
 	var method string
 	var requestPath string
