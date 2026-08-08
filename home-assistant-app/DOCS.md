@@ -33,7 +33,7 @@ If the API key is revoked in the dSS, enter the dSS password again, enable **Reg
 
 ## Development and releases
 
-The App manifest references a pre-built multi-architecture image. This is intentional: Home Assistant's local App builder only sees the App directory, while this image must be built from the repository root to include the Go bridge. The release workflow builds the image for `amd64` and `aarch64`; users should receive the published image rather than compiling the bridge on their Home Assistant host.
+The App manifest references a pre-built multi-architecture image. This is intentional: Home Assistant's local App builder only sees the App directory, while this image must be built from the repository root to include the Go bridge. Pull requests build both supported architectures without registry access. When an App version change reaches the official `master` branch, the release job publishes the versioned `amd64` and `aarch64` images and their shared multi-architecture manifest to GHCR. Users receive that published image instead of compiling the bridge on their Home Assistant host.
 
 Before changing the App stage to stable, verify a fresh installation on Home
 Assistant OS with a real dSS:

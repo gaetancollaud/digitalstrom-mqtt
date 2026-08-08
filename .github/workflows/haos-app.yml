@@ -1,4 +1,4 @@
-name: Home Assistant App CI
+name: Home Assistant App CI and publish
 
 on:
   pull_request:
@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  HA_APP_IMAGE: ghcr.io/gaetancollaud/digitalstrom-mqtt-haos
 
 jobs:
   validate:
@@ -38,6 +41,12 @@ jobs:
           test -f home-assistant-app/config.yaml
       - name: Check App shell syntax
         run: bash -n home-assistant-app/run.sh
+      - name: Test App runtime bootstrap
+        run: bash home-assistant-app/test-run.sh
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build amd64 App image
         run: |
           APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
@@ -46,3 +55,70 @@ jobs:
         run: |
           APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
           docker buildx build --platform linux/arm64 --build-arg BUILD_VERSION="${APP_VERSION}" --build-arg BUILD_ARCH=aarch64 --file home-assistant-app/Dockerfile --output type=cacheonly .
+
+  publish:
+    name: Publish Home Assistant App image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == 'gaetancollaud/digitalstrom-mqtt'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read App version
+        id: app
+        run: |
+          APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
+          PREVIOUS_VERSION="$(git show "${{ github.event.before }}:home-assistant-app/config.yaml" 2>/dev/null | ruby -ryaml -e 'puts YAML.safe_load(STDIN.read).fetch("version")' || true)"
+          echo "version=${APP_VERSION}" >> "${GITHUB_OUTPUT}"
+          if [[ "${APP_VERSION}" == "${PREVIOUS_VERSION}" ]]; then
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+            echo "Home Assistant App version ${APP_VERSION} is unchanged; skipping image publication."
+          else
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Set up QEMU
+        if: steps.app.outputs.publish == 'true'
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        if: steps.app.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        if: steps.app.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push amd64 App image
+        if: steps.app.outputs.publish == 'true'
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BUILD_VERSION="${{ steps.app.outputs.version }}" \
+            --build-arg BUILD_ARCH=amd64 \
+            --file home-assistant-app/Dockerfile \
+            --push \
+            --tag "${HA_APP_IMAGE}-amd64:${{ steps.app.outputs.version }}" \
+            .
+      - name: Build and push aarch64 App image
+        if: steps.app.outputs.publish == 'true'
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --build-arg BUILD_VERSION="${{ steps.app.outputs.version }}" \
+            --build-arg BUILD_ARCH=aarch64 \
+            --file home-assistant-app/Dockerfile \
+            --push \
+            --tag "${HA_APP_IMAGE}-aarch64:${{ steps.app.outputs.version }}" \
+            .
+      - name: Publish multi-architecture manifest
+        if: steps.app.outputs.publish == 'true'
+        run: |
+          docker buildx imagetools create \
+            --tag "${HA_APP_IMAGE}:${{ steps.app.outputs.version }}" \
+            "${HA_APP_IMAGE}-amd64:${{ steps.app.outputs.version }}" \
+            "${HA_APP_IMAGE}-aarch64:${{ steps.app.outputs.version }}"
