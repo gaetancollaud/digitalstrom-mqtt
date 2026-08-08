@@ -1,0 +1,25 @@
+configuration:
+  digitalstrom_host:
+    name: Adresse des digitalSTROM Servers
+    description: IP-Adresse oder Hostname des digitalSTROM Servers.
+  digitalstrom_username:
+    name: digitalSTROM Benutzername
+    description: dSS-Benutzer zum Erstellen eines eigenen API-Schlüssels.
+  digitalstrom_password:
+    name: digitalSTROM Passwort
+    description: Nur zum Erstellen oder Erneuern des gespeicherten API-Schlüssels erforderlich.
+  invert_blinds_position:
+    name: Lamellenposition umkehren
+    description: Aktivieren, wenn 100 Prozent eine vollständig geschlossene Store bedeuten soll.
+  meterings_enabled:
+    name: Verbrauchssensoren aktivieren
+    description: digitalSTROM Verbrauchswerte über MQTT veröffentlichen.
+  meterings_interval_seconds:
+    name: Verbrauchsintervall
+    description: Sekunden zwischen den Abfragen der digitalSTROM Verbrauchswerte.
+  log_level:
+    name: Log-Level
+    description: Detailgrad der Einträge im App-Protokoll.
+  regenerate_api_key:
+    name: API-Schlüssel erneuern
+    description: Beim nächsten Start einen neuen API-Schlüssel erstellen. Zuerst das digitalSTROM Passwort eingeben.

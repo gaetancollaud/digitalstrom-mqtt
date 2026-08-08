@@ -1,0 +1,25 @@
+configuration:
+  digitalstrom_host:
+    name: digitalSTROM Server address
+    description: IP address or hostname of the digitalSTROM Server.
+  digitalstrom_username:
+    name: digitalSTROM username
+    description: The dSS user used to create a dedicated API key.
+  digitalstrom_password:
+    name: digitalSTROM password
+    description: Required only to create or regenerate the stored API key.
+  invert_blinds_position:
+    name: Invert blind position
+    description: Use when 100 percent should represent a fully closed blind.
+  meterings_enabled:
+    name: Enable metering sensors
+    description: Publish digitalSTROM metering values to MQTT.
+  meterings_interval_seconds:
+    name: Metering interval
+    description: Seconds between digitalSTROM metering polls.
+  log_level:
+    name: Log level
+    description: Detail level written to the App log.
+  regenerate_api_key:
+    name: Regenerate API key
+    description: Create a replacement API key on the next start. Enter the digitalSTROM password first.

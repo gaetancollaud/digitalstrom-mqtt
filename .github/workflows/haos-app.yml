@@ -1,0 +1,48 @@
+name: Home Assistant App CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse App YAML
+        run: |
+          ruby - <<'RUBY'
+          require "yaml"
+
+          repository = YAML.load_file("repository.yaml")
+          app = YAML.load_file("home-assistant-app/config.yaml")
+          translations = %w[en de].map { |language| YAML.load_file("home-assistant-app/translations/#{language}.yaml") }
+
+          abort "repository name is required" if repository.fetch("name").empty?
+          abort "unexpected app architectures" unless app.fetch("arch") == %w[aarch64 amd64]
+          abort "the App must require the MQTT service" unless app.fetch("services") == ["mqtt:need"]
+          abort "the App must disable the Supervisor init wrapper" unless app.fetch("init") == false
+          abort "the App must persist its own API key" unless app.fetch("schema").key?("digitalstrom_password")
+          abort "a password option must be optional" unless app.fetch("schema").fetch("digitalstrom_password") == "password?"
+          abort "forbidden host access requested" if app.key?("host_network") || app.key?("privileged") || app.key?("full_access")
+          abort "missing translations" unless translations.all? { |translation| translation.fetch("configuration").keys.sort == app.fetch("schema").keys.sort }
+          RUBY
+      - name: Check App repository layout
+        run: |
+          test "$(find . -path ./.git -prune -o -type f -name config.yaml -print | wc -l)" -eq 1
+          test -f home-assistant-app/config.yaml
+      - name: Check App shell syntax
+        run: bash -n home-assistant-app/run.sh
+      - name: Build amd64 App image
+        run: |
+          APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
+          docker buildx build --platform linux/amd64 --build-arg BUILD_VERSION="${APP_VERSION}" --build-arg BUILD_ARCH=amd64 --file home-assistant-app/Dockerfile --load --tag digitalstrom-mqtt-haos:test-amd64 .
+      - name: Build aarch64 App image
+        run: |
+          APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
+          docker buildx build --platform linux/arm64 --build-arg BUILD_VERSION="${APP_VERSION}" --build-arg BUILD_ARCH=aarch64 --file home-assistant-app/Dockerfile --output type=cacheonly .

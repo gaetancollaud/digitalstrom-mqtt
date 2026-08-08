@@ -1,0 +1,31 @@
+name: digitalSTROM MQTT
+version: "2.3.3-haos.1"
+slug: digitalstrom_mqtt
+description: Connect digitalSTROM devices to Home Assistant through MQTT Discovery.
+url: "https://github.com/gaetancollaud/digitalstrom-mqtt/tree/master/home-assistant-app"
+arch:
+  - aarch64
+  - amd64
+startup: application
+boot: auto
+init: false
+stage: experimental
+services:
+  - mqtt:need
+image: "ghcr.io/gaetancollaud/digitalstrom-mqtt-haos"
+options:
+  digitalstrom_username: dssadmin
+  invert_blinds_position: false
+  meterings_enabled: true
+  meterings_interval_seconds: 10
+  log_level: INFO
+  regenerate_api_key: false
+schema:
+  digitalstrom_host: str
+  digitalstrom_username: str
+  digitalstrom_password: "password?"
+  invert_blinds_position: bool
+  meterings_enabled: bool
+  meterings_interval_seconds: "int(1,)"
+  log_level: "list(TRACE|DEBUG|INFO|WARN|ERROR)"
+  regenerate_api_key: bool

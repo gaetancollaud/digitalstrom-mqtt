@@ -143,6 +143,16 @@ docker run \
   gaetancollaud/digitalstrom-mqtt
 ```
 
+### Home Assistant OS App
+
+This repository contains a native Home Assistant App package in
+[`home-assistant-app`](./home-assistant-app). It keeps the existing MQTT
+Discovery integration, so devices appear automatically after the App connects.
+
+After the first multi-architecture App image is published, add this repository
+in **Settings -> Apps -> App Store -> Repositories**, install **digitalSTROM
+MQTT**, and follow the [App documentation](./home-assistant-app/DOCS.md).
+
 ### Home automation integration examples
 
 * [Home Assistant](./docs/home-assistant/README.md)
