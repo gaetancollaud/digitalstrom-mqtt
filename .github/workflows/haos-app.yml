@@ -41,6 +41,34 @@ jobs:
         run: |
           test "$(find . -path ./.git -prune -o -type f -name config.yaml -print | wc -l)" -eq 1
           test -f home-assistant-app/config.yaml
+          test -f home-assistant-app/README.md
+          test -f home-assistant-app/DOCS.md
+          test -f home-assistant-app/CHANGELOG.md
+          test -f home-assistant-app/apparmor.txt
+          test -f home-assistant-app/icon.png
+          test -f home-assistant-app/logo.png
+      - name: Check App artwork
+        run: |
+          ruby - <<'RUBY'
+          expected = {
+            "home-assistant-app/icon.png" => [128, 128],
+            "home-assistant-app/logo.png" => [250, 100],
+          }
+
+          expected.each do |path, dimensions|
+            header = File.binread(path, 24)
+            abort "#{path} is not a PNG file" unless header.start_with?("\x89PNG\r\n\x1a\n".b)
+            actual = header.byteslice(16, 8).unpack("NN")
+            abort "#{path} must be #{dimensions.join('x')}, got #{actual.join('x')}" unless actual == dimensions
+          end
+          RUBY
+      - name: Check AppArmor profile
+        run: |
+          if ! command -v apparmor_parser >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --yes apparmor-utils
+          fi
+          apparmor_parser --skip-kernel-load --skip-cache home-assistant-app/apparmor.txt
       - name: Check App shell syntax
         run: bash -n home-assistant-app/run.sh .github/scripts/check-haos-app-version.sh
       - name: Require an App version bump for runtime changes

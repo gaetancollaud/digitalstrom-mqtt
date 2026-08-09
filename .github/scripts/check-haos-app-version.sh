@@ -15,6 +15,7 @@ runtime_changes="$(
         go.mod \
         go.sum \
         home-assistant-app/config.yaml \
+        home-assistant-app/apparmor.txt \
         home-assistant-app/Dockerfile \
         home-assistant-app/run.sh \
         'home-assistant-app/translations/*.yaml'

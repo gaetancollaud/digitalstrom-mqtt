@@ -12,8 +12,8 @@ configuration:
     name: digitalSTROM Passwort
     description: Nur zum Erstellen oder Erneuern des gespeicherten API-Schlüssels erforderlich.
   invert_blinds_position:
-    name: Lamellenposition umkehren
-    description: Aktivieren, wenn 100 Prozent eine vollständig geschlossene Store bedeuten soll.
+    name: Storenposition umkehren
+    description: Aktivieren, wenn 100 Prozent einen vollständig geschlossenen Store bedeuten soll.
   meterings_enabled:
     name: Verbrauchssensoren aktivieren
     description: digitalSTROM Verbrauchswerte über MQTT veröffentlichen.

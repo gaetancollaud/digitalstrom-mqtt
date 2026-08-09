@@ -1,0 +1,50 @@
+#include <tunables/global>
+
+profile digitalstrom_mqtt flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  signal,
+  network,
+
+  # Home Assistant base image startup.
+  /init rix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** rix,
+  /command/** rix,
+  /etc/s6-overlay/** rix,
+  /etc/fix-attrs.d/ r,
+  /etc/fix-attrs.d/** rix,
+  /etc/services.d/ r,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # App launcher and Bashio helpers.
+  /run.sh rix,
+  /usr/lib/bashio/** rix,
+
+  # Temporary credential staging and persistent App state.
+  /tmp/** rwk,
+  /data/** rwk,
+  /etc/ssl/openssl.cnf r,
+
+  # Keep the bridge itself in a smaller read-only service profile.
+  /digitalstrom-mqtt cx,
+  profile /digitalstrom-mqtt flags=(attach_disconnected,mediate_deleted) {
+    #include <abstractions/base>
+    #include <abstractions/nameservice>
+
+    signal,
+    network,
+
+    /digitalstrom-mqtt rm,
+    /etc/ssl/certs/** r,
+    /proc/** r,
+    /sys/fs/cgroup/cpu.max r,
+  }
+}
