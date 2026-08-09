@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Parse App YAML
         run: |
           ruby - <<'RUBY'
@@ -40,7 +42,11 @@ jobs:
           test "$(find . -path ./.git -prune -o -type f -name config.yaml -print | wc -l)" -eq 1
           test -f home-assistant-app/config.yaml
       - name: Check App shell syntax
-        run: bash -n home-assistant-app/run.sh
+        run: bash -n home-assistant-app/run.sh .github/scripts/check-haos-app-version.sh
+      - name: Require an App version bump for runtime changes
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: .github/scripts/check-haos-app-version.sh "${BASE_SHA}" "${GITHUB_SHA}"
       - name: Test App runtime bootstrap
         run: bash home-assistant-app/test-run.sh
       - name: Set up QEMU
@@ -122,3 +128,26 @@ jobs:
             --tag "${HA_APP_IMAGE}:${{ steps.app.outputs.version }}" \
             "${HA_APP_IMAGE}-amd64:${{ steps.app.outputs.version }}" \
             "${HA_APP_IMAGE}-aarch64:${{ steps.app.outputs.version }}"
+      - name: Verify anonymous App image access
+        if: steps.app.outputs.publish == 'true'
+        env:
+          APP_VERSION: ${{ steps.app.outputs.version }}
+        run: |
+          REPOSITORY="${HA_APP_IMAGE#ghcr.io/}"
+          if ! TOKEN_RESPONSE="$(
+            curl --fail --silent --show-error --get 'https://ghcr.io/token' \
+              --data-urlencode 'service=ghcr.io' \
+              --data-urlencode "scope=repository:${REPOSITORY}:pull"
+          )"; then
+            echo 'GHCR did not grant anonymous pull access. Set the package visibility to public, then rerun this workflow.' >&2
+            exit 1
+          fi
+          TOKEN="$(printf '%s' "${TOKEN_RESPONSE}" | ruby -rjson -e 'puts JSON.parse(STDIN.read).fetch("token")')"
+          if ! curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${TOKEN}" \
+            --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+            --output /dev/null \
+            "https://ghcr.io/v2/${REPOSITORY}/manifests/${APP_VERSION}"; then
+            echo 'The App image is not anonymously pullable. Set the GHCR package visibility to public, then rerun this workflow.' >&2
+            exit 1
+          fi

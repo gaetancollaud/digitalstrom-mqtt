@@ -2,6 +2,9 @@ configuration:
   digitalstrom_host:
     name: digitalSTROM Server address
     description: IP address or hostname of the digitalSTROM Server.
+  digitalstrom_port:
+    name: digitalSTROM Server port
+    description: HTTPS API port of the digitalSTROM Server. The default is 8080.
   digitalstrom_username:
     name: digitalSTROM username
     description: The dSS user used to create a dedicated API key.

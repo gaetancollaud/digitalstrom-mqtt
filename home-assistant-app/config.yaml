@@ -14,6 +14,7 @@ services:
   - mqtt:need
 image: "ghcr.io/gaetancollaud/digitalstrom-mqtt-haos"
 options:
+  digitalstrom_port: 8080
   digitalstrom_username: dssadmin
   invert_blinds_position: false
   meterings_enabled: true
@@ -22,6 +23,7 @@ options:
   regenerate_api_key: false
 schema:
   digitalstrom_host: str
+  digitalstrom_port: "int(1,65535)"
   digitalstrom_username: str
   digitalstrom_password: "password?"
   invert_blinds_position: bool

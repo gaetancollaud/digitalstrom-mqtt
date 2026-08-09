@@ -2,8 +2,12 @@
 set -euo pipefail
 
 readonly API_KEY_FILE="${API_KEY_FILE:-/data/digitalstrom-api-key}"
+readonly API_KEY_STAGING_FILE="${API_KEY_STAGING_FILE:-${API_KEY_FILE}.staged}"
+readonly API_KEY_FINALIZATION_FILE="${API_KEY_FINALIZATION_FILE:-${API_KEY_FILE}.pending-finalization}"
 readonly API_KEY_NAME="digitalstrom-mqtt-home-assistant"
 readonly DIGITALSTROM_MQTT_BIN="${DIGITALSTROM_MQTT_BIN:-/digitalstrom-mqtt}"
+
+API_KEY_BOOTSTRAP_RESUMED="false"
 
 cleanup_password_file() {
     if [[ -n "${PASSWORD_FILE:-}" && -f "${PASSWORD_FILE}" ]]; then
@@ -13,7 +17,9 @@ cleanup_password_file() {
 
 read_optional_password() {
     local password
-    password="$(bashio::config 'digitalstrom_password')"
+    if ! password="$(bashio::config 'digitalstrom_password')"; then
+        return 1
+    fi
     if [[ "${password}" == "null" ]]; then
         password=""
     fi
@@ -24,53 +30,148 @@ update_app_option() {
     bashio::addon.option "$@"
 }
 
+regeneration_option_is_enabled() {
+    bashio::config.true 'regenerate_api_key'
+}
+
 request_api_key() {
+    local output_file="$1"
+
     "${DIGITALSTROM_MQTT_BIN}" \
         -mode=get-api-key \
         -host="${DIGITALSTROM_HOST}" \
+        -port="${DIGITALSTROM_PORT}" \
         -username="${DSS_USERNAME}" \
         -password-file="${PASSWORD_FILE}" \
-        -api-key-file="${API_KEY_FILE}" \
+        -api-key-file="${output_file}" \
         -integrationName="${API_KEY_NAME}"
 }
 
 finalize_api_key_options() {
     local regenerate_requested="$1"
+    local password
 
     if [[ "${regenerate_requested}" == "true" ]] \
+        && regeneration_option_is_enabled \
         && ! update_app_option 'regenerate_api_key' '^false'; then
         bashio::log.error "The API key was stored, but Home Assistant could not reset the regeneration option. The password was kept so regeneration can be retried."
         return 1
     fi
 
-    if ! update_app_option 'digitalstrom_password'; then
-        bashio::log.warning "The API key was stored, but Home Assistant could not remove the temporary password from the app options. Remove it manually."
+    if ! password="$(read_optional_password)"; then
+        bashio::log.error "The API key was stored, but Home Assistant could not read the temporary password option."
+        return 1
+    fi
+    if [[ -n "${password}" ]] && ! update_app_option 'digitalstrom_password'; then
+        bashio::log.error "The API key was stored, but Home Assistant could not remove the temporary password from the app options. The App will retry without creating another key."
+        return 1
+    fi
+}
+
+write_api_key_finalization() {
+    local regenerate_requested="$1"
+    local temporary_file
+
+    if ! temporary_file="$(mktemp "${API_KEY_FINALIZATION_FILE}.XXXXXX")"; then
+        bashio::log.error "Could not create the pending API key setup state."
+        return 1
+    fi
+    if ! chmod 0600 "${temporary_file}" \
+        || ! printf '%s' "${regenerate_requested}" > "${temporary_file}" \
+        || ! mv -f "${temporary_file}" "${API_KEY_FINALIZATION_FILE}"; then
+        rm -f "${temporary_file}"
+        bashio::log.error "Could not store the pending API key setup state."
+        return 1
+    fi
+}
+
+complete_api_key_finalization() {
+    local regenerate_requested
+
+    if [[ ! -s "${API_KEY_FINALIZATION_FILE}" ]]; then
+        bashio::log.error "The pending API key setup state is missing or empty."
+        return 1
+    fi
+    regenerate_requested="$(<"${API_KEY_FINALIZATION_FILE}")"
+    if [[ "${regenerate_requested}" != "true" && "${regenerate_requested}" != "false" ]]; then
+        bashio::log.error "The pending API key setup state is invalid."
+        return 1
+    fi
+    if [[ ! -s "${API_KEY_FILE}" ]]; then
+        bashio::log.error "The API key setup cannot be finalized because the stored key is missing."
+        return 1
+    fi
+
+    finalize_api_key_options "${regenerate_requested}" || return 1
+    if ! rm -f "${API_KEY_FINALIZATION_FILE}"; then
+        bashio::log.error "Could not remove the completed API key setup state."
+        return 1
+    fi
+}
+
+resume_api_key_bootstrap() {
+    local regenerate_requested="$1"
+
+    if [[ -s "${API_KEY_STAGING_FILE}" ]]; then
+        bashio::log.info "Resuming an interrupted digitalSTROM API key setup."
+        write_api_key_finalization "${regenerate_requested}" || return 1
+        if ! mv -f "${API_KEY_STAGING_FILE}" "${API_KEY_FILE}"; then
+            bashio::log.error "Could not promote the staged digitalSTROM API key."
+            return 1
+        fi
+    fi
+
+    if [[ -e "${API_KEY_FINALIZATION_FILE}" ]]; then
+        API_KEY_BOOTSTRAP_RESUMED="true"
+        complete_api_key_finalization || return 1
     fi
 }
 
 create_api_key() {
     local regenerate_requested="$1"
     local password
-    password="$(read_optional_password)"
+    if ! password="$(read_optional_password)"; then
+        bashio::log.error "Could not read the temporary digitalSTROM password from the App options."
+        return 1
+    fi
     if [[ -z "${password}" ]]; then
         bashio::log.error "Enter the digitalSTROM password to create or replace the API key."
         return 1
     fi
 
-    PASSWORD_FILE="$(mktemp)"
-    chmod 0600 "${PASSWORD_FILE}"
-    printf '%s' "${password}" > "${PASSWORD_FILE}"
+    if ! PASSWORD_FILE="$(mktemp)"; then
+        bashio::log.error "Could not create a temporary password file."
+        return 1
+    fi
+    if ! chmod 0600 "${PASSWORD_FILE}" \
+        || ! printf '%s' "${password}" > "${PASSWORD_FILE}"; then
+        cleanup_password_file
+        bashio::log.error "Could not prepare the temporary password file."
+        return 1
+    fi
 
     bashio::log.info "Creating a digitalSTROM API key."
-    if ! request_api_key; then
+    if ! rm -f "${API_KEY_STAGING_FILE}"; then
+        cleanup_password_file || true
+        bashio::log.error "Could not remove a stale staged API key."
+        return 1
+    fi
+    if ! request_api_key "${API_KEY_STAGING_FILE}"; then
+        cleanup_password_file || true
         bashio::log.error "Could not create a digitalSTROM API key. Check the server address and credentials."
         return 1
     fi
-    cleanup_password_file
-
-    if ! finalize_api_key_options "${regenerate_requested}"; then
+    if ! cleanup_password_file; then
+        bashio::log.error "Could not remove the temporary password file."
         return 1
     fi
+
+    write_api_key_finalization "${regenerate_requested}" || return 1
+    if ! mv -f "${API_KEY_STAGING_FILE}" "${API_KEY_FILE}"; then
+        bashio::log.error "Could not store the new digitalSTROM API key."
+        return 1
+    fi
+    complete_api_key_finalization
 }
 
 read_mqtt_service() {
@@ -92,6 +193,7 @@ read_mqtt_service() {
 load_configuration() {
     unset DIGITALSTROM_USERNAME DIGITALSTROM_PASSWORD
     export DIGITALSTROM_HOST="$(bashio::config 'digitalstrom_host')"
+    export DIGITALSTROM_PORT="$(bashio::config 'digitalstrom_port')"
     DSS_USERNAME="$(bashio::config 'digitalstrom_username')"
     export INVERT_BLINDS_POSITION="$(bashio::config 'invert_blinds_position')"
     export METERINGS_ENABLED="$(bashio::config 'meterings_enabled')"
@@ -111,10 +213,12 @@ main() {
 
     trap cleanup_password_file EXIT
 
-    if bashio::config.true 'regenerate_api_key'; then
+    if regeneration_option_is_enabled; then
         regenerate_requested="true"
     fi
-    if [[ ! -s "${API_KEY_FILE}" ]] || [[ "${regenerate_requested}" == "true" ]]; then
+    resume_api_key_bootstrap "${regenerate_requested}" || return 1
+    if [[ "${API_KEY_BOOTSTRAP_RESUMED}" != "true" ]] \
+        && { [[ ! -s "${API_KEY_FILE}" ]] || [[ "${regenerate_requested}" == "true" ]]; }; then
         create_api_key "${regenerate_requested}" || return 1
     fi
 

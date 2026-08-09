@@ -14,11 +14,12 @@ Home Assistant OS installation and restart checks described below.
 
 ## First start
 
-1. Enter the dSS address, normally an IP address or local hostname.
+1. Enter the dSS address, normally an IP address or local hostname. Keep the
+   default HTTPS API port `8080` unless your dSS uses another port.
 2. Keep the default username `dssadmin` unless your dSS uses another account.
 3. Enter the dSS password and start the App.
 
-The App creates a dedicated dSS API key and stores it in its private persistent `/data` directory. The temporary password is removed from the App options after a successful setup. Normal restarts use the stored API key and do not need the password again.
+The App creates a dedicated dSS API key and stores it in its private persistent `/data` directory. The temporary password is removed from the App options after a successful setup. If Home Assistant cannot update the options immediately, the App retries that cleanup on its next start without creating another key. Normal restarts use the stored API key and do not need the password again.
 
 ## API key recovery
 
@@ -35,10 +36,23 @@ If the API key is revoked in the dSS, enter the dSS password again, enable **Reg
 
 The App manifest references a pre-built multi-architecture image. This is intentional: Home Assistant's local App builder only sees the App directory, while this image must be built from the repository root to include the Go bridge. Pull requests build both supported architectures without registry access. When an App version change reaches the official `master` branch, the release job publishes the versioned `amd64` and `aarch64` images and their shared multi-architecture manifest to GHCR. Users receive that published image instead of compiling the bridge on their Home Assistant host.
 
+Changes to the Go bridge, its Go module dependencies, App configuration or
+translations, the App Dockerfile or the App runtime script require a new App
+version in `config.yaml`. CI rejects such release changes when the version is
+unchanged.
+
+New GitHub container packages can start with private visibility, while Home
+Assistant must be able to pull this image anonymously. After the first image is
+published, verify that the `digitalstrom-mqtt-haos` package is **Public** in the
+GitHub package settings. If it is private, change the visibility and rerun the
+failed publish workflow. The final release gate requests the versioned manifest
+without GitHub credentials; the workflow remains failed until Home Assistant
+can pull the image anonymously.
+
 Before changing the App stage to stable, verify a fresh installation on Home
 Assistant OS with a real dSS:
 
-1. Configure only the dSS address, username and password, then confirm the API
+1. Configure only the dSS address, port, username and password, then confirm the API
    key is created and the password disappears from the App options.
 2. Confirm existing MQTT Discovery entities appear in Home Assistant and can
    both send commands and receive dSS state changes.
@@ -51,3 +65,5 @@ Assistant OS with a real dSS:
    restores the connection.
 6. Stop Mosquitto and confirm the App reports the missing MQTT service without
    exposing credentials in its log.
+7. Install the App from the public repository without GitHub credentials and
+   confirm the versioned image can be pulled on both supported architectures.
