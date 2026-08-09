@@ -28,7 +28,7 @@ request_api_key() {
     "${DIGITALSTROM_MQTT_BIN}" \
         -mode=get-api-key \
         -host="${DIGITALSTROM_HOST}" \
-        -username="${DIGITALSTROM_USERNAME}" \
+        -username="${DSS_USERNAME}" \
         -password-file="${PASSWORD_FILE}" \
         -api-key-file="${API_KEY_FILE}" \
         -integrationName="${API_KEY_NAME}"
@@ -90,8 +90,9 @@ read_mqtt_service() {
 }
 
 load_configuration() {
+    unset DIGITALSTROM_USERNAME DIGITALSTROM_PASSWORD
     export DIGITALSTROM_HOST="$(bashio::config 'digitalstrom_host')"
-    export DIGITALSTROM_USERNAME="$(bashio::config 'digitalstrom_username')"
+    DSS_USERNAME="$(bashio::config 'digitalstrom_username')"
     export INVERT_BLINDS_POSITION="$(bashio::config 'invert_blinds_position')"
     export METERINGS_ENABLED="$(bashio::config 'meterings_enabled')"
     export METERINGS_INTERVAL_SECONDS="$(bashio::config 'meterings_interval_seconds')"

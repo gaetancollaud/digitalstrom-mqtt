@@ -77,7 +77,7 @@ test_failed_regeneration_reset_keeps_password() {
 test_api_key_creation_uses_password_file_and_cleans_options() {
     local -a calls=()
     DIGITALSTROM_HOST="dss.local"
-    DIGITALSTROM_USERNAME="dssadmin"
+    DSS_USERNAME="dssadmin"
     read_optional_password() { printf 'test-password'; }
     request_api_key() {
         assert_equal "test-password" "$(<"${PASSWORD_FILE}")" "password file contents"
@@ -120,7 +120,8 @@ test_main_starts_bridge_with_expected_environment() {
 #!/usr/bin/env bash
 printf '%s\n' \
     "DIGITALSTROM_HOST=${DIGITALSTROM_HOST}" \
-    "DIGITALSTROM_USERNAME=${DIGITALSTROM_USERNAME}" \
+    "DIGITALSTROM_USERNAME=${DIGITALSTROM_USERNAME-unset}" \
+    "DIGITALSTROM_PASSWORD=${DIGITALSTROM_PASSWORD-unset}" \
     "DIGITALSTROM_API_KEY=${DIGITALSTROM_API_KEY}" \
     "MQTT_URL=${MQTT_URL}" \
     "MQTT_USERNAME=${MQTT_USERNAME}" \
@@ -153,10 +154,14 @@ SCRIPT
         esac
     }
 
+    export DIGITALSTROM_USERNAME="legacy-user"
+    export DIGITALSTROM_PASSWORD="legacy-password"
     (main)
+    unset DIGITALSTROM_USERNAME DIGITALSTROM_PASSWORD
 
     assert_file_contains "DIGITALSTROM_HOST=dss.local" "${output_file}" "bridge dSS host"
-    assert_file_contains "DIGITALSTROM_USERNAME=dssadmin" "${output_file}" "bridge dSS username"
+    assert_file_contains "DIGITALSTROM_USERNAME=unset" "${output_file}" "bridge omits deprecated dSS username"
+    assert_file_contains "DIGITALSTROM_PASSWORD=unset" "${output_file}" "bridge omits deprecated dSS password"
     assert_file_contains "DIGITALSTROM_API_KEY=existing-api-key" "${output_file}" "bridge API key"
     assert_file_contains "MQTT_URL=tcp://mqtt.local:1883" "${output_file}" "bridge MQTT URL"
     assert_file_contains "MQTT_USERNAME=mqtt-user" "${output_file}" "bridge MQTT username"
