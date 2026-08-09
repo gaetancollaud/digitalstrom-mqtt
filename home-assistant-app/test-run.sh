@@ -16,6 +16,7 @@ export DIGITALSTROM_MQTT_BIN="${TEST_DIR}/digitalstrom-mqtt"
 source "${APP_DIR}/run.sh"
 
 bashio::log.error() { :; }
+bashio::log.debug() { :; }
 bashio::log.info() { :; }
 bashio::log.warning() { :; }
 
@@ -36,6 +37,15 @@ assert_file_contains() {
     local file="$2"
     local message="$3"
     grep -Fqx -- "${expected}" "${file}" || fail "${message}: missing '${expected}'"
+}
+
+assert_file_not_contains() {
+    local unexpected="$1"
+    local file="$2"
+    local message="$3"
+    if grep -Fq -- "${unexpected}" "${file}"; then
+        fail "${message}: found '${unexpected}'"
+    fi
 }
 
 reset_api_key_state() {
@@ -298,6 +308,7 @@ test_mqtt_service_enables_tls_scheme() {
 
 test_main_resumes_pending_cleanup_before_starting_bridge() {
     local calls_file="${TEST_DIR}/resumed-option-updates"
+    local log_file="${TEST_DIR}/resumed-bridge-log"
     local started_file="${TEST_DIR}/resumed-bridge-started"
     reset_api_key_state
     printf 'replacement-api-key' > "${API_KEY_FILE}"
@@ -327,6 +338,8 @@ SCRIPT
         esac
     }
     bashio::config.true() { [[ "$1" == "regenerate_api_key" ]]; }
+    bashio::log.debug() { printf 'DEBUG: %s\n' "$*" >> "${log_file}"; }
+    bashio::log.info() { printf 'INFO: %s\n' "$*" >> "${log_file}"; }
     bashio::services() {
         case "$2" in
             host) printf 'mqtt.local' ;;
@@ -344,10 +357,15 @@ SCRIPT
     [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "main left pending API key cleanup"
     assert_file_contains "regenerate_api_key ^false" "${calls_file}" "main regeneration reset"
     assert_file_contains "digitalstrom_password" "${calls_file}" "main password removal"
+    assert_file_contains "INFO: Finishing an interrupted digitalSTROM API key setup." "${log_file}" "resumed API key setup log"
+    assert_file_contains "INFO: The digitalSTROM API key setup is complete; the temporary password option is clear." "${log_file}" "completed API key setup log"
+    assert_file_not_contains "replacement-api-key" "${log_file}" "resumed API key log secrecy"
+    assert_file_not_contains "temporary-password" "${log_file}" "resumed password log secrecy"
 }
 
 test_main_starts_bridge_with_expected_environment() {
     local output_file="${TEST_DIR}/bridge-environment"
+    local log_file="${TEST_DIR}/bridge-log"
     export TEST_OUTPUT_FILE="${output_file}"
 
     printf 'existing-api-key' > "${API_KEY_FILE}"
@@ -381,6 +399,8 @@ SCRIPT
         esac
     }
     bashio::config.true() { return 1; }
+    bashio::log.debug() { printf 'DEBUG: %s\n' "$*" >> "${log_file}"; }
+    bashio::log.info() { printf 'INFO: %s\n' "$*" >> "${log_file}"; }
     bashio::services() {
         case "$2" in
             host) printf 'mqtt.local' ;;
@@ -406,6 +426,12 @@ SCRIPT
     assert_file_contains "MQTT_USERNAME=mqtt-user" "${output_file}" "bridge MQTT username"
     assert_file_contains "MQTT_PASSWORD=mqtt-password" "${output_file}" "bridge MQTT password"
     assert_file_contains "HOME_ASSISTANT_DISCOVERY_ENABLED=true" "${output_file}" "bridge discovery mode"
+    assert_file_contains "DEBUG: Using digitalSTROM server dss.local:8443." "${log_file}" "bridge dSS endpoint log"
+    assert_file_contains "DEBUG: Using the stored digitalSTROM API key." "${log_file}" "stored API key log"
+    assert_file_contains "INFO: Starting digitalSTROM MQTT with the Home Assistant MQTT service." "${log_file}" "bridge startup log"
+    assert_file_not_contains "existing-api-key" "${log_file}" "API key log secrecy"
+    assert_file_not_contains "legacy-password" "${log_file}" "dSS password log secrecy"
+    assert_file_not_contains "mqtt-password" "${log_file}" "MQTT password log secrecy"
 }
 
 (test_first_start_removes_password_without_resetting_regeneration)

@@ -1,6 +1,9 @@
 #!/usr/bin/with-contenv bashio
 set -euo pipefail
 
+# API key setup is a two-phase transaction. The staged file holds a newly
+# requested key, while the finalization marker records that Supervisor option
+# cleanup must complete before another key may be requested.
 readonly API_KEY_FILE="${API_KEY_FILE:-/data/digitalstrom-api-key}"
 readonly API_KEY_STAGING_FILE="${API_KEY_STAGING_FILE:-${API_KEY_FILE}.staged}"
 readonly API_KEY_FINALIZATION_FILE="${API_KEY_FINALIZATION_FILE:-${API_KEY_FILE}.pending-finalization}"
@@ -51,20 +54,28 @@ finalize_api_key_options() {
     local regenerate_requested="$1"
     local password
 
-    if [[ "${regenerate_requested}" == "true" ]] \
-        && regeneration_option_is_enabled \
-        && ! update_app_option 'regenerate_api_key' '^false'; then
-        bashio::log.error "The API key was stored, but Home Assistant could not reset the regeneration option. The password was kept so regeneration can be retried."
-        return 1
+    if [[ "${regenerate_requested}" == "true" ]]; then
+        if regeneration_option_is_enabled; then
+            if ! update_app_option 'regenerate_api_key' '^false'; then
+                bashio::log.error "The API key was stored, but Home Assistant could not reset the regeneration option. The password was kept so regeneration can be retried."
+                return 1
+            fi
+        else
+            bashio::log.debug "The API key regeneration option is already reset."
+        fi
     fi
 
     if ! password="$(read_optional_password)"; then
         bashio::log.error "The API key was stored, but Home Assistant could not read the temporary password option."
         return 1
     fi
-    if [[ -n "${password}" ]] && ! update_app_option 'digitalstrom_password'; then
-        bashio::log.error "The API key was stored, but Home Assistant could not remove the temporary password from the app options. The App will retry without creating another key."
-        return 1
+    if [[ -n "${password}" ]]; then
+        if ! update_app_option 'digitalstrom_password'; then
+            bashio::log.error "The API key was stored, but Home Assistant could not remove the temporary password from the app options. The App will retry without creating another key."
+            return 1
+        fi
+    else
+        bashio::log.debug "No temporary digitalSTROM password remains in the App options."
     fi
 }
 
@@ -107,13 +118,16 @@ complete_api_key_finalization() {
         bashio::log.error "Could not remove the completed API key setup state."
         return 1
     fi
+    bashio::log.info "The digitalSTROM API key setup is complete; the temporary password option is clear."
 }
 
 resume_api_key_bootstrap() {
     local regenerate_requested="$1"
+    local staged_key_resumed="false"
 
     if [[ -s "${API_KEY_STAGING_FILE}" ]]; then
         bashio::log.info "Resuming an interrupted digitalSTROM API key setup."
+        staged_key_resumed="true"
         write_api_key_finalization "${regenerate_requested}" || return 1
         if ! mv -f "${API_KEY_STAGING_FILE}" "${API_KEY_FILE}"; then
             bashio::log.error "Could not promote the staged digitalSTROM API key."
@@ -122,6 +136,9 @@ resume_api_key_bootstrap() {
     fi
 
     if [[ -e "${API_KEY_FINALIZATION_FILE}" ]]; then
+        if [[ "${staged_key_resumed}" != "true" ]]; then
+            bashio::log.info "Finishing an interrupted digitalSTROM API key setup."
+        fi
         API_KEY_BOOTSTRAP_RESUMED="true"
         complete_api_key_finalization || return 1
     fi
@@ -166,6 +183,8 @@ create_api_key() {
         return 1
     fi
 
+    # Persist the cleanup intent before replacing the canonical key. A restart
+    # can then finish option cleanup without requesting a second API key.
     write_api_key_finalization "${regenerate_requested}" || return 1
     if ! mv -f "${API_KEY_STAGING_FILE}" "${API_KEY_FILE}"; then
         bashio::log.error "Could not store the new digitalSTROM API key."
@@ -216,10 +235,13 @@ main() {
     if regeneration_option_is_enabled; then
         regenerate_requested="true"
     fi
+    bashio::log.debug "Using digitalSTROM server ${DIGITALSTROM_HOST}:${DIGITALSTROM_PORT}."
     resume_api_key_bootstrap "${regenerate_requested}" || return 1
     if [[ "${API_KEY_BOOTSTRAP_RESUMED}" != "true" ]] \
         && { [[ ! -s "${API_KEY_FILE}" ]] || [[ "${regenerate_requested}" == "true" ]]; }; then
         create_api_key "${regenerate_requested}" || return 1
+    elif [[ "${API_KEY_BOOTSTRAP_RESUMED}" != "true" ]]; then
+        bashio::log.debug "Using the stored digitalSTROM API key."
     fi
 
     read_mqtt_service || return 1

@@ -7,3 +7,4 @@
 - Creates and persists a dedicated digitalSTROM API key in the App data directory.
 - Resumes interrupted API-key option cleanup without generating another key.
 - Supports a configurable digitalSTROM HTTPS API port.
+- Adds actionable API-key bootstrap and recovery logs without exposing credentials.
