@@ -26,3 +26,5 @@ configuration:
   regenerate_api_key:
     name: Regenerate API key
     description: Create a replacement API key on the next start. Enter the digitalSTROM password first.
+network:
+  8080/tcp: Internal health endpoint. Leave disabled unless direct diagnostics are required.

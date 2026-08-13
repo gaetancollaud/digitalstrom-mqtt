@@ -25,6 +25,9 @@ RUN chmod 0755 /digitalstrom-mqtt /run.sh
 
 LABEL \
   io.hass.type="app" \
+  io.hass.name="digitalSTROM MQTT" \
+  io.hass.description="Unofficial digitalSTROM MQTT bridge for Home Assistant" \
+  io.hass.url="https://github.com/gaetancollaud/digitalstrom-mqtt/tree/master/home-assistant-app" \
   io.hass.version="${BUILD_VERSION}" \
   io.hass.arch="${BUILD_ARCH}" \
   org.opencontainers.image.title="digitalSTROM MQTT" \

@@ -26,3 +26,5 @@ configuration:
   regenerate_api_key:
     name: API-Schlüssel erneuern
     description: Beim nächsten Start einen neuen API-Schlüssel erstellen. Zuerst das digitalSTROM Passwort eingeben.
+network:
+  8080/tcp: Interner Gesundheitsendpunkt. Nur für eine direkte Diagnose freigeben.

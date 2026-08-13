@@ -9,11 +9,13 @@ The App references a pre-built multi-architecture image. Home Assistant's local
 App builder only receives the App directory, while the image must be built from
 the repository root to include the Go bridge.
 
-Pull requests build `amd64` and `aarch64` images without registry access. When
-a Git tag is pushed to the official repository, the existing GoReleaser workflow
-publishes the standalone release while the App workflow publishes versioned
-images and a shared multi-architecture manifest to GHCR. Users pull that image
-instead of compiling the bridge on their Home Assistant host.
+Pull requests build `amd64` and `aarch64` images without registry access. The
+workflow uses the versioned Home Assistant builder composite actions and native
+GitHub runners for both architectures. When a Git tag is pushed to the official
+repository, the existing GoReleaser workflow publishes the standalone release
+while the App workflow builds, signs, and publishes versioned images and a
+shared multi-architecture manifest to GHCR. Users pull that image instead of
+compiling the bridge on their Home Assistant host.
 
 The Git tag, standalone release, Docker image, and App version use the same
 version number. The App workflow rejects a release tag that does not exactly
@@ -33,10 +35,20 @@ versioned manifest can be fetched without GitHub credentials.
 - **No canary branch initially**: the App has one release line tied to normal
   project releases. A separate beta repository and image line should be added
   only when parallel stable and pre-release maintenance is actually needed.
+- **Stable community package**: the package is marked stable because the full
+  install, configuration, restart, and reboot path was validated on a fresh
+  HAOS VM with a real dSS. User-facing text still states clearly that this is an
+  unofficial community App. Physical ARM runtime coverage remains listed as an
+  open validation item instead of changing the lifecycle status of the tested
+  package.
+- **Supervisor watchdog**: the health endpoint remains private to the App
+  network. The Supervisor checks `/health/live`, which verifies the bridge
+  process without treating a recoverable MQTT outage as a reason to restart.
+  `/health/ready` continues to include the MQTT connection state for diagnosis.
 - **Store artwork is active**: `icon.png` is a 128 x 128 square icon and
   `logo.png` is a 250 x 100 wide logo. CI verifies the PNG format and exact
-  dimensions. The earlier proposals remain below `assets/provisional` as
-  design history.
+  dimensions. Both images are project-specific artwork and do not reuse an
+  official digitalSTROM or Home Assistant logo.
 
 ## Validated AppArmor baseline
 
@@ -47,9 +59,15 @@ stopped throughout the test.
 The validation covered a fresh App install, an App restart, and a complete
 HAOS reboot. After every path, the App ran with its custom profile and protected
 mode enabled, connected to both the Home Assistant MQTT service and the dSS
-notification WebSocket, and produced no AppArmor denials. The same final profile
+notification WebSocket, and produced no AppArmor denials. That baseline profile
 was then installed and started under the retained local test App slug before the
 test VM was shut down.
+
+The current profile adds write access to the App's private `/data` volume for the
+bridge child process. This is required by the first-start API-key transaction;
+all other App setup and Supervisor option handling remains in the launcher
+profile. CI parses this exact profile. A repeat HAOS install should confirm the
+updated profile before the first public release.
 
 Physical `aarch64` hardware remains untested. CI builds that architecture, but
 an actual ARM start and connection test is still required before claiming live

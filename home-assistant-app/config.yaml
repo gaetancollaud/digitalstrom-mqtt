@@ -1,7 +1,7 @@
 name: digitalSTROM MQTT
 version: "2.4.0"
 slug: digitalstrom_mqtt
-description: Connect digitalSTROM devices to Home Assistant through MQTT Discovery.
+description: Unofficial community App connecting digitalSTROM to Home Assistant through MQTT Discovery.
 url: "https://github.com/gaetancollaud/digitalstrom-mqtt/tree/master/home-assistant-app"
 arch:
   - aarch64
@@ -9,10 +9,13 @@ arch:
 startup: application
 boot: auto
 init: false
-stage: experimental
+stage: stable
 services:
   - mqtt:need
 image: "ghcr.io/gaetancollaud/digitalstrom-mqtt-haos"
+ports:
+  8080/tcp: null
+watchdog: "http://[HOST]:[PORT:8080]/health/live"
 options:
   digitalstrom_port: 8080
   digitalstrom_username: dssadmin

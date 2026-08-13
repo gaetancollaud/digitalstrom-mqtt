@@ -12,7 +12,9 @@ permissions:
   contents: read
 
 env:
-  HA_APP_IMAGE: ghcr.io/gaetancollaud/digitalstrom-mqtt-haos
+  ARCHITECTURES: '["amd64", "aarch64"]'
+  HA_APP_IMAGE_NAME: digitalstrom-mqtt-haos
+  HA_APP_REGISTRY_PREFIX: ghcr.io/gaetancollaud
 
 jobs:
   validate:
@@ -34,10 +36,14 @@ jobs:
           abort "unexpected app architectures" unless app.fetch("arch") == %w[aarch64 amd64]
           abort "the App must require the MQTT service" unless app.fetch("services") == ["mqtt:need"]
           abort "the App must disable the Supervisor init wrapper" unless app.fetch("init") == false
+          abort "the App must be published as stable" unless app.fetch("stage") == "stable"
           abort "the App must persist its own API key" unless app.fetch("schema").key?("digitalstrom_password")
           abort "a password option must be optional" unless app.fetch("schema").fetch("digitalstrom_password") == "password?"
+          abort "the health port must stay private" unless app.fetch("ports").fetch("8080/tcp").nil?
+          abort "the App must expose its liveness check to the Supervisor watchdog" unless app.fetch("watchdog") == "http://[HOST]:[PORT:8080]/health/live"
           abort "forbidden host access requested" if app.key?("host_network") || app.key?("privileged") || app.key?("full_access")
           abort "missing translations" unless translations.all? { |translation| translation.fetch("configuration").keys.sort == app.fetch("schema").keys.sort }
+          abort "missing health-port translations" unless translations.all? { |translation| translation.fetch("network").keys == ["8080/tcp"] }
           RUBY
       - name: Check App repository layout
         run: |
@@ -45,6 +51,7 @@ jobs:
           test -f home-assistant-app/config.yaml
           test -f home-assistant-app/README.md
           test -f home-assistant-app/DOCS.md
+          test -f home-assistant-app/DOCS.de.md
           test -f home-assistant-app/CHANGELOG.md
           test -f home-assistant-app/apparmor.txt
           test -f home-assistant-app/icon.png
@@ -66,6 +73,7 @@ jobs:
           RUBY
       - name: Check AppArmor profile
         run: |
+          grep --fixed-strings '/data/** rwk,' home-assistant-app/apparmor.txt
           if ! command -v apparmor_parser >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install --yes apparmor-utils
@@ -83,77 +91,103 @@ jobs:
         run: bash .github/scripts/check-haos-app-release-version.sh "${GITHUB_REF_NAME}"
       - name: Test App runtime bootstrap
         run: bash home-assistant-app/test-run.sh
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build amd64 App image
+
+  prepare:
+    name: Prepare App image matrix
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      version: ${{ steps.app.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read App version
+        id: app
         run: |
           APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
-          docker buildx build --platform linux/amd64 --build-arg BUILD_VERSION="${APP_VERSION}" --build-arg BUILD_ARCH=amd64 --file home-assistant-app/Dockerfile --load --tag digitalstrom-mqtt-haos:test-amd64 .
-      - name: Build aarch64 App image
-        run: |
-          APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
-          docker buildx build --platform linux/arm64 --build-arg BUILD_VERSION="${APP_VERSION}" --build-arg BUILD_ARCH=aarch64 --file home-assistant-app/Dockerfile --output type=cacheonly .
+          echo "version=${APP_VERSION}" >> "${GITHUB_OUTPUT}"
+      - name: Prepare multi-architecture matrix
+        id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.06.0
+        with:
+          architectures: ${{ env.ARCHITECTURES }}
+          image-name: ${{ env.HA_APP_IMAGE_NAME }}
+          registry-prefix: ${{ env.HA_APP_REGISTRY_PREFIX }}
+
+  build:
+    name: Validate ${{ matrix.arch }} App image
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build App image without publishing
+        uses: home-assistant/builder/actions/build-image@2026.06.0
+        with:
+          arch: ${{ matrix.arch }}
+          container-registry-password: not-used-for-validation-build
+          context: .
+          cosign: "false"
+          file: home-assistant-app/Dockerfile
+          image: ${{ matrix.image }}
+          image-tags: ${{ needs.prepare.outputs.version }}
+          push: "false"
+          version: ${{ needs.prepare.outputs.version }}
 
   publish:
-    name: Publish Home Assistant App image
+    name: Publish ${{ matrix.arch }} App image
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'gaetancollaud/digitalstrom-mqtt'
-    needs: validate
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, sign, and publish App image
+        uses: home-assistant/builder/actions/build-image@2026.06.0
+        with:
+          arch: ${{ matrix.arch }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          context: .
+          file: home-assistant-app/Dockerfile
+          image: ${{ matrix.image }}
+          image-tags: ${{ needs.prepare.outputs.version }}
+          push: "true"
+          version: ${{ needs.prepare.outputs.version }}
+
+  manifest:
+    name: Publish multi-architecture App manifest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'gaetancollaud/digitalstrom-mqtt'
+    needs:
+      - prepare
+      - publish
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Publish and sign multi-architecture manifest
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.06.0
         with:
-          fetch-depth: 0
-      - name: Read release version
-        id: app
-        run: |
-          bash .github/scripts/check-haos-app-release-version.sh "${GITHUB_REF_NAME}"
-          APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
-          echo "version=${APP_VERSION}" >> "${GITHUB_OUTPUT}"
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push amd64 App image
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            --build-arg BUILD_VERSION="${{ steps.app.outputs.version }}" \
-            --build-arg BUILD_ARCH=amd64 \
-            --file home-assistant-app/Dockerfile \
-            --push \
-            --tag "${HA_APP_IMAGE}-amd64:${{ steps.app.outputs.version }}" \
-            .
-      - name: Build and push aarch64 App image
-        run: |
-          docker buildx build \
-            --platform linux/arm64 \
-            --build-arg BUILD_VERSION="${{ steps.app.outputs.version }}" \
-            --build-arg BUILD_ARCH=aarch64 \
-            --file home-assistant-app/Dockerfile \
-            --push \
-            --tag "${HA_APP_IMAGE}-aarch64:${{ steps.app.outputs.version }}" \
-            .
-      - name: Publish multi-architecture manifest
-        run: |
-          docker buildx imagetools create \
-            --tag "${HA_APP_IMAGE}:${{ steps.app.outputs.version }}" \
-            "${HA_APP_IMAGE}-amd64:${{ steps.app.outputs.version }}" \
-            "${HA_APP_IMAGE}-aarch64:${{ steps.app.outputs.version }}"
+          architectures: ${{ env.ARCHITECTURES }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ${{ env.HA_APP_IMAGE_NAME }}
+          image-tags: ${{ needs.prepare.outputs.version }}
+          registry-prefix: ${{ env.HA_APP_REGISTRY_PREFIX }}
       - name: Verify anonymous App image access
         env:
-          APP_VERSION: ${{ steps.app.outputs.version }}
+          APP_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
+          HA_APP_IMAGE="${HA_APP_REGISTRY_PREFIX}/${HA_APP_IMAGE_NAME}"
           REPOSITORY="${HA_APP_IMAGE#ghcr.io/}"
           if ! TOKEN_RESPONSE="$(
             curl --fail --silent --show-error --get 'https://ghcr.io/token' \

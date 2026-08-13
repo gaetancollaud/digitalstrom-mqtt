@@ -1,23 +1,50 @@
 # digitalSTROM MQTT
 
-This Home Assistant App runs the existing `digitalstrom-mqtt` bridge. It uses
-Home Assistant's MQTT service and MQTT Discovery, so supported digitalSTROM
-devices appear automatically in Home Assistant.
+[English](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/DOCS.md) |
+[Deutsch](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/DOCS.de.md)
+
+This unofficial community App runs the existing `digitalstrom-mqtt` bridge on
+Home Assistant OS. It is not provided or supported by digitalSTROM. The App
+uses the Home Assistant MQTT service and MQTT Discovery, so supported
+digitalSTROM devices appear automatically in Home Assistant.
+
+## Compatibility
+
+- Home Assistant OS with Apps support is required.
+- Pre-built images are published for `amd64` and `aarch64`.
+- The complete installation and restart path has been tested in a fresh
+  `amd64` Home Assistant OS VM with a real dSS.
+- The `aarch64` image is built in CI. A live start on physical ARM hardware has
+  not yet been tested by the maintainers.
+
+## Install the App repository
+
+[![Open your Home Assistant instance and add this App repository.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fgaetancollaud%2Fdigitalstrom-mqtt)
+
+Alternatively, open **Settings -> Apps -> App store -> three-dot menu ->
+Repositories** and add:
+
+```text
+https://github.com/gaetancollaud/digitalstrom-mqtt
+```
+
+Install **digitalSTROM MQTT** after the repository appears.
 
 ## Before you start
 
 - A reachable digitalSTROM Server (dSS) is required.
 - Install and start the **Mosquitto Broker** App in Home Assistant.
-- Confirm the Home Assistant MQTT integration is connected.
-- Do not run this App and another `digitalstrom-mqtt` instance against the
-  same dSS and MQTT topic prefix at the same time.
+- Confirm that the Home Assistant MQTT integration is connected.
+- Stop any existing `digitalstrom-mqtt` instance using the same dSS and MQTT
+  topic prefix. Two active bridges can publish conflicting state and discovery
+  messages.
 
 ## First start
 
 1. Enter the dSS address, normally an IP address or local hostname. Keep the
    default HTTPS API port `8080` unless your dSS uses another port.
 2. Keep the default username `dssadmin` unless your dSS uses another account.
-3. Enter the dSS password and start the App.
+3. Enter the dSS password, save the options, and start the App.
 
 The App creates a dedicated dSS API key and stores it in its private persistent
 `/data` directory. The temporary password is removed from the App options after
@@ -71,11 +98,34 @@ diagnosing a problem. Logs do not intentionally include passwords or API keys.
 Creates a replacement API key on the next App start. Enter the dSS password
 first. The existing key remains in place if replacement fails.
 
+## Migrating an existing bridge
+
+1. Record any non-default MQTT topic, discovery prefix, or name normalization
+   settings used by the existing installation.
+2. Stop the existing bridge before starting this App.
+3. Install and configure the App, then verify the discovered devices and a few
+   commands in Home Assistant.
+4. Keep the old installation stopped until the App has also survived a restart.
+5. Remove the old installation and revoke its dSS API key when it is no longer
+   needed.
+
+The App currently uses the normal `digitalstrom-mqtt` MQTT and Discovery
+defaults. An installation with custom topic prefixes cannot be migrated
+identically through the App options yet.
+
 ## API key recovery
 
 If the API key is revoked in the dSS, enter the dSS password again, enable
 **Regenerate API key**, and start the App. The option resets automatically after
 a replacement key has been stored and the temporary password has been removed.
+
+## Removing the App
+
+Stop the App before uninstalling it. Uninstalling does not automatically revoke
+the dedicated API key in the dSS or remove retained MQTT Discovery messages.
+Revoke the integration key named `digitalstrom-mqtt-home-assistant` in the dSS
+authorization management when it is no longer used. Remove retained Discovery
+messages only after confirming that no other bridge depends on them.
 
 ## Troubleshooting
 
@@ -88,8 +138,11 @@ a replacement key has been stored and the temporary password has been removed.
   Home Assistant. Commands use the dSS HTTPS API, normally port `8080`.
 - **No devices appear**: wait for the App log to report connections to the dSS
   and MQTT. Confirm that no second bridge publishes the same MQTT entities.
+- **MQTT stays disconnected**: verify the broker and MQTT credentials. The
+  Supervisor watchdog monitors the bridge process separately, so a broker
+  outage does not create an App restart loop.
 - **The App stops after changing options**: inspect the App log. Configuration
-  and connection errors are reported without requiring access to the container.
+  and connection errors are reported without requiring container access.
 
 When reporting an issue, include the App version, dSS version, relevant App log
 lines, and whether the problem also occurs after restarting the App. Remove IP

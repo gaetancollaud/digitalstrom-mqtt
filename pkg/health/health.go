@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
-	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
-	"github.com/rs/zerolog/log"
 	"net/http"
 	"time"
 
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/go-chi/chi/v5"
 	healthgo "github.com/hellofresh/health-go/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type Health interface {
@@ -92,6 +92,10 @@ func (h *health) service() http.Handler {
 	r.Get("/health", h.health.HandlerFunc)
 	r.Get("/health/started", h.health.HandlerFunc)
 	r.Get("/health/ready", h.health.HandlerFunc)
-	r.Get("/health/live", h.health.HandlerFunc)
+	r.Get("/health/live", liveHandler)
 	return r
+}
+
+func liveHandler(writer http.ResponseWriter, _ *http.Request) {
+	writer.WriteHeader(http.StatusOK)
 }
