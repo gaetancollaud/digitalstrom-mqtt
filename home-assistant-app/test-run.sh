@@ -10,6 +10,7 @@ cleanup() {
 trap cleanup EXIT
 
 export API_KEY_FILE="${TEST_DIR}/digitalstrom-api-key"
+export PASSWORD_FILE_PREFIX="${TEST_DIR}/digitalstrom-mqtt-password"
 export DIGITALSTROM_MQTT_BIN="${TEST_DIR}/digitalstrom-mqtt"
 
 # shellcheck source=run.sh
@@ -274,6 +275,7 @@ test_api_key_creation_uses_password_file_and_cleans_options() {
     reset_api_key_state
     read_optional_password() { printf 'test-password'; }
     request_api_key() {
+        [[ "${PASSWORD_FILE}" == "${PASSWORD_FILE_PREFIX}."* ]] || fail "password file was not created under the configured runtime prefix"
         assert_equal "test-password" "$(<"${PASSWORD_FILE}")" "password file contents"
         printf 'new-api-key' > "$1"
         chmod 0600 "$1"

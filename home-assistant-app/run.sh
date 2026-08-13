@@ -7,6 +7,7 @@ set -euo pipefail
 readonly API_KEY_FILE="${API_KEY_FILE:-/data/digitalstrom-api-key}"
 readonly API_KEY_STAGING_FILE="${API_KEY_STAGING_FILE:-${API_KEY_FILE}.staged}"
 readonly API_KEY_FINALIZATION_FILE="${API_KEY_FINALIZATION_FILE:-${API_KEY_FILE}.pending-finalization}"
+readonly PASSWORD_FILE_PREFIX="${PASSWORD_FILE_PREFIX:-/run/digitalstrom-mqtt-password}"
 readonly API_KEY_NAME="digitalstrom-mqtt-home-assistant"
 readonly DIGITALSTROM_MQTT_BIN="${DIGITALSTROM_MQTT_BIN:-/digitalstrom-mqtt}"
 
@@ -156,7 +157,7 @@ create_api_key() {
         return 1
     fi
 
-    if ! PASSWORD_FILE="$(mktemp)"; then
+    if ! PASSWORD_FILE="$(mktemp "${PASSWORD_FILE_PREFIX}.XXXXXX")"; then
         bashio::log.error "Could not create a temporary password file."
         return 1
     fi

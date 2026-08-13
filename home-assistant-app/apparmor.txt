@@ -43,6 +43,7 @@ profile digitalstrom_mqtt flags=(attach_disconnected,mediate_deleted) {
     network,
 
     /digitalstrom-mqtt rm,
+    /run/digitalstrom-mqtt-password.* r,
     /data/** rwk,
     /etc/ssl/certs/** r,
     /proc/** r,

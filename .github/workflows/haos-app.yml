@@ -74,6 +74,7 @@ jobs:
       - name: Check AppArmor profile
         run: |
           grep --fixed-strings '/data/** rwk,' home-assistant-app/apparmor.txt
+          grep --fixed-strings '/run/digitalstrom-mqtt-password.* r,' home-assistant-app/apparmor.txt
           if ! command -v apparmor_parser >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install --yes apparmor-utils
