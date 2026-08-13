@@ -10,15 +10,16 @@ App builder only receives the App directory, while the image must be built from
 the repository root to include the Go bridge.
 
 Pull requests build `amd64` and `aarch64` images without registry access. When
-an App version change reaches the official `master` branch, the release job
-publishes versioned images and a shared multi-architecture manifest to GHCR.
-Users pull that image instead of compiling the bridge on their Home Assistant
-host.
+a Git tag is pushed to the official repository, the existing GoReleaser workflow
+publishes the standalone release while the App workflow publishes versioned
+images and a shared multi-architecture manifest to GHCR. Users pull that image
+instead of compiling the bridge on their Home Assistant host.
 
-Changes to Go source or module files, App configuration or translations, the
-AppArmor profile, Dockerfile, or runtime script require a new App version in
-`config.yaml`. CI rejects runtime changes when an existing App version was not
-incremented.
+The Git tag, standalone release, Docker image, and App version use the same
+version number. The App workflow rejects a release tag that does not exactly
+match `version` in `config.yaml`. Normal pull requests do not require an App
+version change and never publish images, so fork pull requests can run all
+checks without access to repository publishing secrets.
 
 After the first publication, the `digitalstrom-mqtt-haos` package must be made
 public in the GitHub package settings. The release workflow verifies that the
@@ -70,3 +71,18 @@ hardware coverage.
    hardware path remains unverified until such a device is available.
 8. Verify that the exact versioned GHCR manifest is anonymously pullable before
    announcing a release.
+
+## Release sequence
+
+1. Set the release version in `home-assistant-app/config.yaml` and add the same
+   version to `CHANGELOG.md`.
+2. Merge the validated pull request into `master`.
+3. Create and push a Git tag with exactly the same version, for example
+   `2.4.0`.
+4. Confirm that the GoReleaser and Home Assistant App workflows both complete.
+5. Confirm that the GitHub release, DockerHub images, and GHCR App manifest all
+   use the same version.
+
+Treat the merge and matching tag as one release operation. Until the tag jobs
+have published the versioned GHCR manifest, the App version on `master` is not
+ready to install or announce.

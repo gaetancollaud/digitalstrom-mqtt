@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.3-haos.1
+## 2.4.0
 
 - Initial native Home Assistant App package.
 - Uses the Home Assistant MQTT service and existing MQTT Discovery support.

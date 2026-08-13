@@ -1,5 +1,5 @@
 name: digitalSTROM MQTT
-version: "2.3.3-haos.1"
+version: "2.4.0"
 slug: digitalstrom_mqtt
 description: Connect digitalSTROM devices to Home Assistant through MQTT Discovery.
 url: "https://github.com/gaetancollaud/digitalstrom-mqtt/tree/master/home-assistant-app"

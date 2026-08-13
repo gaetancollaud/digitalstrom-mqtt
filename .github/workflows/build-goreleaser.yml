@@ -3,15 +3,13 @@ name: goreleaser
 on:
   pull_request:
   push:
+    branches:
+      - master
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - name: Login to Docker Registry
-        run: |
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
-          docker login  -u gaetancollaud --password-stdin
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -25,5 +23,3 @@ jobs:
         with:
           version: latest
           args: release --clean --snapshot
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -9,15 +9,17 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Match App version to release tag
+        run: bash .github/scripts/check-haos-app-release-version.sh "${GITHUB_REF_NAME}"
       - name: Login to Docker Registry
         run: |
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
           docker login  -u gaetancollaud --password-stdin \
           && docker info
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
