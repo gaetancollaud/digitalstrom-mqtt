@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly TEST_DIR="$(mktemp -d)"
-readonly APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="$(mktemp -d)"
+readonly TEST_DIR
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly APP_DIR
 
 cleanup() {
     rm -rf "${TEST_DIR}"
@@ -53,6 +55,23 @@ assert_file_not_contains() {
 reset_api_key_state() {
     rm -f "${API_KEY_FILE}" "${API_KEY_STAGING_FILE}" "${API_KEY_FINALIZATION_FILE}"
     API_KEY_REQUEST_SATISFIED="false"
+}
+
+test_boolean_false_is_not_replaced_by_default() {
+    APP_OPTIONS='{"meterings_enabled":false}'
+    bashio::jq() {
+        assert_equal '{"meterings_enabled":false}' "$1" "boolean option input"
+        assert_equal \
+            'if .meterings_enabled == null then true else .meterings_enabled end' \
+            "$2" \
+            "boolean option jq filter"
+        printf 'false'
+    }
+
+    local value
+    value="$(app_option 'meterings_enabled' 'true')"
+
+    assert_equal "false" "${value}" "explicit false option value"
 }
 
 test_first_start_removes_password_without_resetting_regeneration() {
@@ -608,6 +627,7 @@ test_configuration_caps_bashio_trace_at_debug() {
     assert_equal "TRACE" "${LOG_LEVEL}" "bridge trace log level"
 }
 
+(test_boolean_false_is_not_replaced_by_default)
 (test_first_start_removes_password_without_resetting_regeneration)
 (test_regeneration_resets_flag_before_removing_password)
 (test_failed_regeneration_reset_keeps_password)

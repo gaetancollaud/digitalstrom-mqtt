@@ -34,7 +34,8 @@ app_option() {
     local key="$1"
     local default_value="$2"
 
-    bashio::jq "${APP_OPTIONS}" ".${key} // ${default_value}"
+    bashio::jq "${APP_OPTIONS}" \
+        "if .${key} == null then ${default_value} else .${key} end"
 }
 
 read_optional_password() {
