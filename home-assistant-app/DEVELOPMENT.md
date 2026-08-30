@@ -14,21 +14,22 @@ workflow uses the versioned Home Assistant builder composite actions and native
 GitHub runners for both architectures. When a Git tag is pushed to the official
 repository, the existing GoReleaser workflow publishes the standalone release
 while the App workflow builds, signs, and publishes versioned images and a
-shared multi-architecture manifest to Docker Hub as
-`gaetancollaud/digitalstrom-mqtt-haos`. Users pull that image instead of
-compiling the bridge on their Home Assistant host.
+shared multi-architecture manifest to the existing
+`gaetancollaud/digitalstrom-mqtt` Docker Hub repository. Users pull that image
+instead of compiling the bridge on their Home Assistant host.
 
 The App uses the project's existing Docker Hub registry and `DOCKERHUB_TOKEN`
-secret. Its image name is separate from `gaetancollaud/digitalstrom-mqtt`
-because the App image also contains the Home Assistant base image, Bashio, and
-the Supervisor launcher. `digitalstrom-mqtt-haos` is only a Docker Hub image
-repository; it is not another Git repository or another Home Assistant App.
-Home Assistant identifies the App by its source repository and `slug`, while
-the `image` field selects the container that Supervisor pulls.
+secret. The standalone and App images contain different runtime packaging, so
+their Docker tags distinguish them while both remain in the same image
+repository. A project release tag `2.4.0` publishes the standalone image as
+`2.4.0` and the App image as `2.4.0-haos.1`. Home Assistant uses the App
+`version` as the image tag and pulls that exact variant.
 
-The Git tag, standalone release, Docker image, and App version use the same
-version number. The App workflow rejects an official release tag that does not
-exactly match `version` in `config.yaml`; this does not block the existing
+The `.1` suffix is the first App packaging revision for a project release. The
+initial workflow does not add a separate App-only Git tag path; packaging fixes
+use the next normal project patch release until an independent App revision is
+actually needed. The App workflow rejects an official project tag unless the
+configured App version is `<tag>-haos.1`. This does not block the existing
 standalone Go and Docker Hub release workflow. Normal pull requests do not
 require an App version change and never publish images, so fork pull requests
 can run all checks without access to repository publishing secrets.
@@ -94,10 +95,9 @@ options, runtime and AppArmor profile on the HAOS machine's architecture. It
 does not validate anonymous Docker Hub access, the release manifest, or runtime
 on a different architecture. Those remain release and physical-hardware gates.
 
-Before the first publication, create the public Docker Hub image repository
-`gaetancollaud/digitalstrom-mqtt-haos` and ensure that the existing
-`DOCKERHUB_TOKEN` repository secret can push to it. The release workflow
-verifies that the versioned manifest can be fetched anonymously.
+The existing `gaetancollaud/digitalstrom-mqtt` Docker Hub repository is already
+public. The release workflow verifies that the exact versioned App manifest can
+be fetched anonymously.
 
 ## Presentation decisions
 
@@ -165,14 +165,15 @@ hardware coverage.
 
 ## Release sequence
 
-1. Run `bash scripts/prepare-release.sh VERSION`, then add the same version to
+1. Run `bash scripts/prepare-release.sh VERSION`. For project version `2.4.0`,
+   this sets the App version to `2.4.0-haos.1`. Add that App version to
    `home-assistant-app/CHANGELOG.md`.
 2. Merge the validated pull request into `master`.
 3. Create and push a Git tag with exactly the same version, for example
    `2.4.0`.
 4. Confirm that the GoReleaser and Home Assistant App workflows both complete.
-5. Confirm that the GitHub release, standalone Docker Hub image, and Docker Hub
-   App manifest all use the same version.
+5. Confirm the GitHub release and standalone Docker Hub image use `2.4.0`, and
+   the Docker Hub App manifest uses `2.4.0-haos.1`.
 
 Treat the merge and matching tag as one release operation. Until the tag jobs
 have published the versioned Docker Hub App manifest, the App version on

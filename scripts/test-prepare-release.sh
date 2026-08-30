@@ -10,15 +10,20 @@ trap 'rm -rf "${test_directory}"' EXIT
 
 config_path="${test_directory}/config.yaml"
 changelog_path="${test_directory}/CHANGELOG.md"
-printf 'name: test\nversion: "2.4.0"\nslug: test\n' > "${config_path}"
+printf 'name: test\nversion: "2.4.0-haos.1"\nslug: test\n' > "${config_path}"
 printf '# Changelog\n' > "${changelog_path}"
 
 bash "${PREPARE_SCRIPT}" "2.4.1" "${config_path}" "${changelog_path}"
-grep --fixed-strings --line-regexp --quiet 'version: "2.4.1"' "${config_path}"
+grep --fixed-strings --line-regexp --quiet 'version: "2.4.1-haos.1"' "${config_path}"
 grep --fixed-strings --line-regexp --quiet 'slug: test' "${config_path}"
 
 if bash "${PREPARE_SCRIPT}" "v2.4.1" "${config_path}" "${changelog_path}" >/dev/null 2>&1; then
     echo "Release preparation accepted a v-prefixed version." >&2
+    exit 1
+fi
+
+if bash "${PREPARE_SCRIPT}" "2.4.1-haos.2" "${config_path}" "${changelog_path}" >/dev/null 2>&1; then
+    echo "Release preparation accepted an App version instead of a project version." >&2
     exit 1
 fi
 

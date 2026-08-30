@@ -1,5 +1,5 @@
 name: digitalSTROM MQTT
-version: "2.4.0"
+version: "2.4.0-haos.1"
 slug: digitalstrom_mqtt
 description: Unofficial community App connecting digitalSTROM to Home Assistant through MQTT Discovery.
 url: "https://github.com/gaetancollaud/digitalstrom-mqtt/tree/master/home-assistant-app"
@@ -9,7 +9,7 @@ arch:
 init: false
 services:
   - mqtt:need
-image: "docker.io/gaetancollaud/digitalstrom-mqtt-haos"
+image: "docker.io/gaetancollaud/digitalstrom-mqtt"
 ports:
   8080/tcp: null
 options:
