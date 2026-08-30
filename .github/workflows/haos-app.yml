@@ -76,7 +76,9 @@ jobs:
         run: |
           bash -n home-assistant-app/run.sh \
             scripts/prepare-release.sh \
+            scripts/release.sh \
             scripts/test-prepare-release.sh \
+            scripts/test-release.sh \
             scripts/prepare-haos-local-app.sh \
             scripts/test-prepare-haos-local-app.sh
       - name: Test local App preparation
@@ -85,6 +87,8 @@ jobs:
         run: bash scripts/test-prepare-haos-local-app.sh
       - name: Test release preparation
         run: bash scripts/test-prepare-release.sh
+      - name: Test release workflow
+        run: bash scripts/test-release.sh
       - name: Test App runtime bootstrap
         run: bash home-assistant-app/test-run.sh
 

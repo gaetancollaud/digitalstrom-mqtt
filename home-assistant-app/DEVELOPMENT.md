@@ -165,16 +165,18 @@ hardware coverage.
 
 ## Release sequence
 
-1. Run `bash scripts/prepare-release.sh VERSION`. For project version `2.4.0`,
-   this sets the App version to `2.4.0-haos.1`. Add that App version to
-   `home-assistant-app/CHANGELOG.md`.
-2. Merge the validated pull request into `master`.
-3. Create and push a Git tag with exactly the same version, for example
-   `2.4.0`.
-4. Confirm that the GoReleaser and Home Assistant App workflows both complete.
-5. Confirm the GitHub release and standalone Docker Hub image use `2.4.0`, and
+1. Merge the validated pull request into `master` and update the local branch.
+2. Run `bash scripts/release.sh VERSION`, for example
+   `bash scripts/release.sh 2.4.0`. This single command verifies a clean and
+   current `master`, sets the App version to `2.4.0-haos.1`, adds a matching
+   App changelog entry when needed, runs the local checks, creates the release
+   commit and tag, and pushes both atomically.
+3. Confirm that the GoReleaser and Home Assistant App workflows both complete.
+4. Confirm the GitHub release and standalone Docker Hub image use `2.4.0`, and
    the Docker Hub App manifest uses `2.4.0-haos.1`.
 
-Treat the merge and matching tag as one release operation. Until the tag jobs
-have published the versioned Docker Hub App manifest, the App version on
-`master` is not ready to install or announce.
+The script is the supported release entry point; the App workflow still rejects
+a manually pushed project tag when `config.yaml` does not contain the matching
+`<tag>-haos.1` App version. Until the tag jobs have published the versioned
+Docker Hub App manifest, the App version on `master` is not ready to install or
+announce.
