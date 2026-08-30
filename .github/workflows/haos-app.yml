@@ -60,7 +60,12 @@ jobs:
           test -f home-assistant-app/logo.png
       - name: Check AppArmor profile
         run: |
-          grep --fixed-strings '/data/** rwk,' home-assistant-app/apparmor.txt
+          awk '
+            /^  profile \/digitalstrom-mqtt / { in_child = 1 }
+            in_child && /\/data\/\*\* rwk,/ { child_data_access = 1 }
+            in_child && /^  }/ { exit(child_data_access ? 0 : 1) }
+            END { if (!child_data_access) exit 1 }
+          ' home-assistant-app/apparmor.txt
           grep --fixed-strings '/run/digitalstrom-mqtt-password.* r,' home-assistant-app/apparmor.txt
           if ! command -v apparmor_parser >/dev/null 2>&1; then
             sudo apt-get update
@@ -70,8 +75,6 @@ jobs:
       - name: Check App shell syntax
         run: |
           bash -n home-assistant-app/run.sh \
-            .github/scripts/check-haos-app-release-version.sh \
-            .github/scripts/test-check-haos-app-release-version.sh \
             scripts/prepare-release.sh \
             scripts/test-prepare-release.sh \
             scripts/prepare-haos-local-app.sh \
@@ -80,13 +83,8 @@ jobs:
         env:
           HAOS_LOCAL_APP_FULL_VALIDATION: "1"
         run: bash scripts/test-prepare-haos-local-app.sh
-      - name: Test App release version check
-        run: bash .github/scripts/test-check-haos-app-release-version.sh
       - name: Test release preparation
         run: bash scripts/test-prepare-release.sh
-      - name: Match App version to release tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: bash .github/scripts/check-haos-app-release-version.sh "${GITHUB_REF_NAME}"
       - name: Test App runtime bootstrap
         run: bash home-assistant-app/test-run.sh
 
@@ -103,6 +101,20 @@ jobs:
         id: app
         run: |
           APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
+          if [[ "${GITHUB_REF}" == refs/tags/* \
+            && "${GITHUB_REPOSITORY}" == 'gaetancollaud/digitalstrom-mqtt' ]]; then
+            if [[ "${GITHUB_REF_NAME}" != "${APP_VERSION}" ]]; then
+              printf 'Release tag %s does not match Home Assistant App version %s.\n' \
+                "${GITHUB_REF_NAME}" "${APP_VERSION}" >&2
+              exit 1
+            fi
+            if ! grep --fixed-strings --line-regexp --quiet \
+              "## ${APP_VERSION}" home-assistant-app/CHANGELOG.md; then
+              printf 'Home Assistant App changelog entry ## %s is missing.\n' \
+                "${APP_VERSION}" >&2
+              exit 1
+            fi
+          fi
           echo "version=${APP_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: Prepare multi-architecture matrix
         id: matrix

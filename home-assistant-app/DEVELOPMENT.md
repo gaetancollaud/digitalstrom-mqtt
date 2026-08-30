@@ -27,10 +27,11 @@ separate image beside the source repository, uses the workflow's built-in
 second Git repository.
 
 The Git tag, standalone release, Docker image, and App version use the same
-version number. The App workflow rejects a release tag that does not exactly
-match `version` in `config.yaml`. Normal pull requests do not require an App
-version change and never publish images, so fork pull requests can run all
-checks without access to repository publishing secrets.
+version number. The App workflow rejects an official release tag that does not
+exactly match `version` in `config.yaml`; this does not block the existing
+standalone Go and Docker Hub release workflow. Normal pull requests do not
+require an App version change and never publish images, so fork pull requests
+can run all checks without access to repository publishing secrets.
 
 ## Test a pull request on Home Assistant OS
 
@@ -114,6 +115,8 @@ versioned manifest can be fetched without GitHub credentials.
   network. Docker checks `/health/live`, which verifies the bridge process
   without treating a recoverable MQTT outage as a reason to restart.
   `/health/ready` continues to include the MQTT connection state for diagnosis.
+  Supervisor only restarts an unhealthy App when its optional watchdog is
+  enabled; that setting is off by default.
 - **Store artwork is active**: `icon.png` is a 128 x 128 square icon and
   `logo.png` is a 250 x 100 wide logo. Both images are project-specific artwork
   and do not reuse an official digitalSTROM or Home Assistant logo.

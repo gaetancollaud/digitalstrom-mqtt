@@ -58,26 +58,23 @@ func getToken(httpClient http.Client, host string, port int, user string, passwo
 
 	tokenResponse, _, err := doRequest(httpClient, http.MethodGet, host, port, "json/system/login", params, nil)
 	if err != nil {
-		return "", fmt.Errorf("error when loging in: %w", err)
+		return "", fmt.Errorf("digitalSTROM login failed: %w", err)
 	}
 
-	if val, ok := tokenResponse["ok"]; ok {
-		if !val.(bool) {
-			return "", errors.New("error with DigitalStrom API: " + tokenResponse["message"].(string))
-		}
-	} else {
+	loginAccepted, ok := tokenResponse["ok"].(bool)
+	if !ok {
 		return "", errors.New("no 'ok' field present, cannot check request")
 	}
+	if !loginAccepted {
+		return "", errors.New("digitalSTROM login was rejected")
+	}
 
-	var token string
-	if val, ok := tokenResponse["result"]; ok {
-		result := val.(map[string]interface{})
-		if t, ok := result["token"]; ok {
-			token = t.(string)
-		} else {
-			return "", errors.New("no 'token' field present, cannot get token from request")
-		}
-	} else {
+	result, ok := tokenResponse["result"].(map[string]interface{})
+	if !ok {
+		return "", errors.New("no 'token' field present, cannot get token from request")
+	}
+	token, ok := result["token"].(string)
+	if !ok || strings.TrimSpace(token) == "" {
 		return "", errors.New("no 'token' field present, cannot get token from request")
 	}
 	return token, nil
@@ -105,7 +102,10 @@ func getApiKey(httpClient http.Client, host string, port int, token string, inte
 	if apiKeyResponse.StatusCode == 201 {
 		apiKey = apiKeyResponse.Header.Get("Location")
 	} else {
-		return "", errors.New(fmt.Sprintf("error creating api key, status was: %d", apiKeyResponse.StatusCode))
+		return "", fmt.Errorf("error creating api key, status was: %d", apiKeyResponse.StatusCode)
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		return "", errors.New("digitalSTROM returned an empty API key")
 	}
 
 	return apiKey, nil
@@ -127,11 +127,19 @@ func doRequest(httpClient http.Client, method string, host string, port int, pat
 
 	request, err := http.NewRequest(method, callUrl, bodyReader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error building the request: %w", err)
+		return nil, nil, errors.New("error building the request")
 	}
 	resp, err := httpClient.Do(request)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error doing the request: %w", err)
+		requestError := err
+		for {
+			urlError, isURLError := requestError.(*url.Error)
+			if !isURLError {
+				break
+			}
+			requestError = urlError.Err
+		}
+		return nil, nil, fmt.Errorf("error doing the request: %w", requestError)
 	}
 	if resp.Body != nil {
 		defer resp.Body.Close()
@@ -139,20 +147,20 @@ func doRequest(httpClient http.Client, method string, host string, port int, pat
 
 	responseBody, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
-		return nil, nil, fmt.Errorf("error reading the request: %w", err)
+		return nil, nil, fmt.Errorf("error reading the response: %w", readErr)
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, nil, fmt.Errorf("error response from server, httpStatus=%d: %s", resp.StatusCode, responseBody)
+		return nil, nil, fmt.Errorf("error response from server, httpStatus=%d", resp.StatusCode)
 	}
 
 	log.Debug().
-		Str("url", callUrl).
+		Str("url", request.URL.Scheme+"://"+request.URL.Host+request.URL.Path).
 		Str("status", resp.Status).
 		Msg("Response received")
 	log.Trace().
-		Str("body", string(responseBody)).
-		Msg("Response body")
+		Int("body_bytes", len(responseBody)).
+		Msg("Response body received")
 
 	if len(responseBody) > 0 {
 		var jsonResponse map[string]interface{}

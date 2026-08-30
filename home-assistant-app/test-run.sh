@@ -20,6 +20,7 @@ bashio::log.error() { :; }
 bashio::log.debug() { :; }
 bashio::log.info() { :; }
 bashio::log.warning() { :; }
+bashio::log.level() { :; }
 
 fail() {
     printf 'FAIL: %s\n' "$1" >&2
@@ -51,7 +52,7 @@ assert_file_not_contains() {
 
 reset_api_key_state() {
     rm -f "${API_KEY_FILE}" "${API_KEY_STAGING_FILE}" "${API_KEY_FINALIZATION_FILE}"
-    API_KEY_BOOTSTRAP_RESUMED="false"
+    API_KEY_REQUEST_SATISFIED="false"
 }
 
 test_first_start_removes_password_without_resetting_regeneration() {
@@ -116,6 +117,28 @@ test_password_option_read_failure_stops_bootstrap() {
     fi
 }
 
+test_option_update_propagates_supervisor_failure() {
+    local -a log_levels=()
+    APP_OPTIONS='{"digitalstrom_password":"temporary-password"}'
+    LOG_LEVEL="DEBUG"
+    bashio::jq() {
+        assert_equal 'del(.digitalstrom_password)' "$2" "option update jq filter"
+        printf '{}'
+    }
+    bashio::var.json() { printf '{"options":{}}'; }
+    bashio::api.supervisor() { return 1; }
+    bashio::cache.flush_all() { fail "failed option update flushed the cache"; }
+    bashio::log.level() { log_levels+=("$1"); }
+
+    if update_app_option 'digitalstrom_password'; then
+        fail "failed Supervisor option update was accepted"
+    fi
+
+    assert_equal '{"digitalstrom_password":"temporary-password"}' "${APP_OPTIONS}" "options after failed update"
+    assert_equal "info" "${log_levels[0]}" "option update temporary log level"
+    assert_equal "DEBUG" "${log_levels[1]}" "option update restored log level"
+}
+
 test_failed_regeneration_cleanup_resumes_without_another_key() {
     local allow_option_updates="false"
     local request_count=0
@@ -137,9 +160,7 @@ test_failed_regeneration_cleanup_resumes_without_another_key() {
         [[ "${allow_option_updates}" == "true" ]]
     }
 
-    if create_api_key "true"; then
-        fail "failed regeneration cleanup should stop bootstrap"
-    fi
+    create_api_key "true"
     assert_equal "new-api-key" "$(<"${API_KEY_FILE}")" "replacement API key"
     assert_equal "true" "$(<"${API_KEY_FINALIZATION_FILE}")" "pending regeneration state"
     assert_equal "1" "${request_count}" "initial API key request count"
@@ -148,7 +169,7 @@ test_failed_regeneration_cleanup_resumes_without_another_key() {
     resume_api_key_bootstrap "true"
 
     assert_equal "1" "${request_count}" "resumed API key request count"
-    assert_equal "true" "${API_KEY_BOOTSTRAP_RESUMED}" "resumed bootstrap marker"
+    assert_equal "true" "${API_KEY_REQUEST_SATISFIED}" "resumed regeneration marker"
     [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "pending regeneration state was not removed"
     assert_equal "3" "${#calls[@]}" "regeneration retry option update count"
     assert_equal "regenerate_api_key ^false" "${calls[1]}" "retried regeneration reset"
@@ -174,9 +195,7 @@ test_failed_password_removal_resumes_without_another_key() {
         fi
     }
 
-    if create_api_key "false"; then
-        fail "failed password removal should stop bootstrap"
-    fi
+    create_api_key "false"
     assert_equal "false" "$(<"${API_KEY_FINALIZATION_FILE}")" "pending first-start state"
 
     fail_password_removal="false"
@@ -197,7 +216,7 @@ test_interrupted_staged_key_is_promoted_without_another_request() {
     resume_api_key_bootstrap "false"
 
     assert_equal "staged-api-key" "$(<"${API_KEY_FILE}")" "promoted staged API key"
-    assert_equal "true" "${API_KEY_BOOTSTRAP_RESUMED}" "staged bootstrap marker"
+    assert_equal "true" "${API_KEY_REQUEST_SATISFIED}" "staged bootstrap marker"
     [[ ! -e "${API_KEY_STAGING_FILE}" ]] || fail "staged API key was not promoted"
     [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "staged API key finalization was not completed"
 }
@@ -245,6 +264,58 @@ test_failed_api_key_request_preserves_existing_key() {
     [[ ! -e "${PASSWORD_FILE}" ]] || fail "failed API key request left the temporary password file"
 }
 
+test_empty_api_key_response_preserves_existing_key() {
+    reset_api_key_state
+    printf 'old-api-key' > "${API_KEY_FILE}"
+    DIGITALSTROM_HOST="dss.local"
+    DIGITALSTROM_PORT="8080"
+    DSS_USERNAME="dssadmin"
+    read_optional_password() { printf 'test-password'; }
+    request_api_key() { : > "$1"; }
+
+    if create_api_key "true"; then
+        fail "empty API key response should stop bootstrap"
+    fi
+
+    assert_equal "old-api-key" "$(<"${API_KEY_FILE}")" "API key after empty replacement"
+    [[ ! -e "${API_KEY_STAGING_FILE}" ]] || fail "empty API key response left a staged key"
+    [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "empty API key response left pending finalization"
+}
+
+test_stale_first_start_marker_does_not_consume_regeneration() {
+    reset_api_key_state
+    printf 'old-api-key' > "${API_KEY_FILE}"
+    printf 'false' > "${API_KEY_FINALIZATION_FILE}"
+    update_app_option() { fail "stale first-start marker consumed regeneration options"; }
+
+    resume_api_key_bootstrap "true"
+
+    assert_equal "false" "${API_KEY_REQUEST_SATISFIED}" "stale marker regeneration state"
+    [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "stale first-start marker was not removed"
+}
+
+test_missing_key_marker_allows_api_key_retry() {
+    reset_api_key_state
+    printf 'true' > "${API_KEY_FINALIZATION_FILE}"
+    update_app_option() { fail "missing key marker attempted option cleanup"; }
+
+    resume_api_key_bootstrap "true"
+
+    assert_equal "false" "${API_KEY_REQUEST_SATISFIED}" "missing key retry state"
+    [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "missing key marker was not removed"
+}
+
+test_empty_marker_does_not_block_valid_key() {
+    reset_api_key_state
+    printf 'existing-api-key' > "${API_KEY_FILE}"
+    : > "${API_KEY_FINALIZATION_FILE}"
+
+    resume_api_key_bootstrap "false"
+
+    assert_equal "existing-api-key" "$(<"${API_KEY_FILE}")" "API key after empty marker"
+    [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "empty marker was not removed"
+}
+
 test_api_key_request_uses_configured_port() {
     local arguments_file="${TEST_DIR}/api-key-arguments"
     local output_file="${TEST_DIR}/requested-api-key"
@@ -289,7 +360,8 @@ test_api_key_creation_uses_password_file_and_cleans_options() {
     [[ ! -e "${PASSWORD_FILE}" ]] || fail "temporary password file was not removed"
 }
 
-test_mqtt_service_enables_tls_scheme() {
+test_mqtt_service_rejects_unsupported_tls() {
+    local log_file="${TEST_DIR}/mqtt-tls-error-log"
     bashio::services() {
         case "$2" in
             host) printf 'mqtt.local' ;;
@@ -300,12 +372,16 @@ test_mqtt_service_enables_tls_scheme() {
             *) return 1 ;;
         esac
     }
+    bashio::log.error() { printf 'ERROR: %s\n' "$*" >> "${log_file}"; }
 
-    read_mqtt_service
+    if read_mqtt_service; then
+        fail "unsupported MQTT TLS service was accepted"
+    fi
 
-    assert_equal "mqtt.local" "${MQTT_HOST}" "MQTT host"
-    assert_equal "8883" "${MQTT_PORT}" "MQTT port"
-    assert_equal "ssl" "${MQTT_SCHEME}" "MQTT scheme"
+    assert_file_contains \
+        "ERROR: The Home Assistant MQTT service requires TLS, but this App cannot verify a custom broker certificate. Use the Mosquitto App's default internal non-TLS service." \
+        "${log_file}" \
+        "MQTT TLS error"
 }
 
 test_main_resumes_pending_cleanup_before_starting_bridge() {
@@ -326,7 +402,8 @@ printf 'started' > "${TEST_STARTED_FILE}"
 SCRIPT
     chmod 0755 "${DIGITALSTROM_MQTT_BIN}"
     update_app_option() { printf '%s\n' "$*" >> "${calls_file}"; }
-    bashio::config() {
+    load_app_options() { APP_OPTIONS='{}'; }
+    app_option() {
         case "$1" in
             digitalstrom_host) printf 'dss.local' ;;
             digitalstrom_port) printf '8080' ;;
@@ -339,7 +416,7 @@ SCRIPT
             *) return 1 ;;
         esac
     }
-    bashio::config.true() { [[ "$1" == "regenerate_api_key" ]]; }
+    regeneration_option_is_enabled() { return 0; }
     bashio::log.debug() { printf 'DEBUG: %s\n' "$*" >> "${log_file}"; }
     bashio::log.info() { printf 'INFO: %s\n' "$*" >> "${log_file}"; }
     bashio::services() {
@@ -388,7 +465,8 @@ printf '%s\n' \
 SCRIPT
     chmod 0755 "${DIGITALSTROM_MQTT_BIN}"
 
-    bashio::config() {
+    load_app_options() { APP_OPTIONS='{}'; }
+    app_option() {
         case "$1" in
             digitalstrom_host) printf 'dss.local' ;;
             digitalstrom_port) printf '8443' ;;
@@ -400,7 +478,7 @@ SCRIPT
             *) return 1 ;;
         esac
     }
-    bashio::config.true() { return 1; }
+    regeneration_option_is_enabled() { return 1; }
     bashio::log.debug() { printf 'DEBUG: %s\n' "$*" >> "${log_file}"; }
     bashio::log.info() { printf 'INFO: %s\n' "$*" >> "${log_file}"; }
     bashio::services() {
@@ -439,7 +517,7 @@ SCRIPT
 test_configuration_read_failure_is_reported() {
     local log_file="${TEST_DIR}/configuration-error-log"
 
-    bashio::config() { return 1; }
+    load_app_options() { return 1; }
     bashio::log.error() { printf 'ERROR: %s\n' "$*" >> "${log_file}"; }
 
     if load_configuration; then
@@ -452,21 +530,50 @@ test_configuration_read_failure_is_reported() {
         "configuration read error"
 }
 
+test_configuration_applies_bashio_log_level() {
+    local applied_log_level=""
+
+    load_app_options() { APP_OPTIONS='{}'; }
+    app_option() {
+        case "$1" in
+            digitalstrom_host) printf 'dss.local' ;;
+            digitalstrom_port) printf '8080' ;;
+            digitalstrom_username) printf 'dssadmin' ;;
+            invert_blinds_position) printf 'false' ;;
+            meterings_enabled) printf 'true' ;;
+            meterings_interval_seconds) printf '10' ;;
+            log_level) printf 'DEBUG' ;;
+            *) return 1 ;;
+        esac
+    }
+    bashio::log.level() { applied_log_level="$1"; }
+
+    load_configuration
+
+    assert_equal "DEBUG" "${applied_log_level}" "Bashio log level"
+}
+
 (test_first_start_removes_password_without_resetting_regeneration)
 (test_regeneration_resets_flag_before_removing_password)
 (test_failed_regeneration_reset_keeps_password)
 (test_already_applied_option_updates_are_not_repeated)
 (test_password_option_read_failure_stops_bootstrap)
+(test_option_update_propagates_supervisor_failure)
 (test_failed_regeneration_cleanup_resumes_without_another_key)
 (test_failed_password_removal_resumes_without_another_key)
 (test_interrupted_staged_key_is_promoted_without_another_request)
 (test_failed_staged_key_promotion_does_not_finalize_options)
 (test_failed_api_key_request_preserves_existing_key)
+(test_empty_api_key_response_preserves_existing_key)
+(test_stale_first_start_marker_does_not_consume_regeneration)
+(test_missing_key_marker_allows_api_key_retry)
+(test_empty_marker_does_not_block_valid_key)
 (test_api_key_request_uses_configured_port)
 (test_api_key_creation_uses_password_file_and_cleans_options)
-(test_mqtt_service_enables_tls_scheme)
+(test_mqtt_service_rejects_unsupported_tls)
 (test_main_resumes_pending_cleanup_before_starting_bridge)
 (test_main_starts_bridge_with_expected_environment)
 (test_configuration_read_failure_is_reported)
+(test_configuration_applies_bashio_log_level)
 
 printf 'HA App runtime tests passed\n'

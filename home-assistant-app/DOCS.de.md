@@ -149,9 +149,12 @@ entfernen, wenn keine andere Bridge davon abhängt.
 - **Keine Geräte erscheinen**: Im App-Log auf die Verbindungen zum dSS und zu
   MQTT warten. Prüfen, ob nicht eine zweite Bridge dieselben MQTT-Entitäten
   veröffentlicht.
-- **MQTT bleibt getrennt**: MQTT-Broker und Zugangsdaten prüfen. Der
-  Container-Healthcheck überwacht den Bridge-Prozess unabhängig davon, damit
-  ein Broker-Ausfall keine Neustartschleife der App erzeugt.
+- **MQTT bleibt getrennt**: MQTT-Broker und Zugangsdaten prüfen. Sobald die
+  Bridge läuft, bleibt ihr Container-Healthcheck unabhängig von MQTT; ein
+  Broker-Ausfall markiert den Container daher nicht als fehlerhaft. Die App
+  unterstützt den standardmässigen internen Nicht-TLS-Dienst der Mosquitto-App.
+  Ein Dienst, der ein eigenes TLS-Zertifikat voraussetzt, wird mit einer klaren
+  Logmeldung abgelehnt.
 - **Die App stoppt nach einer Optionsänderung**: Das App-Log prüfen.
   Konfigurations- und Verbindungsfehler werden ohne Containerzugriff gemeldet.
 

@@ -138,9 +138,11 @@ messages only after confirming that no other bridge depends on them.
   Home Assistant. Commands use the dSS HTTPS API, normally port `8080`.
 - **No devices appear**: wait for the App log to report connections to the dSS
   and MQTT. Confirm that no second bridge publishes the same MQTT entities.
-- **MQTT stays disconnected**: verify the broker and MQTT credentials. The
-  container health check monitors the bridge process separately, so a broker
-  outage does not create an App restart loop.
+- **MQTT stays disconnected**: verify the broker and MQTT credentials. Once the
+  bridge is running, its container health check stays independent of MQTT, so a
+  broker outage does not mark the container unhealthy. The App supports the
+  Mosquitto App's default internal non-TLS service; a service that requires a
+  custom TLS certificate is rejected with an explicit log message.
 - **The App stops after changing options**: inspect the App log. Configuration
   and connection errors are reported without requiring container access.
 

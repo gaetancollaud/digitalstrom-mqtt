@@ -13,8 +13,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Match App version to release tag
-        run: bash .github/scripts/check-haos-app-release-version.sh "${GITHUB_REF_NAME}"
       - name: Login to Docker Registry
         run: |
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | \

@@ -11,7 +11,8 @@ readonly PASSWORD_FILE_PREFIX="${PASSWORD_FILE_PREFIX:-/run/digitalstrom-mqtt-pa
 readonly API_KEY_NAME="digitalstrom-mqtt-home-assistant"
 readonly DIGITALSTROM_MQTT_BIN="${DIGITALSTROM_MQTT_BIN:-/digitalstrom-mqtt}"
 
-API_KEY_BOOTSTRAP_RESUMED="false"
+APP_OPTIONS="{}"
+API_KEY_REQUEST_SATISFIED="false"
 
 cleanup_password_file() {
     if [[ -n "${PASSWORD_FILE:-}" && -f "${PASSWORD_FILE}" ]]; then
@@ -19,23 +20,69 @@ cleanup_password_file() {
     fi
 }
 
-read_optional_password() {
-    local password
-    if ! password="$(bashio::config 'digitalstrom_password')"; then
+load_app_options() {
+    if ! APP_OPTIONS="$(bashio::addon.config)"; then
         return 1
     fi
-    if [[ "${password}" == "null" ]]; then
-        password=""
+    if [[ -z "${APP_OPTIONS}" ]]; then
+        APP_OPTIONS="{}"
     fi
-    printf '%s' "${password}"
+}
+
+app_option() {
+    local key="$1"
+    local default_value="$2"
+
+    bashio::jq "${APP_OPTIONS}" ".${key} // ${default_value}"
+}
+
+read_optional_password() {
+    app_option 'digitalstrom_password' '""'
 }
 
 update_app_option() {
-    bashio::addon.option "$@"
+    local key="$1"
+    local value="${2:-}"
+    local item
+    local updated_options
+    local payload
+    local requested_log_level="${LOG_LEVEL:-INFO}"
+    local update_status=0
+
+    if [[ -n "${value}" ]]; then
+        item="\"${value}\""
+        if [[ "${value:0:1}" == "^" ]]; then
+            item="${value:1}"
+        fi
+        updated_options="$(bashio::jq "${APP_OPTIONS}" ".${key} = ${item}")" || return 1
+    else
+        updated_options="$(bashio::jq "${APP_OPTIONS}" "del(.${key})")" || return 1
+    fi
+    payload="$(bashio::var.json options "^${updated_options}")" || return 1
+
+    # Bashio logs Supervisor API request bodies at debug level. Keep the
+    # options payload, which can still contain the temporary password, out of
+    # the App log while updating it.
+    bashio::log.level info
+    if ! bashio::api.supervisor POST '/addons/self/options' "${payload}"; then
+        update_status=1
+    fi
+    bashio::log.level "${requested_log_level}" || true
+
+    if [[ "${update_status}" -ne 0 ]]; then
+        return 1
+    fi
+    APP_OPTIONS="${updated_options}"
+    bashio::cache.flush_all || true
 }
 
 regeneration_option_is_enabled() {
-    bashio::config.true 'regenerate_api_key'
+    local value
+    value="$(app_option 'regenerate_api_key' 'false')" || return 1
+    case "${value}" in
+        true|True|TRUE|1) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 request_api_key() {
@@ -101,31 +148,42 @@ complete_api_key_finalization() {
     local regenerate_requested
 
     if [[ ! -s "${API_KEY_FINALIZATION_FILE}" ]]; then
-        bashio::log.error "The pending API key setup state is missing or empty."
-        return 1
+        bashio::log.warning "Ignoring an empty pending API key setup state."
+        rm -f "${API_KEY_FINALIZATION_FILE}" || true
+        return 0
     fi
     regenerate_requested="$(<"${API_KEY_FINALIZATION_FILE}")"
     if [[ "${regenerate_requested}" != "true" && "${regenerate_requested}" != "false" ]]; then
-        bashio::log.error "The pending API key setup state is invalid."
-        return 1
+        bashio::log.warning "Ignoring an invalid pending API key setup state."
+        rm -f "${API_KEY_FINALIZATION_FILE}" || true
+        return 0
     fi
     if [[ ! -s "${API_KEY_FILE}" ]]; then
-        bashio::log.error "The API key setup cannot be finalized because the stored key is missing."
-        return 1
+        bashio::log.warning "Discarding pending API key setup state because the stored key is missing."
+        rm -f "${API_KEY_FINALIZATION_FILE}" || true
+        return 0
     fi
 
-    finalize_api_key_options "${regenerate_requested}" || return 1
+    if ! finalize_api_key_options "${regenerate_requested}"; then
+        bashio::log.warning "The API key is usable, but Home Assistant option cleanup is still pending and will be retried after the next restart."
+        return 0
+    fi
     if ! rm -f "${API_KEY_FINALIZATION_FILE}"; then
-        bashio::log.error "Could not remove the completed API key setup state."
-        return 1
+        bashio::log.warning "Could not remove the completed API key setup state; cleanup will be checked again after the next restart."
+        return 0
     fi
     bashio::log.info "The digitalSTROM API key setup is complete; the temporary password option is clear."
 }
 
 resume_api_key_bootstrap() {
     local regenerate_requested="$1"
+    local pending_regeneration="false"
     local staged_key_resumed="false"
 
+    if [[ -e "${API_KEY_STAGING_FILE}" && ! -s "${API_KEY_STAGING_FILE}" ]]; then
+        bashio::log.warning "Discarding an empty staged digitalSTROM API key."
+        rm -f "${API_KEY_STAGING_FILE}" || true
+    fi
     if [[ -s "${API_KEY_STAGING_FILE}" ]]; then
         bashio::log.info "Resuming an interrupted digitalSTROM API key setup."
         staged_key_resumed="true"
@@ -134,14 +192,26 @@ resume_api_key_bootstrap() {
             bashio::log.error "Could not promote the staged digitalSTROM API key."
             return 1
         fi
+        API_KEY_REQUEST_SATISFIED="true"
     fi
 
     if [[ -e "${API_KEY_FINALIZATION_FILE}" ]]; then
+        if [[ -s "${API_KEY_FINALIZATION_FILE}" ]]; then
+            pending_regeneration="$(<"${API_KEY_FINALIZATION_FILE}")"
+        fi
+        if [[ "${pending_regeneration}" == "true" && -s "${API_KEY_FILE}" ]]; then
+            API_KEY_REQUEST_SATISFIED="true"
+        elif [[ "${pending_regeneration}" == "false" \
+            && "${regenerate_requested}" == "true" \
+            && "${staged_key_resumed}" != "true" ]]; then
+            bashio::log.info "Discarding completed first-start cleanup state before regenerating the API key."
+            rm -f "${API_KEY_FINALIZATION_FILE}" || true
+            return 0
+        fi
         if [[ "${staged_key_resumed}" != "true" ]]; then
             bashio::log.info "Finishing an interrupted digitalSTROM API key setup."
         fi
-        API_KEY_BOOTSTRAP_RESUMED="true"
-        complete_api_key_finalization || return 1
+        complete_api_key_finalization
     fi
 }
 
@@ -179,6 +249,12 @@ create_api_key() {
         bashio::log.error "Could not create a digitalSTROM API key. Check the server address and credentials."
         return 1
     fi
+    if [[ ! -s "${API_KEY_STAGING_FILE}" ]]; then
+        cleanup_password_file || true
+        rm -f "${API_KEY_STAGING_FILE}" || true
+        bashio::log.error "digitalSTROM returned an empty API key; the existing key was preserved."
+        return 1
+    fi
     if ! cleanup_password_file; then
         bashio::log.error "Could not remove the temporary password file."
         return 1
@@ -191,6 +267,7 @@ create_api_key() {
         bashio::log.error "Could not store the new digitalSTROM API key."
         return 1
     fi
+    API_KEY_REQUEST_SATISFIED="true"
     complete_api_key_finalization
 }
 
@@ -206,20 +283,28 @@ read_mqtt_service() {
     MQTT_SSL="$(bashio::services mqtt 'ssl' || true)"
     MQTT_SCHEME="tcp"
     case "${MQTT_SSL}" in
-        true|True|TRUE|1) MQTT_SCHEME="ssl" ;;
+        true|True|TRUE|1)
+            bashio::log.error "The Home Assistant MQTT service requires TLS, but this App cannot verify a custom broker certificate. Use the Mosquitto App's default internal non-TLS service."
+            return 1
+            ;;
     esac
 }
 
 load_configuration() {
     unset DIGITALSTROM_USERNAME DIGITALSTROM_PASSWORD
-    if ! DIGITALSTROM_HOST="$(bashio::config 'digitalstrom_host')" \
-        || ! DIGITALSTROM_PORT="$(bashio::config 'digitalstrom_port')" \
-        || ! DSS_USERNAME="$(bashio::config 'digitalstrom_username')" \
-        || ! INVERT_BLINDS_POSITION="$(bashio::config 'invert_blinds_position')" \
-        || ! METERINGS_ENABLED="$(bashio::config 'meterings_enabled')" \
-        || ! METERINGS_INTERVAL_SECONDS="$(bashio::config 'meterings_interval_seconds')" \
-        || ! LOG_LEVEL="$(bashio::config 'log_level')"; then
+    if ! load_app_options \
+        || ! DIGITALSTROM_HOST="$(app_option 'digitalstrom_host' '""')" \
+        || ! DIGITALSTROM_PORT="$(app_option 'digitalstrom_port' '8080')" \
+        || ! DSS_USERNAME="$(app_option 'digitalstrom_username' '"dssadmin"')" \
+        || ! INVERT_BLINDS_POSITION="$(app_option 'invert_blinds_position' 'false')" \
+        || ! METERINGS_ENABLED="$(app_option 'meterings_enabled' 'true')" \
+        || ! METERINGS_INTERVAL_SECONDS="$(app_option 'meterings_interval_seconds' '10')" \
+        || ! LOG_LEVEL="$(app_option 'log_level' '"INFO"')"; then
         bashio::log.error "Home Assistant App configuration could not be read."
+        return 1
+    fi
+    if ! bashio::log.level "${LOG_LEVEL}"; then
+        bashio::log.error "The configured App log level is invalid."
         return 1
     fi
     export DIGITALSTROM_HOST DIGITALSTROM_PORT INVERT_BLINDS_POSITION
@@ -243,10 +328,10 @@ main() {
     fi
     bashio::log.debug "Using digitalSTROM server ${DIGITALSTROM_HOST}:${DIGITALSTROM_PORT}."
     resume_api_key_bootstrap "${regenerate_requested}" || return 1
-    if [[ "${API_KEY_BOOTSTRAP_RESUMED}" != "true" ]] \
+    if [[ "${API_KEY_REQUEST_SATISFIED}" != "true" ]] \
         && { [[ ! -s "${API_KEY_FILE}" ]] || [[ "${regenerate_requested}" == "true" ]]; }; then
         create_api_key "${regenerate_requested}" || return 1
-    elif [[ "${API_KEY_BOOTSTRAP_RESUMED}" != "true" ]]; then
+    elif [[ "${API_KEY_REQUEST_SATISFIED}" != "true" ]]; then
         bashio::log.debug "Using the stored digitalSTROM API key."
     fi
 

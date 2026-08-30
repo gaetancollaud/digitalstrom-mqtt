@@ -6,11 +6,13 @@
 - Published as a stable, unofficial community App.
 - Uses the Home Assistant MQTT service and existing MQTT Discovery support.
 - Creates and persists a dedicated digitalSTROM API key in the App data directory.
-- Resumes interrupted API-key option cleanup without generating another key.
+- Recovers interrupted or incomplete API-key setup without overwriting a valid key.
+- Keeps passwords, API keys, and Supervisor option payloads out of App logs.
 - Supports a configurable digitalSTROM HTTPS API port.
 - Adds actionable API-key bootstrap and recovery logs without exposing credentials.
 - Includes Home Assistant store icon and logo artwork.
 - Runs under a custom AppArmor profile based on an enforce-mode profile validated
   on Home Assistant OS; CI parses the final packaged profile.
 - Adds a Docker health check through a dependency-independent liveness endpoint.
+- Rejects unsupported MQTT service TLS instead of starting with an unusable connection.
 - Includes complete English and German setup, migration, and removal guidance.
