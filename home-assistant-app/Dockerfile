@@ -35,4 +35,7 @@ LABEL \
   org.opencontainers.image.source="https://github.com/gaetancollaud/digitalstrom-mqtt" \
   org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl --fail --silent --show-error http://127.0.0.1:8080/health/live || exit 1
+
 CMD ["/run.sh"]

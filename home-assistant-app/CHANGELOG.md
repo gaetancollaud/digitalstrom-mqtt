@@ -12,5 +12,5 @@
 - Includes Home Assistant store icon and logo artwork.
 - Runs under a custom AppArmor profile based on an enforce-mode profile validated
   on Home Assistant OS; CI parses the final packaged profile.
-- Adds Supervisor process monitoring through a dependency-independent liveness endpoint.
+- Adds a Docker health check through a dependency-independent liveness endpoint.
 - Includes complete English and German setup, migration, and removal guidance.

@@ -212,13 +212,18 @@ read_mqtt_service() {
 
 load_configuration() {
     unset DIGITALSTROM_USERNAME DIGITALSTROM_PASSWORD
-    export DIGITALSTROM_HOST="$(bashio::config 'digitalstrom_host')"
-    export DIGITALSTROM_PORT="$(bashio::config 'digitalstrom_port')"
-    DSS_USERNAME="$(bashio::config 'digitalstrom_username')"
-    export INVERT_BLINDS_POSITION="$(bashio::config 'invert_blinds_position')"
-    export METERINGS_ENABLED="$(bashio::config 'meterings_enabled')"
-    export METERINGS_INTERVAL_SECONDS="$(bashio::config 'meterings_interval_seconds')"
-    export LOG_LEVEL="$(bashio::config 'log_level')"
+    if ! DIGITALSTROM_HOST="$(bashio::config 'digitalstrom_host')" \
+        || ! DIGITALSTROM_PORT="$(bashio::config 'digitalstrom_port')" \
+        || ! DSS_USERNAME="$(bashio::config 'digitalstrom_username')" \
+        || ! INVERT_BLINDS_POSITION="$(bashio::config 'invert_blinds_position')" \
+        || ! METERINGS_ENABLED="$(bashio::config 'meterings_enabled')" \
+        || ! METERINGS_INTERVAL_SECONDS="$(bashio::config 'meterings_interval_seconds')" \
+        || ! LOG_LEVEL="$(bashio::config 'log_level')"; then
+        bashio::log.error "Home Assistant App configuration could not be read."
+        return 1
+    fi
+    export DIGITALSTROM_HOST DIGITALSTROM_PORT INVERT_BLINDS_POSITION
+    export METERINGS_ENABLED METERINGS_INTERVAL_SECONDS LOG_LEVEL
     export HOME_ASSISTANT_DISCOVERY_ENABLED="true"
 }
 
@@ -247,8 +252,12 @@ main() {
 
     read_mqtt_service || return 1
 
-    export DIGITALSTROM_API_KEY="$(<"${API_KEY_FILE}")"
-    export MQTT_URL="${MQTT_SCHEME}://${MQTT_HOST}:${MQTT_PORT}"
+    if ! DIGITALSTROM_API_KEY="$(<"${API_KEY_FILE}")"; then
+        bashio::log.error "The stored digitalSTROM API key could not be read."
+        return 1
+    fi
+    MQTT_URL="${MQTT_SCHEME}://${MQTT_HOST}:${MQTT_PORT}"
+    export DIGITALSTROM_API_KEY MQTT_URL
     export MQTT_USERNAME
     export MQTT_PASSWORD
 

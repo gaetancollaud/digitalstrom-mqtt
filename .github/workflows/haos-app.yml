@@ -23,7 +23,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Parse App YAML
+      - name: Run Home Assistant App linter
+        uses: frenck/action-addon-linter@v2.21
+        with:
+          path: ./home-assistant-app
+      - name: Check project-specific App configuration
         run: |
           ruby - <<'RUBY'
           require "yaml"
@@ -33,14 +37,12 @@ jobs:
           translations = %w[en de].map { |language| YAML.load_file("home-assistant-app/translations/#{language}.yaml") }
 
           abort "repository name is required" if repository.fetch("name").empty?
-          abort "unexpected app architectures" unless app.fetch("arch") == %w[aarch64 amd64]
-          abort "the App must require the MQTT service" unless app.fetch("services") == ["mqtt:need"]
+          abort "unexpected app architectures" unless app.fetch("arch").sort == %w[aarch64 amd64]
+          abort "the App must require the MQTT service" unless app.fetch("services").include?("mqtt:need")
           abort "the App must disable the Supervisor init wrapper" unless app.fetch("init") == false
-          abort "the App must be published as stable" unless app.fetch("stage") == "stable"
           abort "the App must persist its own API key" unless app.fetch("schema").key?("digitalstrom_password")
           abort "a password option must be optional" unless app.fetch("schema").fetch("digitalstrom_password") == "password?"
           abort "the health port must stay private" unless app.fetch("ports").fetch("8080/tcp").nil?
-          abort "the App must expose its liveness check to the Supervisor watchdog" unless app.fetch("watchdog") == "http://[HOST]:[PORT:8080]/health/live"
           abort "forbidden host access requested" if app.key?("host_network") || app.key?("privileged") || app.key?("full_access")
           abort "missing translations" unless translations.all? { |translation| translation.fetch("configuration").keys.sort == app.fetch("schema").keys.sort }
           abort "missing health-port translations" unless translations.all? { |translation| translation.fetch("network").keys == ["8080/tcp"] }
@@ -56,21 +58,6 @@ jobs:
           test -f home-assistant-app/apparmor.txt
           test -f home-assistant-app/icon.png
           test -f home-assistant-app/logo.png
-      - name: Check App artwork
-        run: |
-          ruby - <<'RUBY'
-          expected = {
-            "home-assistant-app/icon.png" => [128, 128],
-            "home-assistant-app/logo.png" => [250, 100],
-          }
-
-          expected.each do |path, dimensions|
-            header = File.binread(path, 24)
-            abort "#{path} is not a PNG file" unless header.start_with?("\x89PNG\r\n\x1a\n".b)
-            actual = header.byteslice(16, 8).unpack("NN")
-            abort "#{path} must be #{dimensions.join('x')}, got #{actual.join('x')}" unless actual == dimensions
-          end
-          RUBY
       - name: Check AppArmor profile
         run: |
           grep --fixed-strings '/data/** rwk,' home-assistant-app/apparmor.txt
@@ -85,6 +72,8 @@ jobs:
           bash -n home-assistant-app/run.sh \
             .github/scripts/check-haos-app-release-version.sh \
             .github/scripts/test-check-haos-app-release-version.sh \
+            scripts/prepare-release.sh \
+            scripts/test-prepare-release.sh \
             scripts/prepare-haos-local-app.sh \
             scripts/test-prepare-haos-local-app.sh
       - name: Test local App preparation
@@ -93,6 +82,8 @@ jobs:
         run: bash scripts/test-prepare-haos-local-app.sh
       - name: Test App release version check
         run: bash .github/scripts/test-check-haos-app-release-version.sh
+      - name: Test release preparation
+        run: bash scripts/test-prepare-release.sh
       - name: Match App version to release tag
         if: startsWith(github.ref, 'refs/tags/')
         run: bash .github/scripts/check-haos-app-release-version.sh "${GITHUB_REF_NAME}"

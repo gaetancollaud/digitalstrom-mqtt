@@ -150,8 +150,8 @@ entfernen, wenn keine andere Bridge davon abhängt.
   MQTT warten. Prüfen, ob nicht eine zweite Bridge dieselben MQTT-Entitäten
   veröffentlicht.
 - **MQTT bleibt getrennt**: MQTT-Broker und Zugangsdaten prüfen. Der
-  Supervisor-Watchdog überwacht den Bridge-Prozess unabhängig davon, damit ein
-  Broker-Ausfall keine Neustartschleife der App erzeugt.
+  Container-Healthcheck überwacht den Bridge-Prozess unabhängig davon, damit
+  ein Broker-Ausfall keine Neustartschleife der App erzeugt.
 - **Die App stoppt nach einer Optionsänderung**: Das App-Log prüfen.
   Konfigurations- und Verbindungsfehler werden ohne Containerzugriff gemeldet.
 

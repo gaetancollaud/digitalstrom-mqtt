@@ -17,6 +17,15 @@ while the App workflow builds, signs, and publishes versioned images and a
 shared multi-architecture manifest to GHCR. Users pull that image instead of
 compiling the bridge on their Home Assistant host.
 
+GHCR is a project choice, not a Home Assistant requirement. The App image
+could be published to Docker Hub by changing the registry prefix and supplying
+Docker Hub credentials to the same builder actions. It cannot reuse the
+existing standalone Docker image because the App image also contains the Home
+Assistant base image, Bashio, and the Supervisor launcher. GHCR keeps that
+separate image beside the source repository, uses the workflow's built-in
+`GITHUB_TOKEN`, and creates the package on the first push without requiring a
+second Git repository.
+
 The Git tag, standalone release, Docker image, and App version use the same
 version number. The App workflow rejects a release tag that does not exactly
 match `version` in `config.yaml`. Normal pull requests do not require an App
@@ -101,14 +110,13 @@ versioned manifest can be fetched without GitHub credentials.
   unofficial community App. Physical ARM runtime coverage remains listed as an
   open validation item instead of changing the lifecycle status of the tested
   package.
-- **Supervisor watchdog**: the health endpoint remains private to the App
-  network. The Supervisor checks `/health/live`, which verifies the bridge
-  process without treating a recoverable MQTT outage as a reason to restart.
+- **Container health check**: the health endpoint remains private to the App
+  network. Docker checks `/health/live`, which verifies the bridge process
+  without treating a recoverable MQTT outage as a reason to restart.
   `/health/ready` continues to include the MQTT connection state for diagnosis.
 - **Store artwork is active**: `icon.png` is a 128 x 128 square icon and
-  `logo.png` is a 250 x 100 wide logo. CI verifies the PNG format and exact
-  dimensions. Both images are project-specific artwork and do not reuse an
-  official digitalSTROM or Home Assistant logo.
+  `logo.png` is a 250 x 100 wide logo. Both images are project-specific artwork
+  and do not reuse an official digitalSTROM or Home Assistant logo.
 
 ## Validated AppArmor baseline
 
@@ -152,8 +160,8 @@ hardware coverage.
 
 ## Release sequence
 
-1. Set the release version in `home-assistant-app/config.yaml` and add the same
-   version to `CHANGELOG.md`.
+1. Run `bash scripts/prepare-release.sh VERSION`, then add the same version to
+   `home-assistant-app/CHANGELOG.md`.
 2. Merge the validated pull request into `master`.
 3. Create and push a Git tag with exactly the same version, for example
    `2.4.0`.

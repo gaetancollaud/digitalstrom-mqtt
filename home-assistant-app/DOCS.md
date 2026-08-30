@@ -139,7 +139,7 @@ messages only after confirming that no other bridge depends on them.
 - **No devices appear**: wait for the App log to report connections to the dSS
   and MQTT. Confirm that no second bridge publishes the same MQTT entities.
 - **MQTT stays disconnected**: verify the broker and MQTT credentials. The
-  Supervisor watchdog monitors the bridge process separately, so a broker
+  container health check monitors the bridge process separately, so a broker
   outage does not create an App restart loop.
 - **The App stops after changing options**: inspect the App log. Configuration
   and connection errors are reported without requiring container access.

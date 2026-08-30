@@ -27,8 +27,8 @@ case "$git_ref" in
         ;;
 esac
 
-script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
-repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
+script_dir=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
+repo_root=$(CDPATH='' cd -- "$script_dir/.." && pwd)
 
 if [ "$(basename -- "$output_dir")" != "$local_slug" ]; then
     echo "output directory must end in $local_slug" >&2
@@ -40,7 +40,7 @@ if [ ! -d "$output_parent" ]; then
     echo "output parent does not exist: $output_parent" >&2
     exit 2
 fi
-output_parent=$(CDPATH= cd -- "$output_parent" && pwd)
+output_parent=$(CDPATH='' cd -- "$output_parent" && pwd)
 output_dir="$output_parent/$local_slug"
 
 if [ -e "$output_dir" ]; then
@@ -96,9 +96,14 @@ cp -R "$app_source/translations" "$staging/translations"
 
 awk '
     /^name:/  { print "name: digitalSTROM MQTT PR Test"; next }
-    /^slug:/  { print "slug: digitalstrom_mqtt_pr_test"; next }
-    /^boot:/  { print "boot: manual"; next }
-    /^stage:/ { print "stage: experimental"; next }
+    /^slug:/  {
+        print "slug: digitalstrom_mqtt_pr_test"
+        print "boot: manual"
+        print "stage: experimental"
+        next
+    }
+    /^boot:/  { next }
+    /^stage:/ { next }
     /^image:/ { next }
     { print }
 ' "$app_source/config.yaml" > "$staging/config.yaml"

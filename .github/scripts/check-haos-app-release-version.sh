@@ -3,6 +3,7 @@ set -euo pipefail
 
 readonly RELEASE_TAG="${1:?release tag is required}"
 readonly CONFIG_PATH="${2:-home-assistant-app/config.yaml}"
+readonly CHANGELOG_PATH="${3:-home-assistant-app/CHANGELOG.md}"
 
 read_app_version() {
     sed -n 's/^version:[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "${CONFIG_PATH}"
@@ -21,4 +22,10 @@ if [[ "${RELEASE_TAG}" != "${app_version}" ]]; then
     exit 1
 fi
 
-printf 'Release tag %s matches the Home Assistant App version.\n' "${RELEASE_TAG}"
+if ! grep --fixed-strings --line-regexp --quiet "## ${RELEASE_TAG}" "${CHANGELOG_PATH}"; then
+    printf 'Home Assistant App changelog entry ## %s is missing from %s.\n' \
+        "${RELEASE_TAG}" "${CHANGELOG_PATH}" >&2
+    exit 1
+fi
+
+printf 'Release tag %s matches the Home Assistant App version and changelog.\n' "${RELEASE_TAG}"

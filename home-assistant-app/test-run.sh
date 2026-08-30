@@ -436,6 +436,22 @@ SCRIPT
     assert_file_not_contains "mqtt-password" "${log_file}" "MQTT password log secrecy"
 }
 
+test_configuration_read_failure_is_reported() {
+    local log_file="${TEST_DIR}/configuration-error-log"
+
+    bashio::config() { return 1; }
+    bashio::log.error() { printf 'ERROR: %s\n' "$*" >> "${log_file}"; }
+
+    if load_configuration; then
+        fail "configuration read failure should stop startup"
+    fi
+
+    assert_file_contains \
+        "ERROR: Home Assistant App configuration could not be read." \
+        "${log_file}" \
+        "configuration read error"
+}
+
 (test_first_start_removes_password_without_resetting_regeneration)
 (test_regeneration_resets_flag_before_removing_password)
 (test_failed_regeneration_reset_keeps_password)
@@ -451,5 +467,6 @@ SCRIPT
 (test_mqtt_service_enables_tls_scheme)
 (test_main_resumes_pending_cleanup_before_starting_bridge)
 (test_main_starts_bridge_with_expected_environment)
+(test_configuration_read_failure_is_reported)
 
 printf 'HA App runtime tests passed\n'
