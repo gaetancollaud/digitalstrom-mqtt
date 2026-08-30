@@ -84,7 +84,13 @@ jobs:
         run: |
           bash -n home-assistant-app/run.sh \
             .github/scripts/check-haos-app-release-version.sh \
-            .github/scripts/test-check-haos-app-release-version.sh
+            .github/scripts/test-check-haos-app-release-version.sh \
+            scripts/prepare-haos-local-app.sh \
+            scripts/test-prepare-haos-local-app.sh
+      - name: Test local App preparation
+        env:
+          HAOS_LOCAL_APP_FULL_VALIDATION: "1"
+        run: bash scripts/test-prepare-haos-local-app.sh
       - name: Test App release version check
         run: bash .github/scripts/test-check-haos-app-release-version.sh
       - name: Match App version to release tag
@@ -137,6 +143,19 @@ jobs:
           image-tags: ${{ needs.prepare.outputs.version }}
           push: "false"
           version: ${{ needs.prepare.outputs.version }}
+      - name: Build local App development package
+        if: matrix.arch == 'amd64'
+        env:
+          APP_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          LOCAL_APP="${RUNNER_TEMP}/digitalstrom_mqtt_pr_test"
+          sh scripts/prepare-haos-local-app.sh "${LOCAL_APP}" HEAD
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BUILD_ARCH=amd64 \
+            --build-arg BUILD_VERSION="${APP_VERSION}" \
+            --output type=cacheonly \
+            "${LOCAL_APP}"
 
   publish:
     name: Publish ${{ matrix.arch }} App image

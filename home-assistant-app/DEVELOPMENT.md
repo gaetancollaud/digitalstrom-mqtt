@@ -23,6 +23,66 @@ match `version` in `config.yaml`. Normal pull requests do not require an App
 version change and never publish images, so fork pull requests can run all
 checks without access to repository publishing secrets.
 
+## Test a pull request on Home Assistant OS
+
+The normal App entry points at the official GHCR image. Pull requests validate
+that image without publishing it, so adding a pull-request branch as an App
+repository is not enough to run the branch on Home Assistant OS.
+
+After checking out the branch or commit to test, use the local App generator
+to prepare an exact Git commit without publishing an image:
+
+```sh
+sh scripts/prepare-haos-local-app.sh \
+  /tmp/digitalstrom_mqtt_pr_test HEAD
+```
+
+Fetch or check out the pull request with the Git remote or GitHub tool used for
+your checkout. Alternatively, pass any local commit, tag or branch as the
+second argument instead of `HEAD`. The generator uses `git archive`, so it
+exports the selected commit and deliberately ignores uncommitted working-tree
+changes. It creates a standalone local App directory with these
+development-only changes:
+
+- name `digitalSTROM MQTT PR Test`;
+- slug `digitalstrom_mqtt_pr_test`;
+- manual boot and experimental stage;
+- no `image` entry, which makes Supervisor build the App locally;
+- an AppArmor profile matching the local test slug.
+
+The release configuration and source checkout are not modified. The generated
+`LOCAL_BUILD_SOURCE.txt` records the exact commit used for the package.
+
+Copy the generated `digitalstrom_mqtt_pr_test` directory into the Home
+Assistant local App directory. Home Assistant's
+[local testing guide](https://developers.home-assistant.io/docs/apps/testing/)
+documents two supported ways:
+
+- copy it to the `addons` Samba share; or
+- copy it to `/addons` through the SSH App.
+
+In Home Assistant, open **Settings -> Apps -> App store**, select **Check for
+updates** from the three-dot menu, and install **digitalSTROM MQTT PR Test**
+from **Local apps**. The installed App slug is
+`local_digitalstrom_mqtt_pr_test`.
+
+Never run this test App and another `digitalstrom-mqtt` instance at the same
+time when they use the same MQTT discovery prefix. For an end-to-end check,
+stop the existing bridge before starting the test App, then verify first-start
+API-key creation, MQTT and dSS connectivity, a reversible command with state
+feedback, App restart, HAOS reboot, Mosquitto failure and recovery, and failed
+and successful API-key regeneration.
+
+To test a newer commit with the same App version, uninstall the local test App,
+replace its directory in `/addons`, check for updates again, and reinstall it.
+After testing, uninstall the local App, remove its directory from `/addons`,
+and revoke the dedicated test API key in the dSS.
+
+This path validates the selected source, local container build, Supervisor
+options, runtime and AppArmor profile on the HAOS machine's architecture. It
+does not validate anonymous GHCR access, the release manifest, or runtime on a
+different architecture. Those remain release and physical-hardware gates.
+
 After the first publication, the `digitalstrom-mqtt-haos` package must be made
 public in the GitHub package settings. The release workflow verifies that the
 versioned manifest can be fetched without GitHub credentials.
