@@ -13,6 +13,7 @@ readonly DIGITALSTROM_MQTT_BIN="${DIGITALSTROM_MQTT_BIN:-/digitalstrom-mqtt}"
 
 APP_OPTIONS="{}"
 API_KEY_REQUEST_SATISFIED="false"
+BASHIO_LOG_LEVEL=""
 
 cleanup_password_file() {
     if [[ -n "${PASSWORD_FILE:-}" && -f "${PASSWORD_FILE}" ]]; then
@@ -46,7 +47,7 @@ update_app_option() {
     local item
     local updated_options
     local payload
-    local requested_log_level="${LOG_LEVEL:-INFO}"
+    local requested_log_level="${BASHIO_LOG_LEVEL:-${LOG_LEVEL:-INFO}}"
     local update_status=0
 
     if [[ -n "${value}" ]]; then
@@ -303,7 +304,14 @@ load_configuration() {
         bashio::log.error "Home Assistant App configuration could not be read."
         return 1
     fi
-    if ! bashio::log.level "${LOG_LEVEL}"; then
+    # Bashio traces function arguments, and some helpers receive the complete
+    # App options JSON. Keep Bashio at DEBUG while still passing TRACE to the
+    # bridge itself so temporary credentials cannot appear in launcher logs.
+    BASHIO_LOG_LEVEL="${LOG_LEVEL}"
+    if [[ "${BASHIO_LOG_LEVEL}" == "TRACE" ]]; then
+        BASHIO_LOG_LEVEL="DEBUG"
+    fi
+    if ! bashio::log.level "${BASHIO_LOG_LEVEL}"; then
         bashio::log.error "The configured App log level is invalid."
         return 1
     fi

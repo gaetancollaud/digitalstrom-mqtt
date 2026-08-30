@@ -62,7 +62,7 @@ jobs:
         run: |
           awk '
             /^  profile \/digitalstrom-mqtt / { in_child = 1 }
-            in_child && /\/data\/\*\* rwk,/ { child_data_access = 1 }
+            in_child && /^[[:space:]]*\/data\/\*\*[[:space:]]+rwk,[[:space:]]*$/ { child_data_access = 1 }
             in_child && /^  }/ { exit(child_data_access ? 0 : 1) }
             END { if (!child_data_access) exit 1 }
           ' home-assistant-app/apparmor.txt

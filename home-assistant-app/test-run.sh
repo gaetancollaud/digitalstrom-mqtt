@@ -119,16 +119,22 @@ test_password_option_read_failure_stops_bootstrap() {
 
 test_option_update_propagates_supervisor_failure() {
     local -a log_levels=()
+    local current_log_level="DEBUG"
     APP_OPTIONS='{"digitalstrom_password":"temporary-password"}'
-    LOG_LEVEL="DEBUG"
+    LOG_LEVEL="TRACE"
+    BASHIO_LOG_LEVEL="DEBUG"
     bashio::jq() {
+        assert_equal "DEBUG" "${current_log_level}" "option update JSON log level"
         assert_equal 'del(.digitalstrom_password)' "$2" "option update jq filter"
         printf '{}'
     }
     bashio::var.json() { printf '{"options":{}}'; }
     bashio::api.supervisor() { return 1; }
     bashio::cache.flush_all() { fail "failed option update flushed the cache"; }
-    bashio::log.level() { log_levels+=("$1"); }
+    bashio::log.level() {
+        current_log_level="$1"
+        log_levels+=("$1")
+    }
 
     if update_app_option 'digitalstrom_password'; then
         fail "failed Supervisor option update was accepted"
@@ -530,6 +536,28 @@ test_configuration_read_failure_is_reported() {
         "configuration read error"
 }
 
+test_configuration_option_failure_is_reported() {
+    local log_file="${TEST_DIR}/configuration-option-error-log"
+
+    load_app_options() { APP_OPTIONS='{}'; }
+    app_option() {
+        if [[ "$1" == "digitalstrom_port" ]]; then
+            return 1
+        fi
+        printf 'unused'
+    }
+    bashio::log.error() { printf 'ERROR: %s\n' "$*" >> "${log_file}"; }
+
+    if load_configuration; then
+        fail "individual configuration option failure should stop startup"
+    fi
+
+    assert_file_contains \
+        "ERROR: Home Assistant App configuration could not be read." \
+        "${log_file}" \
+        "configuration option error"
+}
+
 test_configuration_applies_bashio_log_level() {
     local applied_log_level=""
 
@@ -551,6 +579,33 @@ test_configuration_applies_bashio_log_level() {
     load_configuration
 
     assert_equal "DEBUG" "${applied_log_level}" "Bashio log level"
+    assert_equal "DEBUG" "${BASHIO_LOG_LEVEL}" "stored Bashio log level"
+    assert_equal "DEBUG" "${LOG_LEVEL}" "bridge log level"
+}
+
+test_configuration_caps_bashio_trace_at_debug() {
+    local applied_log_level=""
+
+    load_app_options() { APP_OPTIONS='{}'; }
+    app_option() {
+        case "$1" in
+            digitalstrom_host) printf 'dss.local' ;;
+            digitalstrom_port) printf '8080' ;;
+            digitalstrom_username) printf 'dssadmin' ;;
+            invert_blinds_position) printf 'false' ;;
+            meterings_enabled) printf 'true' ;;
+            meterings_interval_seconds) printf '10' ;;
+            log_level) printf 'TRACE' ;;
+            *) return 1 ;;
+        esac
+    }
+    bashio::log.level() { applied_log_level="$1"; }
+
+    load_configuration
+
+    assert_equal "DEBUG" "${applied_log_level}" "capped Bashio log level"
+    assert_equal "DEBUG" "${BASHIO_LOG_LEVEL}" "stored capped Bashio log level"
+    assert_equal "TRACE" "${LOG_LEVEL}" "bridge trace log level"
 }
 
 (test_first_start_removes_password_without_resetting_regeneration)
@@ -574,6 +629,8 @@ test_configuration_applies_bashio_log_level() {
 (test_main_resumes_pending_cleanup_before_starting_bridge)
 (test_main_starts_bridge_with_expected_environment)
 (test_configuration_read_failure_is_reported)
+(test_configuration_option_failure_is_reported)
 (test_configuration_applies_bashio_log_level)
+(test_configuration_caps_bashio_trace_at_debug)
 
 printf 'HA App runtime tests passed\n'
