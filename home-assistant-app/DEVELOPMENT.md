@@ -14,17 +14,17 @@ workflow uses the versioned Home Assistant builder composite actions and native
 GitHub runners for both architectures. When a Git tag is pushed to the official
 repository, the existing GoReleaser workflow publishes the standalone release
 while the App workflow builds, signs, and publishes versioned images and a
-shared multi-architecture manifest to GHCR. Users pull that image instead of
+shared multi-architecture manifest to Docker Hub as
+`gaetancollaud/digitalstrom-mqtt-haos`. Users pull that image instead of
 compiling the bridge on their Home Assistant host.
 
-GHCR is a project choice, not a Home Assistant requirement. The App image
-could be published to Docker Hub by changing the registry prefix and supplying
-Docker Hub credentials to the same builder actions. It cannot reuse the
-existing standalone Docker image because the App image also contains the Home
-Assistant base image, Bashio, and the Supervisor launcher. GHCR keeps that
-separate image beside the source repository, uses the workflow's built-in
-`GITHUB_TOKEN`, and creates the package on the first push without requiring a
-second Git repository.
+The App uses the project's existing Docker Hub registry and `DOCKERHUB_TOKEN`
+secret. Its image name is separate from `gaetancollaud/digitalstrom-mqtt`
+because the App image also contains the Home Assistant base image, Bashio, and
+the Supervisor launcher. `digitalstrom-mqtt-haos` is only a Docker Hub image
+repository; it is not another Git repository or another Home Assistant App.
+Home Assistant identifies the App by its source repository and `slug`, while
+the `image` field selects the container that Supervisor pulls.
 
 The Git tag, standalone release, Docker image, and App version use the same
 version number. The App workflow rejects an official release tag that does not
@@ -35,9 +35,10 @@ can run all checks without access to repository publishing secrets.
 
 ## Test a pull request on Home Assistant OS
 
-The normal App entry points at the official GHCR image. Pull requests validate
-that image without publishing it, so adding a pull-request branch as an App
-repository is not enough to run the branch on Home Assistant OS.
+The normal App configuration points at the official Docker Hub image. Pull
+requests validate the App image build without publishing a tag, so adding a
+pull-request branch as an App repository is not enough to run the branch on
+Home Assistant OS.
 
 After checking out the branch or commit to test, use the local App generator
 to prepare an exact Git commit without publishing an image:
@@ -90,12 +91,13 @@ and revoke the dedicated test API key in the dSS.
 
 This path validates the selected source, local container build, Supervisor
 options, runtime and AppArmor profile on the HAOS machine's architecture. It
-does not validate anonymous GHCR access, the release manifest, or runtime on a
-different architecture. Those remain release and physical-hardware gates.
+does not validate anonymous Docker Hub access, the release manifest, or runtime
+on a different architecture. Those remain release and physical-hardware gates.
 
-After the first publication, the `digitalstrom-mqtt-haos` package must be made
-public in the GitHub package settings. The release workflow verifies that the
-versioned manifest can be fetched without GitHub credentials.
+Before the first publication, create the public Docker Hub image repository
+`gaetancollaud/digitalstrom-mqtt-haos` and ensure that the existing
+`DOCKERHUB_TOKEN` repository secret can push to it. The release workflow
+verifies that the versioned manifest can be fetched anonymously.
 
 ## Presentation decisions
 
@@ -158,8 +160,8 @@ hardware coverage.
 7. On physical ARM hardware, confirm that the published `aarch64` image starts
    and reaches MQTT and the dSS. The architecture is built in CI, but this
    hardware path remains unverified until such a device is available.
-8. Verify that the exact versioned GHCR manifest is anonymously pullable before
-   announcing a release.
+8. Verify that the exact versioned Docker Hub App manifest is anonymously
+   pullable before announcing a release.
 
 ## Release sequence
 
@@ -169,9 +171,9 @@ hardware coverage.
 3. Create and push a Git tag with exactly the same version, for example
    `2.4.0`.
 4. Confirm that the GoReleaser and Home Assistant App workflows both complete.
-5. Confirm that the GitHub release, DockerHub images, and GHCR App manifest all
-   use the same version.
+5. Confirm that the GitHub release, standalone Docker Hub image, and Docker Hub
+   App manifest all use the same version.
 
 Treat the merge and matching tag as one release operation. Until the tag jobs
-have published the versioned GHCR manifest, the App version on `master` is not
-ready to install or announce.
+have published the versioned Docker Hub App manifest, the App version on
+`master` is not ready to install or announce.

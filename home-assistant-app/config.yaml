@@ -9,7 +9,7 @@ arch:
 init: false
 services:
   - mqtt:need
-image: "ghcr.io/gaetancollaud/digitalstrom-mqtt-haos"
+image: "docker.io/gaetancollaud/digitalstrom-mqtt-haos"
 ports:
   8080/tcp: null
 options:
