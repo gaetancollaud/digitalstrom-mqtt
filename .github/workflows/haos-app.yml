@@ -38,10 +38,11 @@ jobs:
 
           abort "repository name is required" if repository.fetch("name").empty?
           abort "unexpected app architectures" unless app.fetch("arch").sort == %w[aarch64 amd64]
-          abort "the App must require the MQTT service" unless app.fetch("services").include?("mqtt:need")
+          abort "the MQTT service must be optional for manual brokers" unless app.fetch("services") == ["mqtt:want"]
           abort "the App must disable the Supervisor init wrapper" unless app.fetch("init") == false
           abort "the App must persist its own API key" unless app.fetch("schema").key?("digitalstrom_password")
           abort "a password option must be optional" unless app.fetch("schema").fetch("digitalstrom_password") == "password?"
+          abort "the password field must initially be visible and empty" unless app.fetch("options").fetch("digitalstrom_password") == ""
           abort "the health port must stay private" unless app.fetch("ports").fetch("8080/tcp").nil?
           abort "forbidden host access requested" if app.key?("host_network") || app.key?("privileged") || app.key?("full_access")
           abort "missing translations" unless translations.all? { |translation| translation.fetch("configuration").keys.sort == app.fetch("schema").keys.sort }

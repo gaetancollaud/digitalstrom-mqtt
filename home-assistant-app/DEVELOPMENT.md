@@ -101,6 +101,22 @@ be fetched anonymously.
 
 ## Presentation decisions
 
+- **MQTT selection**: `mqtt:want` permits manual brokers without installing a
+  Supervisor MQTT provider. Service mode reads only `/services/mqtt`; manual
+  mode reads only the App's broker options. Neither reads HA Core's MQTT config
+  entry. The selector values are readable English because the App form does
+  not translate list choices; field labels and help text are translated.
+  Manual fields stay visible and are ignored in service mode. Both modes use
+  the existing TCP client; custom TLS trust configuration remains out of scope.
+- **Visible password**: an empty default keeps the dSS password field visible.
+  After API-key setup, clear its value instead of deleting the option. Do not
+  clear the separate MQTT password, which is needed for subsequent connections.
+- **Automatic updates**: after complete controller startup, set `auto_update`
+  once for image-based Apps. Supervisor's `build` flag excludes locally built
+  test Apps. The `updates_initialized` marker shares the private state file
+  below; older watchdog-only files remain compatible. Watchdog and update
+  settings are written independently, without changing boot or App options.
+  The marker survives container replacement, so later manual choices win.
 - **No Ingress**: `digitalstrom-mqtt` is a background bridge and has no web
   interface. Adding a web server only to expose Ingress would add code and
   attack surface without a user workflow.
@@ -156,6 +172,11 @@ hardware coverage.
 ## Validation before publication
 
 The automatic watchdog flow has unit and local protocol-fixture coverage.
+Password-field defaults, manual/service MQTT selection and once-only update
+activation also have local test coverage. Repeat the UI and update path on
+HAOS: check the initially visible password, empty field after setup, manual
+broker without Mosquitto installed, local-test update exclusion, and both
+manually disabled switches after replacing the regular App container.
 Before release, repeat the HAOS acceptance run: verify first activation,
 successful restart, manual watchdog disable, rejected credentials, Supervisor
 API failure, MQTT loss/recovery, and a deliberately blocked callback. Confirm

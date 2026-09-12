@@ -10,7 +10,22 @@ configuration:
     description: dSS-Benutzer zum Erstellen eines eigenen API-Schlüssels.
   digitalstrom_password:
     name: digitalSTROM Passwort
-    description: Nur zum Erstellen oder Erneuern des gespeicherten API-Schlüssels erforderlich.
+    description: Nur zum Erstellen oder Erneuern des API-Schlüssels nötig. Nach der Einrichtung geleert; das leere Feld bleibt sichtbar.
+  mqtt_mode:
+    name: MQTT-Verbindung
+    description: Home Assistant MQTT service verwendet den vom Supervisor bereitgestellten Broker. Manual configuration verwendet die Felder unten, nicht die Einstellungen der MQTT-Integration.
+  mqtt_host:
+    name: Manuelle MQTT-Serveradresse
+    description: Nur für Manual configuration. Hostname oder IP-Adresse ohne URL oder Port. Denselben Broker wie Home Assistant verwenden.
+  mqtt_port:
+    name: Manueller MQTT-Serverport
+    description: Nur für Manual configuration. Unverschlüsseltes TCP im vertrauenswürdigen lokalen Netz; Standard 1883. TLS wird hier nicht unterstützt.
+  mqtt_username:
+    name: Manueller MQTT-Benutzername
+    description: Nur für Manual configuration. Leer lassen, wenn der Broker keine Anmeldung verlangt.
+  mqtt_password:
+    name: Manuelles MQTT-Passwort
+    description: Nur für Manual configuration. Wird für erneute Verbindungen gespeichert und im Gegensatz zum temporären digitalSTROM-Passwort nicht nach der Einrichtung geleert.
   invert_blinds_position:
     name: Storenposition umkehren
     description: Aktivieren, wenn 100 Prozent einen vollständig geschlossenen Store bedeuten soll.

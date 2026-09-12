@@ -6,8 +6,8 @@
 Diese inoffizielle Community-App betreibt die bestehende
 `digitalstrom-mqtt`-Bridge direkt auf Home Assistant OS. Sie wird nicht von
 digitalSTROM bereitgestellt oder unterstützt. Die App verwendet den
-Home-Assistant-MQTT-Dienst und MQTT Discovery. Unterstützte digitalSTROM-Geräte
-erscheinen dadurch automatisch in Home Assistant.
+Home-Assistant-MQTT-Dienst oder einen manuell konfigurierten Broker und MQTT
+Discovery. Unterstützte digitalSTROM-Geräte erscheinen dadurch automatisch in Home Assistant.
 
 ## Kompatibilität
 
@@ -34,8 +34,8 @@ Sobald das Repository erscheint, **digitalSTROM MQTT** installieren.
 ## Voraussetzungen
 
 - Ein erreichbarer digitalSTROM-Server (dSS) wird benötigt.
-- Die App **Mosquitto Broker** in Home Assistant installieren und starten.
-- Prüfen, ob die MQTT-Integration in Home Assistant verbunden ist.
+- Die App **Mosquitto Broker** oder einen vorhandenen MQTT-Broker verwenden.
+- Prüfen, ob die MQTT-Integration in Home Assistant mit demselben Broker verbunden ist.
 - Eine bestehende `digitalstrom-mqtt`-Instanz mit demselben dSS und
   MQTT-Topic-Präfix zuerst stoppen. Zwei aktive Bridges können widersprüchliche
   Zustände und Discovery-Nachrichten veröffentlichen.
@@ -47,12 +47,15 @@ Sobald das Repository erscheint, **digitalSTROM MQTT** installieren.
    anderen HTTPS-API-Port verwendet.
 2. Den Standardbenutzer `dssadmin` beibehalten, sofern auf dem dSS kein anderes
    Konto verwendet wird.
-3. Das dSS-Passwort eingeben, die Optionen speichern und die App starten.
+3. Das dSS-Passwort im sichtbaren Passwortfeld eingeben.
+4. Für die Mosquitto-Broker-App **Home Assistant MQTT service** beibehalten.
+   Sonst **Manual configuration** wählen und die Broker-Daten unten eintragen.
+5. Die Optionen speichern und die App starten.
 
 Die App erstellt einen eigenen dSS-API-Key und speichert ihn dauerhaft in ihrem
 privaten `/data`-Verzeichnis. Nach erfolgreicher Einrichtung entfernt sie das
-temporäre Passwort aus den App-Optionen. Kann Home Assistant die Optionen nicht
-sofort aktualisieren, wird die Bereinigung beim nächsten Start fortgesetzt,
+temporäre Passwort aus dem Feld; das leere Feld bleibt sichtbar. Kann Home
+Assistant die Optionen nicht sofort aktualisieren, wird die Bereinigung beim nächsten Start fortgesetzt,
 ohne einen weiteren API-Key anzulegen. Normale Neustarts verwenden den
 gespeicherten API-Key und benötigen das Passwort nicht erneut.
 
@@ -74,7 +77,26 @@ Standardwert ist `dssadmin`.
 ### digitalSTROM-Passwort
 
 Nur beim Erstellen oder Erneuern des gespeicherten API-Keys nötig. Nach
-erfolgreicher Erstellung entfernt die App das Passwort aus ihren Optionen.
+erfolgreicher Erstellung leert die App das Feld. Bei späteren Starts leer lassen.
+
+### MQTT-Verbindung
+
+- **Home Assistant MQTT service** (Standard): MQTT-Dienst von Home Assistant.
+  Bezieht Broker-Adresse und Zugangsdaten vom Supervisor, normalerweise von der
+  Mosquitto-Broker-App. Die manuellen MQTT-Felder darunter werden ignoriert.
+- **Manual configuration**: Manuell konfigurieren. Hostname oder IP-Adresse,
+  Port (Standard `1883`), Benutzername und Passwort des Brokers eingeben.
+  Zugangsdaten nur leer lassen, wenn der Broker anonyme Verbindungen erlaubt.
+  IPv6-Adressen ohne Klammern eingeben. Dieser Modus benötigt keine Mosquitto-
+  Broker-App und wechselt auch bei einem Fehler nicht zu ihr.
+
+Die App übernimmt nicht die Verbindungseinstellungen der MQTT-Integration von
+Home Assistant. Verwendet diese einen externen Broker, denselben Broker auch
+hier eintragen. Beide müssen denselben Broker verwenden, sofern keine eigene
+MQTT-Bridge zwischen Brokern eingerichtet ist. Das MQTT-Passwort bleibt für
+erneute Verbindungen gespeichert; nur das temporäre dSS-Passwort wird geleert.
+Manuelle Verbindungen verwenden unverschlüsseltes TCP im vertrauenswürdigen
+lokalen Netz. TLS und eigene Zertifikate werden über diese App-Optionen nicht unterstützt.
 
 ### Storenposition invertieren
 
@@ -131,7 +153,8 @@ automatisch zurückgesetzt.
 
 Nach dem ersten vollständigen Start aktiviert die App den Home-Assistant-
 Watchdog automatisch. Dafür muss kein zusätzlicher Schalter betätigt werden.
-Wird der Watchdog später manuell ausgeschaltet, behält die App diese Wahl bei.
+Wird der Watchdog später manuell ausgeschaltet, behält die App diese Wahl auch
+nach Neustarts und Updates bei.
 
 Während des Starts und der API-Key-Einrichtung ist der Watchdog pausiert.
 Abgelehnte Zugangsdaten oder eine ungültige Konfiguration stoppen die App mit
@@ -146,6 +169,16 @@ Ereignis- und Befehlsverarbeitung. Home Assistant kann die App dann neu starten.
 Ein ruhiges Zuhause oder allein ein getrennter MQTT-Broker gilt nicht als
 Hänger. Die Prüfung erkennt nicht jeden möglichen Geräte- oder Protokollfehler.
 
+## Automatische Updates
+
+Nach dem ersten vollständigen Start aktiviert die reguläre App die automatischen
+Updates von Home Assistant einmalig. Neue veröffentlichte App-Versionen können
+dann ohne weitere Bestätigung installiert werden. Wird der Schalter später
+ausgeschaltet, bleibt er aus, auch nach einem manuellen Update oder Neustart.
+Lokal gebaute Apps, einschliesslich der PR-Testkopie, aktivieren automatische
+Updates nicht selbst. Deinstallation mit Löschen der App-Daten setzt diesen
+Erststart-Zustand zurück.
+
 ## App entfernen
 
 Die App vor der Deinstallation stoppen. Die Deinstallation widerruft den
@@ -157,8 +190,10 @@ entfernen, wenn keine andere Bridge davon abhängt.
 
 ## Fehlerbehebung
 
-- **MQTT-Dienst nicht verfügbar**: Mosquitto Broker installieren und starten.
-  Danach die MQTT-Integration in Home Assistant prüfen.
+- **MQTT-Dienst nicht verfügbar**: Mosquitto Broker starten oder für einen
+  vorhandenen Broker **Manual configuration** wählen. Ein externer Broker, der
+  nur in der MQTT-Integration von Home Assistant eingetragen ist, wird nicht
+  automatisch von der App übernommen.
 - **API-Key kann nicht erstellt werden**: dSS-Adresse, Benutzername und Passwort
   prüfen. Bei einem Fehler ersetzt die App den bestehenden Key nicht.
 - **Home Assistant schaltet ein Gerät, manuelle Änderungen werden aber nicht

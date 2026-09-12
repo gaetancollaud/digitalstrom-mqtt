@@ -198,10 +198,18 @@ func modeStandard() error {
 	if os.Getenv("HOME_ASSISTANT_APP") == "true" {
 		watchdog = appwatchdog.FromEnvironment()
 	}
+	updatesConfigured := false
 	arm := func() {
 		if watchdog != nil {
 			if err := watchdog.Arm(context.Background()); err != nil {
 				log.Warn().Err(err).Msg("Watchdog activation pending; will retry")
+			}
+			if !updatesConfigured {
+				if err := watchdog.EnableAutoUpdatesOnce(context.Background()); err != nil {
+					log.Warn().Err(err).Msg("Automatic update activation pending; will retry")
+				} else {
+					updatesConfigured = true
+				}
 			}
 		}
 	}

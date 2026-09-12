@@ -8,13 +8,19 @@ arch:
   - amd64
 init: false
 services:
-  - mqtt:need
+  - mqtt:want
 image: "docker.io/gaetancollaud/digitalstrom-mqtt"
 ports:
   8080/tcp: null
 options:
   digitalstrom_port: 8080
   digitalstrom_username: dssadmin
+  digitalstrom_password: ""
+  mqtt_mode: Home Assistant MQTT service
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
   invert_blinds_position: false
   meterings_enabled: true
   meterings_interval_seconds: 10
@@ -25,6 +31,11 @@ schema:
   digitalstrom_port: "int(1,65535)"
   digitalstrom_username: str
   digitalstrom_password: "password?"
+  mqtt_mode: "list(Home Assistant MQTT service|Manual configuration)"
+  mqtt_host: "str?"
+  mqtt_port: "int(1,65535)"
+  mqtt_username: "str?"
+  mqtt_password: "password?"
   invert_blinds_position: bool
   meterings_enabled: bool
   meterings_interval_seconds: "int(1,)"

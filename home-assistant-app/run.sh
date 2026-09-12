@@ -120,7 +120,7 @@ finalize_api_key_options() {
         return 1
     fi
     if [[ -n "${password}" ]]; then
-        if ! update_app_option 'digitalstrom_password'; then
+        if ! update_app_option 'digitalstrom_password' '^""'; then
             bashio::log.error "The API key was stored, but Home Assistant could not remove the temporary password from the app options. The App will retry without creating another key."
             return 1
         fi
@@ -282,7 +282,7 @@ read_mqtt_service() {
         || ! MQTT_PORT="$(bashio::services mqtt 'port')" \
         || ! MQTT_USERNAME="$(bashio::services mqtt 'username')" \
         || ! MQTT_PASSWORD="$(bashio::services mqtt 'password')"; then
-        bashio::log.error "The required Home Assistant MQTT service is unavailable. Install and start the Mosquitto Broker app first."
+        bashio::log.error "The Home Assistant MQTT service is unavailable. Start the Mosquitto Broker app, or select Manual configuration and enter your broker details."
         return 1
     fi
 
@@ -294,6 +294,51 @@ read_mqtt_service() {
             return 1
             ;;
     esac
+}
+
+read_mqtt_configuration() {
+    local mode
+    mode="$(app_option 'mqtt_mode' '"Home Assistant MQTT service"')" || return 1
+    case "${mode}" in
+        'Home Assistant MQTT service')
+            read_mqtt_service || return 1
+            ;;
+        'Manual configuration')
+            if ! MQTT_HOST="$(app_option 'mqtt_host' '""')" \
+                || ! MQTT_PORT="$(app_option 'mqtt_port' '1883')" \
+                || ! MQTT_USERNAME="$(app_option 'mqtt_username' '""')" \
+                || ! MQTT_PASSWORD="$(app_option 'mqtt_password' '""')"; then
+                bashio::log.error "The manual MQTT configuration could not be read."
+                return 1
+            fi
+            MQTT_SCHEME="tcp"
+            ;;
+        *)
+            bashio::log.error "Select Home Assistant MQTT service or Manual configuration."
+            return 1
+            ;;
+    esac
+
+    # Accept hostnames and IP addresses, not URLs with embedded credentials.
+    # IPv6 literals are entered without brackets and bracketed for the URL.
+    if [[ ! "${MQTT_HOST}" =~ ^[[:alnum:]_.:-]+$ ]]; then
+        bashio::log.error "Enter an MQTT hostname or IP address without a URL, port, or credentials."
+        return 1
+    fi
+    if [[ ! "${MQTT_PORT}" =~ ^[0-9]{1,5}$ ]] \
+        || (( 10#${MQTT_PORT} < 1 || 10#${MQTT_PORT} > 65535 )); then
+        bashio::log.error "Enter an MQTT port between 1 and 65535."
+        return 1
+    fi
+    if [[ "${MQTT_HOST}" == *:* ]]; then
+        if [[ ! "${MQTT_HOST}" =~ ^[[:xdigit:].:]+$ || "${MQTT_HOST}" != *:*:* ]]; then
+            bashio::log.error "Enter only the MQTT server address; put its port in the separate port field."
+            return 1
+        fi
+        MQTT_URL="${MQTT_SCHEME}://[${MQTT_HOST}]:${MQTT_PORT}"
+    else
+        MQTT_URL="${MQTT_SCHEME}://${MQTT_HOST}:${MQTT_PORT}"
+    fi
 }
 
 load_configuration() {
@@ -334,6 +379,8 @@ main() {
         return 1
     fi
 
+    read_mqtt_configuration || return 1
+
     trap cleanup_password_file EXIT
 
     if regeneration_option_is_enabled; then
@@ -348,18 +395,15 @@ main() {
         bashio::log.debug "Using the stored digitalSTROM API key."
     fi
 
-    read_mqtt_service || return 1
-
     if ! DIGITALSTROM_API_KEY="$(<"${API_KEY_FILE}")"; then
         bashio::log.error "The stored digitalSTROM API key could not be read."
         return 1
     fi
-    MQTT_URL="${MQTT_SCHEME}://${MQTT_HOST}:${MQTT_PORT}"
     export DIGITALSTROM_API_KEY MQTT_URL
     export MQTT_USERNAME
     export MQTT_PASSWORD
 
-    bashio::log.info "Starting digitalSTROM MQTT with the Home Assistant MQTT service."
+    bashio::log.info "Starting digitalSTROM MQTT with the configured broker."
     exec "${DIGITALSTROM_MQTT_BIN}"
 }
 

@@ -5,6 +5,9 @@
 - Initial native Home Assistant App package.
 - Published as a stable, unofficial community App.
 - Uses the Home Assistant MQTT service and existing MQTT Discovery support.
+- Supports a manually configured MQTT broker without requiring the Mosquitto App.
+- Keeps the digitalSTROM password field visible and clears its value after setup.
+- Enables automatic updates once for the regular App and preserves later manual choices.
 - Creates and persists a dedicated digitalSTROM API key in the App data directory.
 - Recovers interrupted or incomplete API-key setup without overwriting a valid key.
 - Keeps passwords, API keys, and Supervisor option payloads out of App logs.

@@ -82,7 +82,7 @@ test_first_start_removes_password_without_resetting_regeneration() {
     finalize_api_key_options "false"
 
     assert_equal "1" "${#calls[@]}" "first start option update count"
-    assert_equal "digitalstrom_password" "${calls[0]}" "first start option update"
+    assert_equal 'digitalstrom_password ^""' "${calls[0]}" "first start option update"
 }
 
 test_regeneration_resets_flag_before_removing_password() {
@@ -95,7 +95,7 @@ test_regeneration_resets_flag_before_removing_password() {
 
     assert_equal "2" "${#calls[@]}" "regeneration option update count"
     assert_equal "regenerate_api_key ^false" "${calls[0]}" "first regeneration option update"
-    assert_equal "digitalstrom_password" "${calls[1]}" "second regeneration option update"
+    assert_equal 'digitalstrom_password ^""' "${calls[1]}" "second regeneration option update"
 }
 
 test_failed_regeneration_reset_keeps_password() {
@@ -144,7 +144,7 @@ test_option_update_propagates_supervisor_failure() {
     BASHIO_LOG_LEVEL="DEBUG"
     bashio::jq() {
         assert_equal "DEBUG" "${current_log_level}" "option update JSON log level"
-        assert_equal 'del(.digitalstrom_password)' "$2" "option update jq filter"
+        assert_equal '.digitalstrom_password = ""' "$2" "option update jq filter"
         printf '{}'
     }
     bashio::var.json() { printf '{"options":{}}'; }
@@ -155,7 +155,7 @@ test_option_update_propagates_supervisor_failure() {
         log_levels+=("$1")
     }
 
-    if update_app_option 'digitalstrom_password'; then
+    if update_app_option 'digitalstrom_password' '^""'; then
         fail "failed Supervisor option update was accepted"
     fi
 
@@ -198,7 +198,7 @@ test_failed_regeneration_cleanup_resumes_without_another_key() {
     [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "pending regeneration state was not removed"
     assert_equal "3" "${#calls[@]}" "regeneration retry option update count"
     assert_equal "regenerate_api_key ^false" "${calls[1]}" "retried regeneration reset"
-    assert_equal "digitalstrom_password" "${calls[2]}" "retried password removal"
+    assert_equal 'digitalstrom_password ^""' "${calls[2]}" "retried password removal"
 }
 
 test_failed_password_removal_resumes_without_another_key() {
@@ -381,7 +381,7 @@ test_api_key_creation_uses_password_file_and_cleans_options() {
     create_api_key "false"
 
     assert_equal "new-api-key" "$(<"${API_KEY_FILE}")" "stored API key"
-    assert_equal "digitalstrom_password" "${calls[0]}" "password cleanup option"
+    assert_equal 'digitalstrom_password ^""' "${calls[0]}" "password cleanup option"
     [[ ! -e "${PASSWORD_FILE}" ]] || fail "temporary password file was not removed"
 }
 
@@ -430,6 +430,7 @@ SCRIPT
     load_app_options() { APP_OPTIONS='{}'; }
     app_option() {
         case "$1" in
+            mqtt_mode) printf 'Home Assistant MQTT service' ;;
             digitalstrom_host) printf 'dss.local' ;;
             digitalstrom_port) printf '8080' ;;
             digitalstrom_username) printf 'dssadmin' ;;
@@ -460,7 +461,7 @@ SCRIPT
     [[ -s "${started_file}" ]] || fail "bridge did not start after resuming API key cleanup"
     [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "main left pending API key cleanup"
     assert_file_contains "regenerate_api_key ^false" "${calls_file}" "main regeneration reset"
-    assert_file_contains "digitalstrom_password" "${calls_file}" "main password removal"
+    assert_file_contains 'digitalstrom_password ^""' "${calls_file}" "main password removal"
     assert_file_contains "INFO: Finishing an interrupted digitalSTROM API key setup." "${log_file}" "resumed API key setup log"
     assert_file_contains "INFO: The digitalSTROM API key setup is complete; the temporary password option is clear." "${log_file}" "completed API key setup log"
     assert_file_not_contains "replacement-api-key" "${log_file}" "resumed API key log secrecy"
@@ -468,6 +469,9 @@ SCRIPT
 }
 
 test_main_starts_bridge_with_expected_environment() {
+    local selected_mode="${1:-Home Assistant MQTT service}"
+    local expected_broker='mqtt.local'
+    if [[ "${selected_mode}" == 'Manual configuration' ]]; then expected_broker='external.example'; fi
     local output_file="${TEST_DIR}/bridge-environment"
     local log_file="${TEST_DIR}/bridge-log"
     export TEST_OUTPUT_FILE="${output_file}"
@@ -493,6 +497,11 @@ SCRIPT
     load_app_options() { APP_OPTIONS='{}'; }
     app_option() {
         case "$1" in
+            mqtt_mode) printf '%s' "${selected_mode}" ;;
+            mqtt_host) printf 'external.example' ;;
+            mqtt_port) printf '1883' ;;
+            mqtt_username) printf 'mqtt-user' ;;
+            mqtt_password) printf 'mqtt-password' ;;
             digitalstrom_host) printf 'dss.local' ;;
             digitalstrom_port) printf '8443' ;;
             digitalstrom_username) printf 'dssadmin' ;;
@@ -507,6 +516,7 @@ SCRIPT
     bashio::log.debug() { printf 'DEBUG: %s\n' "$*" >> "${log_file}"; }
     bashio::log.info() { printf 'INFO: %s\n' "$*" >> "${log_file}"; }
     bashio::services() {
+        [[ "${selected_mode}" == 'Home Assistant MQTT service' ]] || fail "manual bridge used Supervisor MQTT"
         case "$2" in
             host) printf 'mqtt.local' ;;
             port) printf '1883' ;;
@@ -527,13 +537,13 @@ SCRIPT
     assert_file_contains "DIGITALSTROM_USERNAME=unset" "${output_file}" "bridge omits deprecated dSS username"
     assert_file_contains "DIGITALSTROM_PASSWORD=unset" "${output_file}" "bridge omits deprecated dSS password"
     assert_file_contains "DIGITALSTROM_API_KEY=existing-api-key" "${output_file}" "bridge API key"
-    assert_file_contains "MQTT_URL=tcp://mqtt.local:1883" "${output_file}" "bridge MQTT URL"
+    assert_file_contains "MQTT_URL=tcp://${expected_broker}:1883" "${output_file}" "bridge MQTT URL"
     assert_file_contains "MQTT_USERNAME=mqtt-user" "${output_file}" "bridge MQTT username"
     assert_file_contains "MQTT_PASSWORD=mqtt-password" "${output_file}" "bridge MQTT password"
     assert_file_contains "HOME_ASSISTANT_DISCOVERY_ENABLED=true" "${output_file}" "bridge discovery mode"
     assert_file_contains "DEBUG: Using digitalSTROM server dss.local:8443." "${log_file}" "bridge dSS endpoint log"
     assert_file_contains "DEBUG: Using the stored digitalSTROM API key." "${log_file}" "stored API key log"
-    assert_file_contains "INFO: Starting digitalSTROM MQTT with the Home Assistant MQTT service." "${log_file}" "bridge startup log"
+    assert_file_contains "INFO: Starting digitalSTROM MQTT with the configured broker." "${log_file}" "bridge startup log"
     assert_file_not_contains "existing-api-key" "${log_file}" "API key log secrecy"
     assert_file_not_contains "legacy-password" "${log_file}" "dSS password log secrecy"
     assert_file_not_contains "mqtt-password" "${log_file}" "MQTT password log secrecy"
@@ -583,6 +593,7 @@ test_configuration_applies_bashio_log_level() {
     load_app_options() { APP_OPTIONS='{}'; }
     app_option() {
         case "$1" in
+            mqtt_mode) printf 'Home Assistant MQTT service' ;;
             digitalstrom_host) printf 'dss.local' ;;
             digitalstrom_port) printf '8080' ;;
             digitalstrom_username) printf 'dssadmin' ;;
@@ -608,6 +619,7 @@ test_configuration_caps_bashio_trace_at_debug() {
     load_app_options() { APP_OPTIONS='{}'; }
     app_option() {
         case "$1" in
+            mqtt_mode) printf 'Home Assistant MQTT service' ;;
             digitalstrom_host) printf 'dss.local' ;;
             digitalstrom_port) printf '8080' ;;
             digitalstrom_username) printf 'dssadmin' ;;
@@ -702,6 +714,107 @@ test_api_key_transient_failure_reaches_launcher() {
     [[ ! -f "${PASSWORD_FILE}" ]] || fail "temporary password was not removed"
 }
 
+test_password_cleanup_keeps_a_visible_empty_field() {
+    APP_OPTIONS='{"digitalstrom_password":"temporary-password","mqtt_password":"broker-secret"}'
+    bashio::jq() {
+        assert_equal '.digitalstrom_password = ""' "$2" "clear only the temporary password"
+        printf '{"digitalstrom_password":"","mqtt_password":"broker-secret"}'
+    }
+    bashio::var.json() {
+        assert_equal '^{"digitalstrom_password":"","mqtt_password":"broker-secret"}' "$2" "retain broker password"
+        printf '{"options":{"digitalstrom_password":"","mqtt_password":"broker-secret"}}'
+    }
+    bashio::api.supervisor() {
+        assert_equal '/addons/self/options' "$2" "self options endpoint"
+        assert_equal '{"options":{"digitalstrom_password":"","mqtt_password":"broker-secret"}}' "$3" "cleared password payload"
+    }
+    bashio::cache.flush_all() { :; }
+    update_app_option 'digitalstrom_password' '^""'
+    assert_equal '{"digitalstrom_password":"","mqtt_password":"broker-secret"}' "${APP_OPTIONS}" "empty field retained"
+}
+
+test_mqtt_modes_and_validation() {
+    local selected_mode='Manual configuration'
+    local host='broker.example'
+    local port='1884'
+    local username='external-user'
+    local password='external-secret'
+    local service_calls="${TEST_DIR}/mqtt-service-calls"
+    app_option() {
+        case "$1" in
+            mqtt_mode) printf '%s' "${selected_mode}" ;;
+            mqtt_host) printf '%s' "${host}" ;;
+            mqtt_port) printf '%s' "${port}" ;;
+            mqtt_username) printf '%s' "${username}" ;;
+            mqtt_password) printf '%s' "${password}" ;;
+            *) fail "unexpected option" ;;
+        esac
+    }
+    bashio::services() { printf 'called\n' >> "${service_calls}"; return 1; }
+    read_mqtt_configuration
+    assert_equal 'tcp://broker.example:1884' "${MQTT_URL}" "manual broker URL"
+    assert_equal 'external-user' "${MQTT_USERNAME}" "manual username"
+    assert_equal 'external-secret' "${MQTT_PASSWORD}" "manual password"
+    [[ ! -f "${service_calls}" ]] || fail "manual configuration consulted Supervisor MQTT"
+
+    host='2001:db8::1'
+    username=''
+    password=''
+    read_mqtt_configuration
+    assert_equal 'tcp://[2001:db8::1]:1884' "${MQTT_URL}" "IPv6 broker URL"
+    assert_equal '' "${MQTT_USERNAME}" "anonymous username must clear old value"
+    assert_equal '' "${MQTT_PASSWORD}" "anonymous password must clear old value"
+
+    for host in '' 'tcp://broker.example' 'user:secret@broker.example' 'broker.example/path' 'broker example' 'broker.example:1883'; do
+        if read_mqtt_configuration; then fail "invalid broker host accepted"; fi
+    done
+    host='broker.example'
+    for port in '' 0 65536 -1 '1883/secret' 999999999999; do
+        if read_mqtt_configuration; then fail "invalid broker port accepted"; fi
+    done
+    port='1883'
+    selected_mode='unknown'
+    if read_mqtt_configuration; then fail "unknown MQTT mode accepted"; fi
+    selected_mode='Home Assistant MQTT service'
+    if read_mqtt_configuration; then fail "missing service silently fell back to manual broker"; fi
+    [[ -f "${service_calls}" ]] || fail "service mode did not consult Supervisor"
+}
+
+test_service_mode_ignores_manual_credentials() {
+    app_option() {
+        assert_equal 'mqtt_mode' "$1" "service mode must ignore manual fields"
+        assert_equal '"Home Assistant MQTT service"' "$2" "existing installations retain service default"
+        printf 'Home Assistant MQTT service'
+    }
+    bashio::services() {
+        case "$2" in
+            host) printf 'core-mosquitto' ;;
+            port) printf '1883' ;;
+            username) printf 'service-user' ;;
+            password) printf 'service-secret' ;;
+            ssl) printf 'false' ;;
+            *) return 1 ;;
+        esac
+    }
+    MQTT_USERNAME='old-manual-user'
+    MQTT_PASSWORD='old-manual-password'
+    read_mqtt_configuration
+    assert_equal 'tcp://core-mosquitto:1883' "${MQTT_URL}" "service URL"
+    assert_equal 'service-user' "${MQTT_USERNAME}" "service username"
+    assert_equal 'service-secret' "${MQTT_PASSWORD}" "service password"
+}
+
+test_invalid_mqtt_configuration_stops_before_dss_login() {
+    load_configuration() { DIGITALSTROM_HOST='dss.local'; }
+    read_mqtt_configuration() { return 1; }
+    resume_api_key_bootstrap() { fail "invalid MQTT settings reached dSS bootstrap"; }
+    if main; then fail "invalid MQTT settings accepted"; fi
+}
+
+(test_password_cleanup_keeps_a_visible_empty_field)
+(test_mqtt_modes_and_validation)
+(test_service_mode_ignores_manual_credentials)
+(test_invalid_mqtt_configuration_stops_before_dss_login)
 (test_watchdog_pause_failure_never_reaches_login)
 (test_transient_failure_retries_but_rejected_login_stops)
 (test_crash_leaves_watchdog_decision_to_supervisor)
@@ -728,6 +841,7 @@ test_api_key_transient_failure_reaches_launcher() {
 (test_mqtt_service_rejects_unsupported_tls)
 (test_main_resumes_pending_cleanup_before_starting_bridge)
 (test_main_starts_bridge_with_expected_environment)
+(test_main_starts_bridge_with_expected_environment 'Manual configuration')
 (test_configuration_read_failure_is_reported)
 (test_configuration_option_failure_is_reported)
 (test_configuration_applies_bashio_log_level)

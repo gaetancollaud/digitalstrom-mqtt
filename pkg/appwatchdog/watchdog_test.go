@@ -12,9 +12,12 @@ import (
 )
 
 type supervisorFixture struct {
-	on     bool
-	fail   bool
-	writes []bool
+	on           bool
+	fail         bool
+	writes       []bool
+	build        bool
+	autoUpdate   bool
+	updateWrites []bool
 }
 
 func fixture(t *testing.T) (*Watchdog, *supervisorFixture) {
@@ -26,7 +29,7 @@ func fixture(t *testing.T) (*Watchdog, *supervisorFixture) {
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/info" {
-			_ = json.NewEncoder(w).Encode(map[string]any{"result": "ok", "data": map[string]bool{"watchdog": f.on}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"result": "ok", "data": map[string]bool{"watchdog": f.on, "build": f.build}})
 			return
 		}
 		if r.Method != http.MethodPost || r.URL.Path != "/options" {
@@ -42,17 +45,87 @@ func fixture(t *testing.T) (*Watchdog, *supervisorFixture) {
 			w.WriteHeader(400)
 			return
 		}
-		var ok bool
-		f.on, ok = body["watchdog"]
-		if !ok {
+		if enabled, ok := body["watchdog"]; ok {
+			f.on = enabled
+			f.writes = append(f.writes, f.on)
+		} else if enabled, ok := body["auto_update"]; ok {
+			f.autoUpdate = enabled
+			f.updateWrites = append(f.updateWrites, enabled)
+		} else {
 			w.WriteHeader(400)
 			return
 		}
-		f.writes = append(f.writes, f.on)
 		_, _ = w.Write([]byte(`{"result":"ok","data":{}}`))
 	}))
 	t.Cleanup(server.Close)
 	return &Watchdog{URL: server.URL, Token: "test-token", Path: filepath.Join(t.TempDir(), "state.json"), Client: server.Client()}, f
+}
+
+func TestAutoUpdatesPreserveManualDisableAcrossContainerReplacement(t *testing.T) {
+	w, server := fixture(t)
+	ctx := context.Background()
+	require.NoError(t, w.Pause(ctx))
+	require.Empty(t, server.updateWrites, "setup must not enable updates")
+	require.NoError(t, w.Arm(ctx))
+	require.NoError(t, w.EnableAutoUpdatesOnce(ctx))
+	require.True(t, server.autoUpdate)
+	server.autoUpdate = false
+	server.on = false
+	// A replacement process after an update has no state except the /data file.
+	replacement := &Watchdog{URL: w.URL, Token: w.Token, Path: w.Path, Client: w.Client}
+	require.NoError(t, replacement.Pause(ctx))
+	require.NoError(t, replacement.Arm(ctx))
+	require.NoError(t, replacement.EnableAutoUpdatesOnce(ctx))
+	require.False(t, server.autoUpdate)
+	require.False(t, server.on)
+	require.Equal(t, []bool{true}, server.updateWrites)
+	require.Equal(t, []bool{true}, server.writes)
+}
+
+func TestLocallyBuiltAppDoesNotEnableAutoUpdates(t *testing.T) {
+	w, server := fixture(t)
+	server.build = true
+	require.NoError(t, w.Arm(context.Background()))
+	require.NoError(t, w.EnableAutoUpdatesOnce(context.Background()))
+	require.True(t, server.on, "local tests still exercise watchdog recovery")
+	require.False(t, server.autoUpdate)
+	require.Empty(t, server.updateWrites)
+}
+
+func TestAutoUpdateFailureIsRetriedWithoutRearmingManuallyDisabledWatchdog(t *testing.T) {
+	w, server := fixture(t)
+	ctx := context.Background()
+	require.NoError(t, w.Arm(ctx))
+	server.on = false
+	server.fail = true
+	require.Error(t, w.EnableAutoUpdatesOnce(ctx))
+	s, err := w.read()
+	require.NoError(t, err)
+	require.False(t, s.UpdatesInitialized)
+	server.fail = false
+	require.NoError(t, w.Arm(ctx))
+	require.NoError(t, w.EnableAutoUpdatesOnce(ctx))
+	require.False(t, server.on)
+	require.True(t, server.autoUpdate)
+	// Watchdog writes must preserve the separate update-initialization marker.
+	server.on = true
+	server.autoUpdate = false
+	require.NoError(t, w.Pause(ctx))
+	require.NoError(t, w.Arm(ctx))
+	require.NoError(t, w.EnableAutoUpdatesOnce(ctx))
+	require.False(t, server.autoUpdate)
+}
+
+func TestMissingBuildTypeDoesNotEnableAutoUpdates(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Error("must not write without knowing the App build type")
+		}
+		_, _ = w.Write([]byte(`{"result":"ok","data":{"watchdog":false}}`))
+	}))
+	defer server.Close()
+	w := &Watchdog{URL: server.URL, Token: "test-token", Path: filepath.Join(t.TempDir(), "state"), Client: server.Client()}
+	require.Error(t, w.EnableAutoUpdatesOnce(context.Background()))
 }
 
 func TestFirstSuccessfulStartAndManualDisable(t *testing.T) {

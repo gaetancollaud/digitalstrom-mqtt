@@ -10,7 +10,22 @@ configuration:
     description: The dSS user used to create a dedicated API key.
   digitalstrom_password:
     name: digitalSTROM password
-    description: Required only to create or regenerate the stored API key.
+    description: Required only to create or regenerate the API key. Cleared after setup; the empty field remains visible.
+  mqtt_mode:
+    name: MQTT connection
+    description: Home Assistant MQTT service uses the Supervisor-provided broker. Manual configuration uses the fields below, not the MQTT integration settings.
+  mqtt_host:
+    name: Manual MQTT server address
+    description: Only for Manual configuration. Enter a hostname or IP address without a URL or port. Use the same broker as Home Assistant.
+  mqtt_port:
+    name: Manual MQTT server port
+    description: Only for Manual configuration. Plain TCP on a trusted local network; default 1883. TLS is not supported here.
+  mqtt_username:
+    name: Manual MQTT username
+    description: Only for Manual configuration. Leave empty if the broker does not require authentication.
+  mqtt_password:
+    name: Manual MQTT password
+    description: Only for Manual configuration. Stored for reconnects; unlike the temporary digitalSTROM password, it is not cleared after setup.
   invert_blinds_position:
     name: Invert blind position
     description: Use when 100 percent should represent a fully closed blind.
