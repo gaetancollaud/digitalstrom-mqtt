@@ -143,7 +143,7 @@ be fetched anonymously.
   Runtime exit code 75 requests a delayed retry; 78 requests user correction.
   An unavailable Supervisor MQTT service also returns 75 through all launcher
   layers; invalid manual settings and unsupported TLS still require correction.
-  A failed Supervisor pause blocks further login attempts. Startup is bounded
+  A failed Supervisor pause blocks further login attempts.
   Option cleanup failures also return 75: keep the stored key, wait, and retry
   cleanup before starting the bridge. Never keep a temporary dSS password
   configured while normal bridge operation proceeds.
@@ -169,10 +169,12 @@ test VM was shut down.
 
 The current profile adds write access to the App's private `/data` volume for the
 bridge child process. This is required by the first-start API-key transaction;
-  the watchdog helper also stores its state there and calls Supervisor using
-  the existing network permission. CI parses this exact profile. A repeat HAOS
-  install should confirm the
-updated profile before the first public release.
+the watchdog helper also stores its state there and calls Supervisor using
+the existing network permission. On 2026-09-13 the updated profile parsed on
+HAOS and ran in protected mode during real API-key creation, regeneration,
+MQTT setup, image update and a complete VM reboot. Diagnostic `ls`/`pidof`
+commands outside the bridge child profile were denied as expected; this is not
+a reason to expand the runtime profile.
 
 Physical `aarch64` hardware remains untested. CI builds that architecture, but
 an actual ARM start and connection test is still required before claiming live
@@ -180,17 +182,31 @@ hardware coverage.
 
 ## Validation before publication
 
-The automatic watchdog flow has unit and local protocol-fixture coverage.
-Password-field defaults, manual/service MQTT selection and once-only update
-activation also have local test coverage. Repeat the UI and update path on
-HAOS: check the initially visible password, empty field after setup, manual
-broker without Mosquitto installed, local-test update exclusion, and both
-manually disabled switches after replacing the regular App container.
-Before release, repeat the HAOS acceptance run: verify first activation,
-successful restart, manual watchdog disable, rejected credentials, Supervisor
-API failure, MQTT loss/recovery, and a deliberately blocked callback. Confirm
-the AppArmor profile still permits the helper. This new flow has not yet been
-validated on a live HAOS instance.
+The 2026-09-13 acceptance run used HAOS 18.2, Core 2026.8.1 and Supervisor
+2026.09.0 on amd64. It covered fresh local and image-based installs, real dSS
+API-key creation and regeneration, temporary password cleanup, both MQTT modes,
+and a separate authenticated broker with the Mosquitto App uninstalled.
+Local builds excluded automatic update activation; image-based installs enabled
+it once. Manual watchdog, automatic-update and boot choices survived container
+updates and a full VM reboot. A stopped App remained stopped during an update;
+its subsequent manual start reached readiness successfully.
+
+Suspending the bridge process made the container unhealthy and Supervisor
+restarted it. A runtime MQTT outage kept liveness healthy while readiness failed.
+Starting with the Supervisor MQTT service unavailable paused watchdog and
+retried; restoring the service completed startup without restarting the App.
+These are separate checks, not a claim that every outage/recovery sequence was
+tested. Supervisor API failure and a stalled callback have local regression
+coverage, not live fault-injection coverage. The temporary-password cleanup
+failure also has a launcher regression: retry cleanup before starting the
+bridge, without creating another key.
+
+The image install/update test used a private fixture registry and the same
+locally built runtime with a changed version label. It does not prove the
+public Docker Hub release path. Password defaults and clearing were verified
+through Supervisor, but the configuration form still needs visual acceptance.
+No physical device commands or ARM runtime tests were performed in this run.
+The remaining release checklist is:
 
 1. Run App schema, translation, artwork, AppArmor, workflow, shell, bootstrap,
    Go test, Go vet, and Race Detector checks.
