@@ -19,5 +19,6 @@
 - Adds a Docker health check through a dependency-independent liveness endpoint.
 - Enables the watchdog after successful setup and detects blocked bridge work.
 - Pauses automatic restarts for rejected credentials and preserves manual watchdog choices.
+- Retries an unavailable MQTT service and restores paused watchdog protection after startup crashes.
 - Rejects unsupported MQTT service TLS instead of starting with an unusable connection.
 - Includes complete English and German setup, migration, and removal guidance.

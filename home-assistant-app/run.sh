@@ -283,7 +283,7 @@ read_mqtt_service() {
         || ! MQTT_USERNAME="$(bashio::services mqtt 'username')" \
         || ! MQTT_PASSWORD="$(bashio::services mqtt 'password')"; then
         bashio::log.error "The Home Assistant MQTT service is unavailable. Start the Mosquitto Broker app, or select Manual configuration and enter your broker details."
-        return 1
+        return 75
     fi
 
     MQTT_SSL="$(bashio::services mqtt 'ssl' || true)"
@@ -301,7 +301,7 @@ read_mqtt_configuration() {
     mode="$(app_option 'mqtt_mode' '"Home Assistant MQTT service"')" || return 1
     case "${mode}" in
         'Home Assistant MQTT service')
-            read_mqtt_service || return 1
+            read_mqtt_service || return $?
             ;;
         'Manual configuration')
             if ! MQTT_HOST="$(app_option 'mqtt_host' '""')" \
@@ -379,7 +379,7 @@ main() {
         return 1
     fi
 
-    read_mqtt_configuration || return 1
+    read_mqtt_configuration || return $?
 
     trap cleanup_password_file EXIT
 
@@ -411,6 +411,10 @@ pause_watchdog() {
     "${DIGITALSTROM_MQTT_BIN}" -mode=app-watchdog-pause
 }
 
+resume_watchdog_after_crash() {
+    "${DIGITALSTROM_MQTT_BIN}" -mode=app-watchdog-resume
+}
+
 # Supervisor must acknowledge the pause before a password is tried. A failed
 # API call must not turn a rejected password into repeated login attempts.
 wait_for_watchdog_pause() {
@@ -433,9 +437,13 @@ run_app() {
         child_pid=$!
         if wait "${child_pid}"; then status=0; else status=$?; fi
         child_pid=""
-        # Let Supervisor handle crashes according to the user's watchdog
-        # setting. The next launch pauses protection before any login.
+        # Restore only protection paused by this launcher before handing a
+        # crash to Supervisor. Otherwise a startup crash leaves it disabled.
         if [[ "${status}" != 0 && "${status}" != 1 && "${status}" != 75 && "${status}" != 78 ]]; then
+            until resume_watchdog_after_crash; do
+                bashio::log.warning "Waiting for Home Assistant to restore the watchdog after a crash."
+                sleep 15
+            done
             return "${status}"
         fi
         wait_for_watchdog_pause

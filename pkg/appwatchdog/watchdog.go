@@ -129,6 +129,20 @@ func (w *Watchdog) Pause(ctx context.Context) error {
 	return err
 }
 
+// ResumeAfterCrash restores only a recorded pause, without treating a failed
+// startup as successful initialization or enabling a manually disabled watchdog.
+func (w *Watchdog) ResumeAfterCrash(ctx context.Context) error {
+	s, err := w.read()
+	if err != nil || !s.Resume {
+		return err
+	}
+	if _, err := w.request(ctx, http.MethodPost, "/options", []byte(`{"watchdog":true}`)); err != nil {
+		return err
+	}
+	s.Resume = false
+	return w.save(s)
+}
+
 // Arm is called only after the entire controller has started successfully.
 func (w *Watchdog) Arm(ctx context.Context) error {
 	s, err := w.read()

@@ -162,6 +162,10 @@ einer Erklärung im Log. Einstellungen korrigieren und die App erneut starten;
 nach erfolgreichem Start wird der Schutz wiederhergestellt. Vorübergehende
 Verbindungsfehler werden mit wachsenden Wartezeiten von 15 bis 60 Sekunden
 erneut versucht.
+Das gilt auch, wenn der Home-Assistant-MQTT-Dienst noch nicht bereit ist. Nach
+einem unerwarteten Startabsturz stellt die App einen zuvor aktivierten Watchdog
+wieder her, damit Home Assistant sie neu starten kann. Ein manuell
+ausgeschalteter Watchdog bleibt aus.
 
 Der Container-Healthcheck erkennt unbeantwortete Gesundheitsabfragen und
 Verarbeitungsschritte, die länger als zwei Minuten blockieren, einschliesslich

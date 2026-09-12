@@ -128,6 +128,9 @@ During startup and API-key setup, the watchdog is paused. Rejected credentials
 or invalid configuration stop the App with an explanation in its log. Correct
 the settings and start it again; protection resumes after successful startup.
 Temporary connection failures retry with increasing delays of 15 to 60 seconds.
+This includes a Home Assistant MQTT service that is not ready yet. After an
+unexpected startup crash, the App restores a previously enabled watchdog so
+Home Assistant can restart it. A manually disabled watchdog stays off.
 
 The container health check detects unresponsive health requests and bridge work
 that remains blocked for more than two minutes, including notification and

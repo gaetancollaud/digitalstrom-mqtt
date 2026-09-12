@@ -137,7 +137,12 @@ be fetched anonymously.
   enabled. The App enables it once after complete controller startup, pauses
   it before setup/retries, and preserves a later manual disable. The private
   `/data/watchdog-state.json` records activation and interrupted pauses.
+  An unexpected startup crash restores only a recorded pause before handing
+  the exit to Supervisor. If restoring fails, the launcher waits for the API
+  without starting the bridge again. A crash never marks setup complete.
   Runtime exit code 75 requests a delayed retry; 78 requests user correction.
+  An unavailable Supervisor MQTT service also returns 75 through all launcher
+  layers; invalid manual settings and unsupported TLS still require correction.
   A failed Supervisor pause blocks further login attempts. Startup is bounded
   to two minutes and dSS HTTP requests to 30 seconds. Callback stalls are
   unhealthy after two minutes; idle connections and reconnect delays are not.

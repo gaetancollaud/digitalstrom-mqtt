@@ -165,6 +165,66 @@ func TestFailedPausePreservesResumeIntent(t *testing.T) {
 	require.True(t, server.on)
 }
 
+func TestCrashRestoresOnlyPausedProtection(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		initialized bool
+		enabled     bool
+		pause       bool
+	}{
+		{"first start", false, false, true},
+		{"first start with user enabled protection", false, true, true},
+		{"restart with protection", true, true, true},
+		{"restart after manual disable", true, false, true},
+		{"runtime crash with protection", true, true, false},
+		{"runtime crash after manual disable", true, false, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			w, server := fixture(t)
+			ctx := context.Background()
+			require.NoError(t, w.save(state{Initialized: test.initialized, UpdatesInitialized: true}))
+			server.on = test.enabled
+			if test.pause {
+				require.NoError(t, w.Pause(ctx))
+				require.False(t, server.on)
+			}
+			// The crash handler runs as a separate process, sharing only /data.
+			restarted := &Watchdog{URL: w.URL, Token: w.Token, Path: w.Path, Client: w.Client}
+			require.NoError(t, restarted.ResumeAfterCrash(ctx))
+			require.Equal(t, test.enabled, server.on)
+			s, err := restarted.read()
+			require.NoError(t, err)
+			require.False(t, s.Resume)
+			require.Equal(t, test.initialized, s.Initialized, "a crash is not a successful startup")
+			require.True(t, s.UpdatesInitialized, "crash recovery must preserve update preferences")
+			if test.enabled && test.pause {
+				require.Equal(t, []bool{false, true}, server.writes)
+			} else {
+				require.Empty(t, server.writes)
+			}
+		})
+	}
+}
+
+func TestCrashRestoreFailureRetainsIntentForRetry(t *testing.T) {
+	w, server := fixture(t)
+	ctx := context.Background()
+	require.NoError(t, w.Arm(ctx))
+	require.NoError(t, w.Pause(ctx))
+	server.fail = true
+	require.Error(t, w.ResumeAfterCrash(ctx))
+	s, err := w.read()
+	require.NoError(t, err)
+	require.True(t, s.Resume)
+	require.False(t, server.on)
+	server.fail = false
+	require.NoError(t, w.ResumeAfterCrash(ctx))
+	require.True(t, server.on)
+	server.on = false
+	require.NoError(t, w.ResumeAfterCrash(ctx))
+	require.False(t, server.on, "completed restore must not undo a later manual disable")
+}
+
 func TestFailedActivationIsRetried(t *testing.T) {
 	w, server := fixture(t)
 	server.fail = true

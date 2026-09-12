@@ -25,7 +25,7 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	mode := flag.String("mode", "standard", "Operation mode (standard, get-api-key, app-watchdog-pause)")
+	mode := flag.String("mode", "standard", "Operation mode (standard, get-api-key, app-watchdog-pause, app-watchdog-resume)")
 
 	host := flag.String("host", "test", "DigitalSTROM server host")
 	port := flag.Int("port", 8080, "DigitalSTROM server port")
@@ -48,6 +48,11 @@ func main() {
 	} else if *mode == "app-watchdog-pause" {
 		if err := appwatchdog.FromEnvironment().Pause(context.Background()); err != nil {
 			log.Error().Err(err).Msg("Cannot pause App watchdog; startup must wait")
+			os.Exit(75)
+		}
+	} else if *mode == "app-watchdog-resume" {
+		if err := appwatchdog.FromEnvironment().ResumeAfterCrash(context.Background()); err != nil {
+			log.Error().Err(err).Msg("Cannot restore App watchdog after crash; handoff must wait")
 			os.Exit(75)
 		}
 	} else if *mode == "get-api-key" {

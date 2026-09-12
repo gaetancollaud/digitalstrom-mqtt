@@ -670,12 +670,30 @@ test_transient_failure_retries_but_rejected_login_stops() {
 test_crash_leaves_watchdog_decision_to_supervisor() {
     local calls="${TEST_DIR}/crash-calls"
     pause_watchdog() { printf 'pause\n' >> "${calls}"; }
+    resume_watchdog_after_crash() { printf 'restore\n' >> "${calls}"; }
     main() { printf 'start\n' >> "${calls}"; return 2; }
     sleep() { fail "a crash was retried outside Supervisor"; }
     local status=0
     run_app || status=$?
     assert_equal 2 "${status}" "panic exit status"
-    assert_equal $'pause\nstart' "$(<"${calls}")" "crash must preserve the selected watchdog state"
+    assert_equal $'pause\nstart\nrestore' "$(<"${calls}")" "crash must restore the selected watchdog state before handoff"
+}
+
+test_failed_crash_restore_waits_without_restarting_bridge() {
+    local calls="${TEST_DIR}/crash-restore-retry"
+    local restore_attempts=0
+    pause_watchdog() { printf 'pause\n' >> "${calls}"; }
+    main() { printf 'start\n' >> "${calls}"; return 2; }
+    resume_watchdog_after_crash() {
+        printf 'restore\n' >> "${calls}"
+        restore_attempts=$((restore_attempts + 1))
+        [[ "${restore_attempts}" -gt 1 ]]
+    }
+    sleep() { assert_equal 15 "$1" "restore retry delay"; printf 'wait\n' >> "${calls}"; }
+    local status=0
+    run_app || status=$?
+    assert_equal 2 "${status}" "crash exit status after failed restore"
+    assert_equal $'pause\nstart\nrestore\nwait\nrestore' "$(<"${calls}")" "no login before Supervisor acknowledges restored protection"
 }
 
 test_launcher_forwards_manual_stop() {
@@ -811,6 +829,65 @@ test_invalid_mqtt_configuration_stops_before_dss_login() {
     if main; then fail "invalid MQTT settings accepted"; fi
 }
 
+test_mqtt_service_recovers_through_launcher() {
+    local calls="${TEST_DIR}/mqtt-service-recovery"
+    local service_ready="${TEST_DIR}/mqtt-service-ready"
+    local retries=0
+    reset_api_key_state
+    printf 'existing-api-key' > "${API_KEY_FILE}"
+    load_configuration() { DIGITALSTROM_HOST='dss.local'; DIGITALSTROM_PORT=8080; }
+    app_option() { printf 'Home Assistant MQTT service'; }
+    regeneration_option_is_enabled() { return 1; }
+    request_api_key() { fail "MQTT recovery must not request another API key"; }
+    bashio::services() {
+        [[ -f "${service_ready}" ]] || return 1
+        case "$2" in
+            host) printf 'mqtt.local' ;;
+            port) printf '1883' ;;
+            username) printf 'fixture-user' ;;
+            password) printf 'fixture-password' ;;
+            ssl) printf 'false' ;;
+            *) return 1 ;;
+        esac
+    }
+    pause_watchdog() { printf 'pause\n' >> "${calls}"; }
+    sleep() {
+        retries=$((retries + 1))
+        [[ "${retries}" == 1 ]] || fail "service recovery retried after a successful start"
+        assert_equal 15 "$1" "MQTT service retry delay"
+        printf 'retry\n' >> "${calls}"
+        touch "${service_ready}"
+    }
+    exec() { printf 'bridge-started\n' >> "${calls}"; }
+    local status=0
+    run_app || status=$?
+    assert_equal 0 "${status}" "launcher must recover after the MQTT service returns"
+    assert_equal $'pause\npause\nretry\npause\nbridge-started\npause' "$(<"${calls}")" "MQTT recovery path"
+}
+
+test_startup_crash_restores_only_previously_enabled_watchdog() {
+    local originally_enabled
+    for originally_enabled in true false; do
+        local watchdog_enabled="${originally_enabled}"
+        local pending_resume=false
+        pause_watchdog() {
+            pending_resume="${watchdog_enabled}"
+            watchdog_enabled=false
+        }
+        resume_watchdog_after_crash() {
+            if [[ "${pending_resume}" == true ]]; then watchdog_enabled=true; fi
+        }
+        main() { return 2; }
+        sleep() { fail "unexpected crash retried outside Supervisor"; }
+        local status=0
+        run_app || status=$?
+        assert_equal 2 "${status}" "startup crash status"
+        assert_equal "${originally_enabled}" "${watchdog_enabled}" "watchdog state after startup crash"
+    done
+}
+
+(test_startup_crash_restores_only_previously_enabled_watchdog)
+(test_mqtt_service_recovers_through_launcher)
 (test_password_cleanup_keeps_a_visible_empty_field)
 (test_mqtt_modes_and_validation)
 (test_service_mode_ignores_manual_credentials)
@@ -818,6 +895,7 @@ test_invalid_mqtt_configuration_stops_before_dss_login() {
 (test_watchdog_pause_failure_never_reaches_login)
 (test_transient_failure_retries_but_rejected_login_stops)
 (test_crash_leaves_watchdog_decision_to_supervisor)
+(test_failed_crash_restore_waits_without_restarting_bridge)
 (test_launcher_forwards_manual_stop)
 (test_api_key_transient_failure_reaches_launcher)
 (test_boolean_false_is_not_replaced_by_default)
