@@ -55,8 +55,9 @@ Sobald das Repository erscheint, **digitalSTROM MQTT** installieren.
 Die App erstellt einen eigenen dSS-API-Key und speichert ihn dauerhaft in ihrem
 privaten `/data`-Verzeichnis. Nach erfolgreicher Einrichtung entfernt sie das
 temporäre Passwort aus dem Feld; das leere Feld bleibt sichtbar. Kann Home
-Assistant die Optionen nicht sofort aktualisieren, wird die Bereinigung beim nächsten Start fortgesetzt,
-ohne einen weiteren API-Key anzulegen. Normale Neustarts verwenden den
+Assistant die Optionen nicht sofort aktualisieren, wartet die App und versucht
+die Bereinigung automatisch erneut, bevor sie die Bridge startet. Dabei wird
+kein weiterer API-Key angelegt. Normale Neustarts verwenden den
 gespeicherten API-Key und benötigen das Passwort nicht erneut.
 
 ## Konfiguration

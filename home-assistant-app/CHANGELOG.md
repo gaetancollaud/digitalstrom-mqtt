@@ -10,6 +10,7 @@
 - Enables automatic updates once for the regular App and preserves later manual choices.
 - Creates and persists a dedicated digitalSTROM API key in the App data directory.
 - Recovers interrupted or incomplete API-key setup without overwriting a valid key.
+- Waits for temporary password cleanup before starting the bridge and retries without another login.
 - Keeps passwords, API keys, and Supervisor option payloads out of App logs.
 - Supports a configurable digitalSTROM HTTPS API port.
 - Adds actionable API-key bootstrap and recovery logs without exposing credentials.

@@ -144,6 +144,10 @@ be fetched anonymously.
   An unavailable Supervisor MQTT service also returns 75 through all launcher
   layers; invalid manual settings and unsupported TLS still require correction.
   A failed Supervisor pause blocks further login attempts. Startup is bounded
+  Option cleanup failures also return 75: keep the stored key, wait, and retry
+  cleanup before starting the bridge. Never keep a temporary dSS password
+  configured while normal bridge operation proceeds.
+  Startup is bounded
   to two minutes and dSS HTTP requests to 30 seconds. Callback stalls are
   unhealthy after two minutes; idle connections and reconnect delays are not.
 - **Store artwork is active**: `icon.png` is a 128 x 128 square icon and

@@ -185,7 +185,9 @@ test_failed_regeneration_cleanup_resumes_without_another_key() {
         [[ "${allow_option_updates}" == "true" ]]
     }
 
-    create_api_key "true"
+    local status=0
+    create_api_key "true" || status=$?
+    assert_equal 75 "${status}" "regeneration cleanup requests delayed retry"
     assert_equal "new-api-key" "$(<"${API_KEY_FILE}")" "replacement API key"
     assert_equal "true" "$(<"${API_KEY_FINALIZATION_FILE}")" "pending regeneration state"
     assert_equal "1" "${request_count}" "initial API key request count"
@@ -220,7 +222,9 @@ test_failed_password_removal_resumes_without_another_key() {
         fi
     }
 
-    create_api_key "false"
+    local status=0
+    create_api_key "false" || status=$?
+    assert_equal 75 "${status}" "password cleanup requests delayed retry"
     assert_equal "false" "$(<"${API_KEY_FINALIZATION_FILE}")" "pending first-start state"
 
     fail_password_removal="false"
@@ -865,6 +869,40 @@ test_mqtt_service_recovers_through_launcher() {
     assert_equal $'pause\npause\nretry\npause\nbridge-started\npause' "$(<"${calls}")" "MQTT recovery path"
 }
 
+test_pending_password_cleanup_retries_before_starting_bridge() {
+    local calls="${TEST_DIR}/pending-cleanup-calls"
+    local api_ready="${TEST_DIR}/cleanup-api-ready"
+    reset_api_key_state
+    printf 'existing-api-key' > "${API_KEY_FILE}"
+    printf 'false' > "${API_KEY_FINALIZATION_FILE}"
+    load_configuration() { DIGITALSTROM_HOST='dss.local'; DIGITALSTROM_PORT=8080; }
+    read_mqtt_configuration() { :; }
+    regeneration_option_is_enabled() { return 1; }
+    read_optional_password() { printf 'temporary-password'; }
+    update_app_option() {
+        printf 'cleanup\n' >> "${calls}"
+        [[ -f "${api_ready}" ]]
+    }
+    request_api_key() { fail "pending cleanup requested another API key"; }
+    pause_watchdog() { :; }
+    sleep() {
+        [[ ! -f "${api_ready}" ]] || fail "cleanup did not recover"
+        assert_equal 15 "$1" "cleanup retry delay"
+        printf 'retry\n' >> "${calls}"
+        touch "${api_ready}"
+    }
+    exec() {
+        [[ -f "${api_ready}" ]] || fail "bridge started with password cleanup pending"
+        printf 'bridge-started\n' >> "${calls}"
+    }
+    local status=0
+    run_app || status=$?
+    assert_equal 0 "${status}" "cleanup retry launcher status"
+    assert_equal $'cleanup\nretry\ncleanup\nbridge-started' "$(<"${calls}")" "cleanup recovery order"
+    assert_equal 'existing-api-key' "$(<"${API_KEY_FILE}")" "cleanup preserved key"
+    [[ ! -e "${API_KEY_FINALIZATION_FILE}" ]] || fail "cleanup marker remains"
+}
+
 test_startup_crash_restores_only_previously_enabled_watchdog() {
     local originally_enabled
     for originally_enabled in true false; do
@@ -886,6 +924,7 @@ test_startup_crash_restores_only_previously_enabled_watchdog() {
     done
 }
 
+(test_pending_password_cleanup_retries_before_starting_bridge)
 (test_startup_crash_restores_only_previously_enabled_watchdog)
 (test_mqtt_service_recovers_through_launcher)
 (test_password_cleanup_keeps_a_visible_empty_field)

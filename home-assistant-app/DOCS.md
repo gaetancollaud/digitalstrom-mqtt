@@ -52,7 +52,8 @@ Install **digitalSTROM MQTT** after the repository appears.
 The App creates a dedicated dSS API key and stores it in its private persistent
 `/data` directory. The temporary password is cleared after successful setup;
 the empty field remains visible. If Home Assistant cannot update the options
-immediately, the App retries cleanup on its next start without creating another key. Normal
+immediately, the App waits and retries cleanup automatically before starting the
+bridge, without creating another key. Normal
 restarts use the stored API key and do not need the password again.
 
 ## Configuration

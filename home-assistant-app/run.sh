@@ -167,8 +167,8 @@ complete_api_key_finalization() {
     fi
 
     if ! finalize_api_key_options "${regenerate_requested}"; then
-        bashio::log.warning "The API key is usable, but Home Assistant option cleanup is still pending and will be retried after the next restart."
-        return 0
+        bashio::log.warning "The API key is stored, but Home Assistant option cleanup is still pending. Waiting before starting the bridge; no new key will be requested."
+        return 75
     fi
     if ! rm -f "${API_KEY_FINALIZATION_FILE}"; then
         bashio::log.warning "Could not remove the completed API key setup state; cleanup will be checked again after the next restart."
@@ -387,7 +387,7 @@ main() {
         regenerate_requested="true"
     fi
     bashio::log.debug "Using digitalSTROM server ${DIGITALSTROM_HOST}:${DIGITALSTROM_PORT}."
-    resume_api_key_bootstrap "${regenerate_requested}" || return 1
+    resume_api_key_bootstrap "${regenerate_requested}" || return $?
     if [[ "${API_KEY_REQUEST_SATISFIED}" != "true" ]] \
         && { [[ ! -s "${API_KEY_FILE}" ]] || [[ "${regenerate_requested}" == "true" ]]; }; then
         create_api_key "${regenerate_requested}" || return $?
