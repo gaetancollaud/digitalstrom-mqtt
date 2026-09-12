@@ -98,6 +98,23 @@ diagnosing a problem. Logs do not intentionally include passwords or API keys.
 Creates a replacement API key on the next App start. Enter the dSS password
 first. The existing key remains in place if replacement fails.
 
+## Automatic recovery
+
+After the first complete startup, the App enables Home Assistant's watchdog
+automatically. No extra switch is required. If you later disable the watchdog
+manually, the App preserves that choice.
+
+During startup and API-key setup, the watchdog is paused. Rejected credentials
+or invalid configuration stop the App with an explanation in its log. Correct
+the settings and start it again; protection resumes after successful startup.
+Temporary connection failures retry with increasing delays of 15 to 60 seconds.
+
+The container health check detects unresponsive health requests and bridge work
+that remains blocked for more than two minutes, including notification and
+command callbacks. Home Assistant can then restart the App. A quiet home or a
+disconnected MQTT broker alone does not count as a hang. This check cannot
+detect every possible device or protocol failure.
+
 ## Migrating an existing bridge
 
 1. Record any non-default MQTT topic, discovery prefix, or name normalization

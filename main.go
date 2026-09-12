@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -10,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/appwatchdog"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/controller"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -22,7 +25,7 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	mode := flag.String("mode", "standard", "Operation mode (standard, get-api-key)")
+	mode := flag.String("mode", "standard", "Operation mode (standard, get-api-key, app-watchdog-pause)")
 
 	host := flag.String("host", "test", "DigitalSTROM server host")
 	port := flag.Int("port", 8080, "DigitalSTROM server port")
@@ -35,7 +38,18 @@ func main() {
 	flag.Parse()
 
 	if *mode == "standard" {
-		modeStandard()
+		if err := modeStandard(); err != nil {
+			log.Error().Err(err).Msg("Bridge stopped")
+			if os.Getenv("HOME_ASSISTANT_APP") == "true" {
+				os.Exit(monitor.ExitCode(err))
+			}
+			os.Exit(1)
+		}
+	} else if *mode == "app-watchdog-pause" {
+		if err := appwatchdog.FromEnvironment().Pause(context.Background()); err != nil {
+			log.Error().Err(err).Msg("Cannot pause App watchdog; startup must wait")
+			os.Exit(75)
+		}
 	} else if *mode == "get-api-key" {
 		request := apiKeyRequest{
 			host:            *host,
@@ -47,7 +61,11 @@ func main() {
 			apiKeyFile:      *apiKeyFile,
 		}
 		if err := modeGetApiKey(request); err != nil {
-			log.Fatal().Err(err).Msg("Unable to get API key")
+			log.Error().Err(err).Msg("Unable to get API key")
+			if os.Getenv("HOME_ASSISTANT_APP") == "true" {
+				os.Exit(monitor.ExitCode(err))
+			}
+			os.Exit(1)
 		}
 	} else {
 		log.Error().Str("mode", *mode).Msg("Unknown mode")
@@ -68,7 +86,7 @@ type apiKeyRequest struct {
 func modeGetApiKey(request apiKeyRequest) error {
 	password, err := request.readPassword()
 	if err != nil {
-		return err
+		return monitor.Permanent(err)
 	}
 
 	apiKey, err := digitalstrom.GetApiKey(
@@ -84,7 +102,7 @@ func modeGetApiKey(request apiKeyRequest) error {
 
 	if request.apiKeyFile != "" {
 		if err := writePrivateFile(request.apiKeyFile, apiKey); err != nil {
-			return fmt.Errorf("store API key: %w", err)
+			return monitor.Permanent(fmt.Errorf("store API key: %w", err))
 		}
 		log.Info().Str("path", request.apiKeyFile).Msg("API key successfully retrieved and stored")
 		return nil
@@ -134,10 +152,10 @@ func writePrivateFile(path string, value string) error {
 	return os.Rename(temporaryPath, path)
 }
 
-func modeStandard() {
+func modeStandard() error {
 	config, err := config.ReadConfig()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error found when reading the config.")
+		return monitor.Permanent(fmt.Errorf("invalid configuration: %w", err))
 	}
 
 	if config.LogLevel == "TRACE" {
@@ -156,17 +174,48 @@ func modeStandard() {
 
 	// Initialize controller responsible for all the bridge logic.
 	ctrl := controller.NewController(config)
-	if err := ctrl.Start(); err != nil {
-		log.Fatal().Err(err).Msg("Error on starting the controller")
-	}
-
-	// Subscribe for interruption happening during execution.
 	exitSignal := make(chan os.Signal, 2)
 	signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
-	<-exitSignal
+	defer signal.Stop(exitSignal)
+	started := make(chan error, 1)
+	go func() { started <- ctrl.Start() }()
+	startupTimeout := time.NewTimer(2 * time.Minute)
+	defer startupTimeout.Stop()
+	select {
+	case err := <-started:
+		if err != nil {
+			return fmt.Errorf("controller startup failed: %w", err)
+		}
+	case err := <-ctrl.Monitor.Failures():
+		return err
+	case <-startupTimeout.C:
+		return fmt.Errorf("controller startup timed out")
+	case <-exitSignal:
+		return nil
+	}
 
-	// Gracefulle stop all the modules loops and logic.
-	if err := ctrl.Stop(); err != nil {
-		log.Fatal().Err(err).Msg("Error when stopping the controller")
+	var watchdog *appwatchdog.Watchdog
+	if os.Getenv("HOME_ASSISTANT_APP") == "true" {
+		watchdog = appwatchdog.FromEnvironment()
+	}
+	arm := func() {
+		if watchdog != nil {
+			if err := watchdog.Arm(context.Background()); err != nil {
+				log.Warn().Err(err).Msg("Watchdog activation pending; will retry")
+			}
+		}
+	}
+	arm()
+	tick := time.NewTicker(15 * time.Second)
+	defer tick.Stop()
+	for {
+		select {
+		case <-tick.C:
+			arm()
+		case err := <-ctrl.Monitor.Failures():
+			return err
+		case <-exitSignal:
+			return ctrl.Stop()
+		}
 	}
 }

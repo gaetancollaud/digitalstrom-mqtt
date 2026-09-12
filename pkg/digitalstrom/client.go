@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
@@ -65,6 +66,7 @@ type client struct {
 func NewClient(options *ClientOptions) Client {
 	return &client{
 		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: true,
@@ -77,21 +79,27 @@ func NewClient(options *ClientOptions) Client {
 }
 
 func (c *client) websocketConnect() error {
+	defer c.options.Monitor.Begin("digitalSTROM WebSocket connect")()
 	websocketHost := "ws://" + c.options.Host + ":8090/api/v1/apartment/notifications"
 	log.Trace().Str("host", websocketHost).Msg("Connecting to websocket")
 	headers := http.Header{}
 	headers.Add("Authorization", "Bearer "+c.options.ApiKey)
-	ws, _, err := websocket.DefaultDialer.Dial(websocketHost, headers)
+	ws, response, err := websocket.DefaultDialer.Dial(websocketHost, headers)
 	if err != nil {
+		if response != nil && response.StatusCode >= 400 {
+			return responseError(response.StatusCode)
+		}
 		return fmt.Errorf("unable to connecting to notification websocket: %w", err)
 	}
 	c.websocketConnection = ws
+	_ = ws.SetWriteDeadline(time.Now().Add(30 * time.Second))
 	// initiate event stream
 	err = c.websocketConnection.WriteJSON(WebsocketInitMessage{
 		Protocol: "json",
 		Version:  1,
 	})
 	if err != nil {
+		_ = ws.Close()
 		return fmt.Errorf("error writing to websocket: %w", err)
 	}
 	log.Info().Msg("Connected to websocket for notifications")
@@ -121,6 +129,10 @@ func (c *client) Connect() error {
 					time.Sleep(WEBSOCKET_RECONNECT_DELAY)
 					err = c.websocketConnect()
 					if err != nil {
+						if monitor.IsPermanent(err) {
+							c.options.Monitor.Report(err)
+							return
+						}
 						log.Error().Err(err).Msg("Websocket reconnect error")
 					}
 				}
@@ -129,9 +141,11 @@ func (c *client) Connect() error {
 					log.Warn().Msg("No argument received in notification")
 				}
 			} else {
+				done := c.options.Monitor.Begin("digitalSTROM notification callbacks")
 				for _, callback := range c.notificationCallbacks {
 					callback(notification)
 				}
+				done()
 				log.Trace().Str("target", notification.Target).Str("type", string(notification.Arguments[0].Type)).Msg("Websocket received")
 			}
 			firstMessage = false
@@ -210,6 +224,7 @@ func (c *client) NotificationUnsubscribe(id string) error {
 }
 
 func (c *client) doRequest(method string, path string, params url.Values, body interface{}) ([]byte, error) {
+	defer c.options.Monitor.Begin("digitalSTROM REST request")()
 	var bodyReader io.Reader = nil
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
@@ -235,14 +250,19 @@ func (c *client) doRequest(method string, path string, params url.Values, body i
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
+	if resp.StatusCode >= 300 {
+		err := responseError(resp.StatusCode)
+		// A rejected device command must not stop the entire bridge. Only
+		// authentication failures require stopping all further attempts.
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			c.options.Monitor.Report(err)
+		}
+		return nil, err
+	}
 
 	responseBody, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
 		return nil, fmt.Errorf("error reading the request: %w", err)
-	}
-
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("error response from server, httpStatus=%d: %s", resp.StatusCode, responseBody)
 	}
 
 	log.Debug().

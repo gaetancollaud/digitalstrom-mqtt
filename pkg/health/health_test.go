@@ -3,6 +3,7 @@ package health
 import (
 	"context"
 	"errors"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/config"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,31 @@ import (
 
 	healthgo "github.com/hellofresh/health-go/v5"
 )
+
+type stalledWork struct{}
+
+func (stalledWork) Check() error { return errors.New("bridge work stalled: command callback") }
+
+func TestLiveEndpointReportsStalledBridgeWork(t *testing.T) {
+	h := &health{progress: stalledWork{}}
+	response := httptest.NewRecorder()
+	h.liveHandler(response, httptest.NewRequest(http.MethodGet, "/health/live", nil))
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("stalled callback returned HTTP %d", response.Code)
+	}
+}
+
+func TestStartReportsOccupiedPort(t *testing.T) {
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	h := &health{config: config.HealthCheckConfig{Port: listener.Addr().(*net.TCPAddr).Port}}
+	if err := h.Start(); err == nil {
+		t.Fatal("occupied health port announced a successful start")
+	}
+}
 
 func TestLiveEndpointDoesNotFailWithDependencyHealth(t *testing.T) {
 	check, err := healthgo.New()

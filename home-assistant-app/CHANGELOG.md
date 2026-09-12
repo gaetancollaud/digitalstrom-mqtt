@@ -14,5 +14,7 @@
 - Runs under a custom AppArmor profile based on an enforce-mode profile validated
   on Home Assistant OS; CI parses the final packaged profile.
 - Adds a Docker health check through a dependency-independent liveness endpoint.
+- Enables the watchdog after successful setup and detects blocked bridge work.
+- Pauses automatic restarts for rejected credentials and preserves manual watchdog choices.
 - Rejects unsupported MQTT service TLS instead of starting with an unusable connection.
 - Includes complete English and German setup, migration, and removal guidance.

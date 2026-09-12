@@ -627,6 +627,86 @@ test_configuration_caps_bashio_trace_at_debug() {
     assert_equal "TRACE" "${LOG_LEVEL}" "bridge trace log level"
 }
 
+test_watchdog_pause_failure_never_reaches_login() {
+    local calls="${TEST_DIR}/pause-calls"
+    local attempts=0
+    pause_watchdog() {
+        attempts=$((attempts + 1))
+        printf 'pause\n' >> "${calls}"
+        [[ "${attempts}" -gt 1 ]]
+    }
+    sleep() { printf 'wait\n' >> "${calls}"; }
+    main() { printf 'start\n' >> "${calls}"; return 78; }
+    if run_app; then fail "permanent configuration failure was accepted"; fi
+    assert_equal $'pause\nwait\npause\nstart\npause' "$(<"${calls}")" "pause before login and after failure"
+}
+
+test_transient_failure_retries_but_rejected_login_stops() {
+    local calls="${TEST_DIR}/retry-calls"
+    local marker="${TEST_DIR}/retry-first-attempt"
+    pause_watchdog() { printf 'pause\n' >> "${calls}"; }
+    sleep() { printf 'retry %s\n' "$1" >> "${calls}"; }
+    main() {
+        printf 'start\n' >> "${calls}"
+        if [[ ! -f "${marker}" ]]; then touch "${marker}"; return 75; fi
+        return 78
+    }
+    if run_app; then fail "rejected credentials should stop startup"; fi
+    assert_equal $'pause\nstart\npause\nretry 15\npause\nstart\npause' "$(<"${calls}")" "transient retry and permanent stop"
+}
+
+test_crash_leaves_watchdog_decision_to_supervisor() {
+    local calls="${TEST_DIR}/crash-calls"
+    pause_watchdog() { printf 'pause\n' >> "${calls}"; }
+    main() { printf 'start\n' >> "${calls}"; return 2; }
+    sleep() { fail "a crash was retried outside Supervisor"; }
+    local status=0
+    run_app || status=$?
+    assert_equal 2 "${status}" "panic exit status"
+    assert_equal $'pause\nstart' "$(<"${calls}")" "crash must preserve the selected watchdog state"
+}
+
+test_launcher_forwards_manual_stop() {
+    local worker="${TEST_DIR}/stop-worker.sh"
+    local ready="${TEST_DIR}/stop-ready"
+    local stopped="${TEST_DIR}/stop-done"
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'trap '\''printf stopped > "$2"; exit 0'\'' TERM' \
+        'printf ready > "$1"' \
+        'while true; do sleep 0.1; done' > "${worker}"
+    pause_watchdog() { :; }
+    main() { exec bash "${worker}" "${ready}" "${stopped}"; }
+    (run_app) &
+    local launcher=$!
+    trap 'kill -TERM "${launcher}" 2>/dev/null || true; wait "${launcher}" 2>/dev/null || true' EXIT
+    local attempt
+    for attempt in {1..200}; do
+        [[ -f "${ready}" ]] && break
+        sleep 0.02
+    done
+    [[ -f "${ready}" ]] || fail "bridge did not start for stop test"
+    kill -TERM "${launcher}"
+    wait "${launcher}"
+    [[ -f "${stopped}" ]] || fail "manual stop was not forwarded to the bridge"
+    trap - EXIT
+}
+
+test_api_key_transient_failure_reaches_launcher() {
+    reset_api_key_state
+    read_optional_password() { printf 'test-password'; }
+    request_api_key() { return 75; }
+    local status=0
+    create_api_key false || status=$?
+    assert_equal 75 "${status}" "transient API-key error status"
+    [[ ! -f "${PASSWORD_FILE}" ]] || fail "temporary password was not removed"
+}
+
+(test_watchdog_pause_failure_never_reaches_login)
+(test_transient_failure_retries_but_rejected_login_stops)
+(test_crash_leaves_watchdog_decision_to_supervisor)
+(test_launcher_forwards_manual_stop)
+(test_api_key_transient_failure_reaches_launcher)
 (test_boolean_false_is_not_replaced_by_default)
 (test_first_start_removes_password_without_resetting_regeneration)
 (test_regeneration_resets_flag_before_removing_password)

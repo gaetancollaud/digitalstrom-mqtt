@@ -1,15 +1,17 @@
 package digitalstrom
 
 import (
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"math/rand"
 	"time"
 )
 
 // ClientOptions contains configurable options for a Digitalstrom Client.
 type ClientOptions struct {
-	Host   string
-	Port   int
-	ApiKey string
+	Monitor *monitor.Monitor
+	Host    string
+	Port    int
+	ApiKey  string
 }
 
 // NewClientOptions will create a new ClientClientOptions type with some

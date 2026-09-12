@@ -127,6 +127,25 @@ Wurde der API-Key im dSS widerrufen, das dSS-Passwort erneut eingeben,
 neuen Keys und dem Entfernen des temporären Passworts wird die Option
 automatisch zurückgesetzt.
 
+## Automatische Wiederherstellung
+
+Nach dem ersten vollständigen Start aktiviert die App den Home-Assistant-
+Watchdog automatisch. Dafür muss kein zusätzlicher Schalter betätigt werden.
+Wird der Watchdog später manuell ausgeschaltet, behält die App diese Wahl bei.
+
+Während des Starts und der API-Key-Einrichtung ist der Watchdog pausiert.
+Abgelehnte Zugangsdaten oder eine ungültige Konfiguration stoppen die App mit
+einer Erklärung im Log. Einstellungen korrigieren und die App erneut starten;
+nach erfolgreichem Start wird der Schutz wiederhergestellt. Vorübergehende
+Verbindungsfehler werden mit wachsenden Wartezeiten von 15 bis 60 Sekunden
+erneut versucht.
+
+Der Container-Healthcheck erkennt unbeantwortete Gesundheitsabfragen und
+Verarbeitungsschritte, die länger als zwei Minuten blockieren, einschliesslich
+Ereignis- und Befehlsverarbeitung. Home Assistant kann die App dann neu starten.
+Ein ruhiges Zuhause oder allein ein getrennter MQTT-Broker gilt nicht als
+Hänger. Die Prüfung erkennt nicht jeden möglichen Geräte- oder Protokollfehler.
+
 ## App entfernen
 
 Die App vor der Deinstallation stoppen. Die Deinstallation widerruft den

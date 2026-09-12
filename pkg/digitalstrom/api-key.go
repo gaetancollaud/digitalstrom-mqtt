@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 /**
@@ -31,6 +33,7 @@ type NewApiKeyRequestAttributes struct {
 
 func GetApiKey(host string, port int, user string, password string, integrationName string) (string, error) {
 	httpClient := http.Client{
+		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -63,19 +66,19 @@ func getToken(httpClient http.Client, host string, port int, user string, passwo
 
 	loginAccepted, ok := tokenResponse["ok"].(bool)
 	if !ok {
-		return "", errors.New("no 'ok' field present, cannot check request")
+		return "", monitor.Permanent(errors.New("no 'ok' field present, cannot check request"))
 	}
 	if !loginAccepted {
-		return "", errors.New("digitalSTROM login was rejected")
+		return "", monitor.Permanent(errors.New("digitalSTROM login was rejected"))
 	}
 
 	result, ok := tokenResponse["result"].(map[string]interface{})
 	if !ok {
-		return "", errors.New("no 'token' field present, cannot get token from request")
+		return "", monitor.Permanent(errors.New("no 'token' field present, cannot get token from request"))
 	}
 	token, ok := result["token"].(string)
 	if !ok || strings.TrimSpace(token) == "" {
-		return "", errors.New("no 'token' field present, cannot get token from request")
+		return "", monitor.Permanent(errors.New("no 'token' field present, cannot get token from request"))
 	}
 	return token, nil
 }
@@ -102,10 +105,10 @@ func getApiKey(httpClient http.Client, host string, port int, token string, inte
 	if apiKeyResponse.StatusCode == 201 {
 		apiKey = apiKeyResponse.Header.Get("Location")
 	} else {
-		return "", fmt.Errorf("error creating api key, status was: %d", apiKeyResponse.StatusCode)
+		return "", monitor.Permanent(fmt.Errorf("error creating api key, status was: %d", apiKeyResponse.StatusCode))
 	}
 	if strings.TrimSpace(apiKey) == "" {
-		return "", errors.New("digitalSTROM returned an empty API key")
+		return "", monitor.Permanent(errors.New("digitalSTROM returned an empty API key"))
 	}
 
 	return apiKey, nil
@@ -127,7 +130,7 @@ func doRequest(httpClient http.Client, method string, host string, port int, pat
 
 	request, err := http.NewRequest(method, callUrl, bodyReader)
 	if err != nil {
-		return nil, nil, errors.New("error building the request")
+		return nil, nil, monitor.Permanent(errors.New("error building the request"))
 	}
 	resp, err := httpClient.Do(request)
 	if err != nil {
@@ -144,14 +147,13 @@ func doRequest(httpClient http.Client, method string, host string, port int, pat
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
+	if resp.StatusCode >= 300 {
+		return nil, nil, responseError(resp.StatusCode)
+	}
 
 	responseBody, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
 		return nil, nil, fmt.Errorf("error reading the response: %w", readErr)
-	}
-
-	if resp.StatusCode >= 300 {
-		return nil, nil, fmt.Errorf("error response from server, httpStatus=%d", resp.StatusCode)
 	}
 
 	log.Debug().
@@ -166,7 +168,7 @@ func doRequest(httpClient http.Client, method string, host string, port int, pat
 		var jsonResponse map[string]interface{}
 		err = json.Unmarshal(responseBody, &jsonResponse)
 		if err != nil {
-			return nil, nil, fmt.Errorf("error parsing response for token: %w", err)
+			return nil, nil, monitor.Permanent(fmt.Errorf("error parsing response for token: %w", err))
 		}
 		return jsonResponse, resp, nil
 	}

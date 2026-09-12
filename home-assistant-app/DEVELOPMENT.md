@@ -114,11 +114,17 @@ be fetched anonymously.
   open validation item instead of changing the lifecycle status of the tested
   package.
 - **Container health check**: the health endpoint remains private to the App
-  network. Docker checks `/health/live`, which verifies the bridge process
+  network. Docker checks `/health/live`, which verifies in-flight bridge work
   without treating a recoverable MQTT outage as a reason to restart.
   `/health/ready` continues to include the MQTT connection state for diagnosis.
   Supervisor only restarts an unhealthy App when its optional watchdog is
-  enabled; that setting is off by default.
+  enabled. The App enables it once after complete controller startup, pauses
+  it before setup/retries, and preserves a later manual disable. The private
+  `/data/watchdog-state.json` records activation and interrupted pauses.
+  Runtime exit code 75 requests a delayed retry; 78 requests user correction.
+  A failed Supervisor pause blocks further login attempts. Startup is bounded
+  to two minutes and dSS HTTP requests to 30 seconds. Callback stalls are
+  unhealthy after two minutes; idle connections and reconnect delays are not.
 - **Store artwork is active**: `icon.png` is a 128 x 128 square icon and
   `logo.png` is a 250 x 100 wide logo. Both images are project-specific artwork
   and do not reuse an official digitalSTROM or Home Assistant logo.
@@ -138,8 +144,9 @@ test VM was shut down.
 
 The current profile adds write access to the App's private `/data` volume for the
 bridge child process. This is required by the first-start API-key transaction;
-all other App setup and Supervisor option handling remains in the launcher
-profile. CI parses this exact profile. A repeat HAOS install should confirm the
+  the watchdog helper also stores its state there and calls Supervisor using
+  the existing network permission. CI parses this exact profile. A repeat HAOS
+  install should confirm the
 updated profile before the first public release.
 
 Physical `aarch64` hardware remains untested. CI builds that architecture, but
@@ -147,6 +154,13 @@ an actual ARM start and connection test is still required before claiming live
 hardware coverage.
 
 ## Validation before publication
+
+The automatic watchdog flow has unit and local protocol-fixture coverage.
+Before release, repeat the HAOS acceptance run: verify first activation,
+successful restart, manual watchdog disable, rejected credentials, Supervisor
+API failure, MQTT loss/recovery, and a deliberately blocked callback. Confirm
+the AppArmor profile still permits the helper. This new flow has not yet been
+validated on a live HAOS instance.
 
 1. Run App schema, translation, artwork, AppArmor, workflow, shell, bootstrap,
    Go test, Go vet, and Race Detector checks.

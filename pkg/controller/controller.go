@@ -8,11 +8,13 @@ import (
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/digitalstrom"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/health"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/homeassistant"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/mqtt"
 	"github.com/rs/zerolog/log"
 )
 
 type Controller struct {
+	Monitor       *monitor.Monitor
 	dsClient      digitalstrom.Client
 	dsRegistry    digitalstrom.Registry
 	mqttClient    mqtt.Client
@@ -23,11 +25,13 @@ type Controller struct {
 }
 
 func NewController(config *config.Config) *Controller {
+	progress := monitor.New()
 	// Create Digitalstrom client.
 	dsOptions := digitalstrom.NewClientOptions().
 		SetHost(config.Digitalstrom.Host).
 		SetPort(config.Digitalstrom.Port).
 		SetApiKey(config.Digitalstrom.ApiKey)
+	dsOptions.Monitor = progress
 	dsClient := digitalstrom.NewClient(dsOptions)
 
 	dsRegistry := digitalstrom.NewRegistry(dsClient)
@@ -38,15 +42,17 @@ func NewController(config *config.Config) *Controller {
 		SetPassword(config.Mqtt.Password).
 		SetTopicPrefix(config.Mqtt.TopicPrefix).
 		SetRetain(config.Mqtt.Retain)
+	mqttOptions.Monitor = progress
 	mqttClient := mqtt.NewClient(mqttOptions)
 
 	hass := homeassistant.NewHomeAssistantDiscovery(
 		mqttClient,
 		&config.HomeAssistant)
 
-	healthCheck := health.NewHealth(config.HealthCheck, mqttClient)
+	healthCheck := health.NewHealth(config.HealthCheck, mqttClient, progress)
 
 	controller := Controller{
+		Monitor:       progress,
 		dsClient:      dsClient,
 		dsRegistry:    dsRegistry,
 		mqttClient:    mqttClient,
@@ -74,9 +80,6 @@ func (c *Controller) Start() error {
 	if err := c.dsRegistry.Start(); err != nil {
 		return fmt.Errorf("error starting DigitalStrom registry: %w", err)
 	}
-	if err := c.healthCheck.Start(); err != nil {
-		return fmt.Errorf("error starting Healthcheck: %w", err)
-	}
 
 	for name, module := range c.modules {
 		log.Info().Str("module", name).Msg("Starting module.")
@@ -100,6 +103,10 @@ func (c *Controller) Start() error {
 	// Publishes Home Assistant Discovery messages.
 	if err := c.hassDiscovery.PublishDiscoveryMessages(); err != nil {
 		return err
+	}
+	// Do not announce a successful start until all modules and discovery are ready.
+	if err := c.healthCheck.Start(); err != nil {
+		return fmt.Errorf("error starting Healthcheck: %w", err)
 	}
 
 	return nil

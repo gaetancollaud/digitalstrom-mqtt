@@ -220,6 +220,7 @@ resume_api_key_bootstrap() {
 create_api_key() {
     local regenerate_requested="$1"
     local password
+    local request_status
     if ! password="$(read_optional_password)"; then
         bashio::log.error "Could not read the temporary digitalSTROM password from the App options."
         return 1
@@ -246,10 +247,13 @@ create_api_key() {
         bashio::log.error "Could not remove a stale staged API key."
         return 1
     fi
-    if ! request_api_key "${API_KEY_STAGING_FILE}"; then
+    if request_api_key "${API_KEY_STAGING_FILE}"; then
+        request_status=0
+    else
+        request_status=$?
         cleanup_password_file || true
         bashio::log.error "Could not create a digitalSTROM API key. Check the server address and credentials."
-        return 1
+        return "${request_status}"
     fi
     if [[ ! -s "${API_KEY_STAGING_FILE}" ]]; then
         cleanup_password_file || true
@@ -324,7 +328,7 @@ load_configuration() {
 main() {
     local regenerate_requested="false"
 
-    load_configuration
+    load_configuration || return 1
     if [[ -z "${DIGITALSTROM_HOST}" ]]; then
         bashio::log.error "Enter the digitalSTROM server address in the app configuration."
         return 1
@@ -339,7 +343,7 @@ main() {
     resume_api_key_bootstrap "${regenerate_requested}" || return 1
     if [[ "${API_KEY_REQUEST_SATISFIED}" != "true" ]] \
         && { [[ ! -s "${API_KEY_FILE}" ]] || [[ "${regenerate_requested}" == "true" ]]; }; then
-        create_api_key "${regenerate_requested}" || return 1
+        create_api_key "${regenerate_requested}" || return $?
     elif [[ "${API_KEY_REQUEST_SATISFIED}" != "true" ]]; then
         bashio::log.debug "Using the stored digitalSTROM API key."
     fi
@@ -359,6 +363,49 @@ main() {
     exec "${DIGITALSTROM_MQTT_BIN}"
 }
 
+pause_watchdog() {
+    "${DIGITALSTROM_MQTT_BIN}" -mode=app-watchdog-pause
+}
+
+# Supervisor must acknowledge the pause before a password is tried. A failed
+# API call must not turn a rejected password into repeated login attempts.
+wait_for_watchdog_pause() {
+    until pause_watchdog; do
+        bashio::log.warning "Waiting for Home Assistant to pause the watchdog before continuing."
+        sleep 15
+    done
+}
+
+run_app() {
+    local child_pid=""
+    local status=0
+    local retry_delay=15
+    export HOME_ASSISTANT_APP=true
+    trap 'if [[ -n "${child_pid}" ]]; then kill -TERM "${child_pid}" 2>/dev/null || true; wait "${child_pid}" || true; fi; exit 0' TERM INT
+
+    while true; do
+        wait_for_watchdog_pause
+        main &
+        child_pid=$!
+        if wait "${child_pid}"; then status=0; else status=$?; fi
+        child_pid=""
+        # Let Supervisor handle crashes according to the user's watchdog
+        # setting. The next launch pauses protection before any login.
+        if [[ "${status}" != 0 && "${status}" != 1 && "${status}" != 75 && "${status}" != 78 ]]; then
+            return "${status}"
+        fi
+        wait_for_watchdog_pause
+        if [[ "${status}" == 0 ]]; then return 0; fi
+        if [[ "${status}" != 75 ]]; then
+            bashio::log.error "The App needs attention. Correct its configuration or credentials, then start it again. Automatic restarts are paused."
+            return "${status}"
+        fi
+        bashio::log.warning "The bridge could not run. Retrying in ${retry_delay} seconds."
+        sleep "${retry_delay}"
+        if [[ "${retry_delay}" -lt 60 ]]; then retry_delay=$((retry_delay * 2)); fi
+    done
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-    main "$@"
+    run_app "$@"
 fi
