@@ -1,6 +1,6 @@
 # Home Assistant Integration
 
-`digitalstrom-mqtt` supports [MQTT Discovery from Home Assistant](https://www.home-assistant.io/docs/mqtt/discovery/) but it is not activated by default. In order to enable it, make sure you set the following environmental variable:
+`digitalstrom-mqtt` supports [MQTT Discovery from Home Assistant](https://www.home-assistant.io/docs/mqtt/discovery/) and enables it by default. Set the following variables only when you want to change the defaults:
 
 ```yaml
 HOME_ASSISTANT_DISCOVERY_ENABLED: true

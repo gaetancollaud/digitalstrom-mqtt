@@ -1,0 +1,5 @@
+*.sh text eol=lf
+.github/workflows/*.yml text eol=lf
+.goreleaser.yml text eol=lf
+home-assistant-app/*.yaml text eol=lf
+home-assistant-app/translations/*.yaml text eol=lf

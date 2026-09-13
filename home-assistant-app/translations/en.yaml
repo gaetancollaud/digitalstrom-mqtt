@@ -1,0 +1,45 @@
+configuration:
+  digitalstrom_host:
+    name: digitalSTROM Server address
+    description: IP address or hostname of the digitalSTROM Server.
+  digitalstrom_port:
+    name: digitalSTROM Server port
+    description: HTTPS API port of the digitalSTROM Server. The default is 8080.
+  digitalstrom_username:
+    name: digitalSTROM username
+    description: The dSS user used to create a dedicated API key.
+  digitalstrom_password:
+    name: digitalSTROM password
+    description: Required only to create or regenerate the API key. Cleared after setup; the empty field remains visible.
+  mqtt_mode:
+    name: MQTT connection
+    description: Home Assistant MQTT service uses the Supervisor-provided broker. Manual configuration uses the fields below, not the MQTT integration settings.
+  mqtt_host:
+    name: Manual MQTT server address
+    description: Only for Manual configuration. Enter a hostname or IP address without a URL or port. Use the same broker as Home Assistant.
+  mqtt_port:
+    name: Manual MQTT server port
+    description: Only for Manual configuration. Plain TCP on a trusted local network; default 1883. TLS is not supported here.
+  mqtt_username:
+    name: Manual MQTT username
+    description: Only for Manual configuration. Leave empty if the broker does not require authentication.
+  mqtt_password:
+    name: Manual MQTT password
+    description: Only for Manual configuration. Stored for reconnects; unlike the temporary digitalSTROM password, it is not cleared after setup.
+  invert_blinds_position:
+    name: Invert blind position
+    description: Use when 100 percent should represent a fully closed blind.
+  meterings_enabled:
+    name: Enable metering sensors
+    description: Publish digitalSTROM metering values to MQTT.
+  meterings_interval_seconds:
+    name: Metering interval
+    description: Seconds between digitalSTROM metering polls.
+  log_level:
+    name: Log level
+    description: Detail level written to the App log.
+  regenerate_api_key:
+    name: Regenerate API key
+    description: Create a replacement API key on the next start. Enter the digitalSTROM password first.
+network:
+  8080/tcp: Internal health endpoint. Leave disabled unless direct diagnostics are required.

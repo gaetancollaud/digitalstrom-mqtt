@@ -1,0 +1,275 @@
+name: Home Assistant App CI and publish
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+    tags:
+      - "*"
+
+permissions:
+  contents: read
+
+env:
+  HA_APP_IMAGE: docker.io/gaetancollaud/digitalstrom-mqtt
+  HA_APP_REGISTRY: docker.io
+  HA_APP_REGISTRY_USERNAME: gaetancollaud
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run Home Assistant App linter
+        uses: frenck/action-addon-linter@v2.21
+        with:
+          path: ./home-assistant-app
+      - name: Check project-specific App configuration
+        run: |
+          ruby - <<'RUBY'
+          require "yaml"
+
+          repository = YAML.load_file("repository.yaml")
+          app = YAML.load_file("home-assistant-app/config.yaml")
+          translations = %w[en de].map { |language| YAML.load_file("home-assistant-app/translations/#{language}.yaml") }
+
+          abort "repository name is required" if repository.fetch("name").empty?
+          abort "unexpected app architectures" unless app.fetch("arch").sort == %w[aarch64 amd64]
+          abort "the MQTT service must be optional for manual brokers" unless app.fetch("services") == ["mqtt:want"]
+          abort "the App must disable the Supervisor init wrapper" unless app.fetch("init") == false
+          abort "the App must persist its own API key" unless app.fetch("schema").key?("digitalstrom_password")
+          abort "a password option must be optional" unless app.fetch("schema").fetch("digitalstrom_password") == "password?"
+          abort "the password field must initially be visible and empty" unless app.fetch("options").fetch("digitalstrom_password") == ""
+          abort "the health port must stay private" unless app.fetch("ports").fetch("8080/tcp").nil?
+          abort "forbidden host access requested" if app.key?("host_network") || app.key?("privileged") || app.key?("full_access")
+          abort "missing translations" unless translations.all? { |translation| translation.fetch("configuration").keys.sort == app.fetch("schema").keys.sort }
+          abort "missing health-port translations" unless translations.all? { |translation| translation.fetch("network").keys == ["8080/tcp"] }
+          RUBY
+      - name: Check App repository layout
+        run: |
+          test "$(find . -path ./.git -prune -o -type f -name config.yaml -print | wc -l)" -eq 1
+          test -f home-assistant-app/config.yaml
+          test -f home-assistant-app/README.md
+          test -f home-assistant-app/DOCS.md
+          test -f home-assistant-app/DOCS.de.md
+          test -f home-assistant-app/CHANGELOG.md
+          test -f home-assistant-app/apparmor.txt
+          test -f home-assistant-app/icon.png
+          test -f home-assistant-app/logo.png
+      - name: Check AppArmor profile
+        run: |
+          awk '
+            /^  profile \/digitalstrom-mqtt / { in_child = 1 }
+            in_child && /^[[:space:]]*\/data\/\*\*[[:space:]]+rwk,[[:space:]]*$/ { child_data_access = 1 }
+            in_child && /^  }/ { exit(child_data_access ? 0 : 1) }
+            END { if (!child_data_access) exit 1 }
+          ' home-assistant-app/apparmor.txt
+          grep --fixed-strings '/run/digitalstrom-mqtt-password.* r,' home-assistant-app/apparmor.txt
+          if ! command -v apparmor_parser >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --yes apparmor-utils
+          fi
+          apparmor_parser --skip-kernel-load --skip-cache home-assistant-app/apparmor.txt
+      - name: Check App shell syntax
+        run: |
+          bash -n home-assistant-app/run.sh \
+            scripts/prepare-release.sh \
+            scripts/release.sh \
+            scripts/test-prepare-release.sh \
+            scripts/test-release.sh \
+            scripts/prepare-haos-local-app.sh \
+            scripts/test-prepare-haos-local-app.sh
+      - name: Test local App preparation
+        env:
+          HAOS_LOCAL_APP_FULL_VALIDATION: "1"
+        run: bash scripts/test-prepare-haos-local-app.sh
+      - name: Test release preparation
+        run: bash scripts/test-prepare-release.sh
+      - name: Test release workflow
+        run: bash scripts/test-release.sh
+      - name: Test App runtime bootstrap
+        run: bash home-assistant-app/test-run.sh
+
+  prepare:
+    name: Prepare App image version
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.app.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read App version
+        id: app
+        run: |
+          APP_VERSION="$(ruby -ryaml -e 'puts YAML.load_file("home-assistant-app/config.yaml").fetch("version")')"
+          if [[ "${GITHUB_REF}" == refs/tags/* \
+            && "${GITHUB_REPOSITORY}" == 'gaetancollaud/digitalstrom-mqtt' ]]; then
+            EXPECTED_APP_VERSION="${GITHUB_REF_NAME}-haos.1"
+            if [[ "${EXPECTED_APP_VERSION}" != "${APP_VERSION}" ]]; then
+              printf 'Release tag %s requires Home Assistant App version %s, got %s.\n' \
+                "${GITHUB_REF_NAME}" "${EXPECTED_APP_VERSION}" "${APP_VERSION}" >&2
+              exit 1
+            fi
+            if ! grep --fixed-strings --line-regexp --quiet \
+              "## ${APP_VERSION}" home-assistant-app/CHANGELOG.md; then
+              printf 'Home Assistant App changelog entry ## %s is missing.\n' \
+                "${APP_VERSION}" >&2
+              exit 1
+            fi
+          fi
+          echo "version=${APP_VERSION}" >> "${GITHUB_OUTPUT}"
+  build:
+    name: Validate ${{ matrix.arch }} App image
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-24.04
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build App image without publishing
+        uses: home-assistant/builder/actions/build-image@2026.06.0
+        with:
+          arch: ${{ matrix.arch }}
+          cache-image-tag: ${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
+          container-registry-password: not-used-for-validation-build
+          container-registry: ${{ env.HA_APP_REGISTRY }}
+          container-registry-username: ${{ env.HA_APP_REGISTRY_USERNAME }}
+          context: .
+          cosign: "false"
+          file: home-assistant-app/Dockerfile
+          image: ${{ env.HA_APP_IMAGE }}
+          image-tags: ${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
+          push: "false"
+          version: ${{ needs.prepare.outputs.version }}
+      - name: Build local App development package
+        if: matrix.arch == 'amd64'
+        env:
+          APP_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          LOCAL_APP="${RUNNER_TEMP}/digitalstrom_mqtt_pr_test"
+          sh scripts/prepare-haos-local-app.sh "${LOCAL_APP}" HEAD
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BUILD_ARCH=amd64 \
+            --build-arg BUILD_VERSION="${APP_VERSION}" \
+            --output type=cacheonly \
+            "${LOCAL_APP}"
+
+  publish:
+    name: Publish ${{ matrix.arch }} App image
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'gaetancollaud/digitalstrom-mqtt'
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-24.04
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, sign, and publish App image
+        uses: home-assistant/builder/actions/build-image@2026.06.0
+        with:
+          arch: ${{ matrix.arch }}
+          cache-image-tag: ${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
+          container-registry-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          container-registry: ${{ env.HA_APP_REGISTRY }}
+          container-registry-username: ${{ env.HA_APP_REGISTRY_USERNAME }}
+          context: .
+          file: home-assistant-app/Dockerfile
+          image: ${{ env.HA_APP_IMAGE }}
+          image-tags: ${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
+          push: "true"
+          version: ${{ needs.prepare.outputs.version }}
+
+  manifest:
+    name: Publish multi-architecture App manifest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'gaetancollaud/digitalstrom-mqtt'
+    needs:
+      - prepare
+      - publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.HA_APP_REGISTRY }}
+          username: ${{ env.HA_APP_REGISTRY_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        with:
+          version: v0.32.1
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Publish and sign multi-architecture manifest
+        env:
+          APP_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          METADATA_FILE="$(mktemp)"
+          trap 'rm -f "${METADATA_FILE}"' EXIT
+
+          docker buildx imagetools create \
+            --metadata-file "${METADATA_FILE}" \
+            --tag "${HA_APP_IMAGE}:${APP_VERSION}" \
+            "${HA_APP_IMAGE}:${APP_VERSION}-amd64" \
+            "${HA_APP_IMAGE}:${APP_VERSION}-aarch64"
+
+          MANIFEST_DIGEST="$(jq -r '.["containerimage.descriptor"].digest' "${METADATA_FILE}")"
+          if [[ ! "${MANIFEST_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            printf 'Could not determine the Docker Hub manifest digest: %s\n' \
+              "${MANIFEST_DIGEST}" >&2
+            exit 1
+          fi
+
+          for attempt in {1..5}; do
+            if cosign sign --yes "${HA_APP_IMAGE}@${MANIFEST_DIGEST}"; then
+              break
+            fi
+            if [[ "${attempt}" -eq 5 ]]; then
+              echo 'Failed to sign the Docker Hub App manifest.' >&2
+              exit 1
+            fi
+            sleep $((2 ** attempt))
+          done
+      - name: Verify anonymous App image access
+        env:
+          APP_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          REPOSITORY="${HA_APP_IMAGE#docker.io/}"
+          if ! TOKEN_RESPONSE="$(
+            curl --fail --silent --show-error --get 'https://auth.docker.io/token' \
+              --data-urlencode 'service=registry.docker.io' \
+              --data-urlencode "scope=repository:${REPOSITORY}:pull"
+          )"; then
+            echo 'Docker Hub did not grant anonymous pull access. Make the App image public, then rerun this workflow.' >&2
+            exit 1
+          fi
+          TOKEN="$(printf '%s' "${TOKEN_RESPONSE}" | ruby -rjson -e 'puts JSON.parse(STDIN.read).fetch("token")')"
+          if ! curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${TOKEN}" \
+            --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+            --output /dev/null \
+            "https://registry-1.docker.io/v2/${REPOSITORY}/manifests/${APP_VERSION}"; then
+            echo 'The App image is not anonymously pullable. Make the Docker Hub repository public, then rerun this workflow.' >&2
+            exit 1
+          fi

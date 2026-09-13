@@ -1,8 +1,12 @@
 package mqtt
 
 import (
+	"errors"
 	"fmt"
+	"github.com/eclipse/paho.mqtt.golang/packets"
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"path"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
@@ -68,17 +72,29 @@ func NewClient(options *ClientOptions) Client {
 	}
 	mqttOptions := mqtt.NewClientOptions().
 		AddBroker(options.MqttUrl).
+		SetProtocolVersion(4).
+		SetConnectTimeout(30*time.Second).
 		SetClientID("digitalstrom-mqtt-"+uuid.New().String()).
 		SetOrderMatters(false).
 		SetUsername(options.Username).
 		SetPassword(options.Password).
 		SetAutoReconnect(true).
+		SetConnectionNotificationHandler(func(c mqtt.Client, notification mqtt.ConnectionNotification) {
+			if failed, ok := notification.(mqtt.ConnectionNotificationFailed); ok {
+				err := connectionError(failed.Reason)
+				if monitor.IsPermanent(err) && options.Monitor != nil {
+					options.Monitor.Report(err)
+					go c.Disconnect(0)
+				}
+			}
+		}).
 		SetWill(serverStatus, Offline, QOS, true).
 		SetReconnectingHandler(func(client mqtt.Client, opts *mqtt.ClientOptions) {
 			log.Info().Str("url", options.MqttUrl).Msg("Reconnecting to MQTT server.")
 			subscriptions.shouldReconnect = true
 		}).
 		SetOnConnectHandler(func(client mqtt.Client) {
+			defer options.Monitor.Begin("MQTT reconnect subscriptions")()
 			log.Info().Str("url", options.MqttUrl).Msg("Connected to MQTT server.")
 
 			if subscriptions.shouldReconnect {
@@ -90,9 +106,8 @@ func NewClient(options *ClientOptions) Client {
 						sub.Topic,
 						QOS,
 						sub.MessageHandler)
-					<-t.Done()
-					if t.Error() != nil {
-						log.Error().Err(t.Error()).Str("topic", sub.Topic).Msg("Error re-subscribing to topic")
+					if err := waitToken(t); err != nil {
+						log.Error().Err(err).Str("topic", sub.Topic).Msg("Error re-subscribing to topic")
 					}
 				}
 			}
@@ -106,11 +121,10 @@ func NewClient(options *ClientOptions) Client {
 }
 
 func (c *client) Connect() error {
-
+	defer c.options.Monitor.Begin("MQTT connect")()
 	t := c.mqttClient.Connect()
-	<-t.Done()
-	if t.Error() != nil {
-		return fmt.Errorf("error connecting to MQTT broker: %w", t.Error())
+	if err := waitToken(t); err != nil {
+		return fmt.Errorf("error connecting to MQTT broker: %w", connectionError(err))
 	}
 
 	if err := c.publishServerStatus(Online); err != nil {
@@ -130,13 +144,13 @@ func (c *client) Disconnect() error {
 }
 
 func (c *client) publish(topic string, message interface{}, forceRetain bool) error {
+	defer c.options.Monitor.Begin("MQTT publish")()
 	t := c.mqttClient.Publish(
 		path.Join(c.options.TopicPrefix, topic),
 		QOS,
 		c.options.Retain || forceRetain,
 		message)
-	<-t.Done()
-	return t.Error()
+	return waitToken(t)
 }
 
 func (c *client) Publish(topic string, message interface{}) error {
@@ -148,6 +162,12 @@ func (c *client) PublishAndRetain(topic string, message interface{}) error {
 }
 
 func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) error {
+	defer c.options.Monitor.Begin("MQTT subscribe")()
+	handler := messageHandler
+	messageHandler = func(client mqtt.Client, message mqtt.Message) {
+		defer c.options.Monitor.Begin("MQTT command callback")()
+		handler(client, message)
+	}
 	topic = path.Join(c.options.TopicPrefix, topic)
 	c.subscriptions.list = append(c.subscriptions.list, SubscriptionHandler{
 		Topic:          topic,
@@ -158,8 +178,24 @@ func (c *client) Subscribe(topic string, messageHandler mqtt.MessageHandler) err
 		topic,
 		QOS,
 		messageHandler)
-	<-t.Done()
-	return t.Error()
+	return waitToken(t)
+}
+
+func waitToken(token mqtt.Token) error {
+	if !token.WaitTimeout(30 * time.Second) {
+		return errors.New("MQTT operation timed out")
+	}
+	return token.Error()
+}
+
+func connectionError(err error) error {
+	for _, permanent := range []error{packets.ErrorRefusedBadUsernameOrPassword,
+		packets.ErrorRefusedNotAuthorised, packets.ErrorRefusedBadProtocolVersion, packets.ErrorRefusedIDRejected} {
+		if errors.Is(err, permanent) {
+			return monitor.Permanent(err)
+		}
+	}
+	return err
 }
 
 // Publish the current binary status into the MQTT topic.

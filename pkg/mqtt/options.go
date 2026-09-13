@@ -1,12 +1,14 @@
 package mqtt
 
 import (
+	"github.com/gaetancollaud/digitalstrom-mqtt/pkg/monitor"
 	"time"
 )
 
 // ClientOptions contains configurable options for the MQTT client responsible
 // to communicate with DigitalStrom data.
 type ClientOptions struct {
+	Monitor             *monitor.Monitor
 	MqttUrl             string
 	Username            string
 	Password            string
