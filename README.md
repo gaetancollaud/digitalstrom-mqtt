@@ -151,11 +151,12 @@ Discovery integration, so devices appear automatically after the App connects.
 The package is an unofficial community App and is not provided or supported by
 digitalSTROM.
 
-After the first multi-architecture App image is published, add this repository
-in **Settings -> Apps -> App Store -> Repositories**, install **digitalSTROM
-MQTT**, and follow the [App documentation](./home-assistant-app/DOCS.md).
-Eine deutsche Anleitung ist ebenfalls
-[verfuegbar](./home-assistant-app/DOCS.de.md).
+The App is available for Home Assistant OS. Add this repository in **Settings ->
+Apps -> App Store -> Repositories**, then install **digitalSTROM MQTT**. For a
+first setup, follow the beginner guide in [English](./home-assistant-app/guide/beginner-guide.en.md)
+or [Deutsch](./home-assistant-app/guide/beginner-guide.de.md). The detailed App
+documentation is also available in [English](./home-assistant-app/DOCS.md) and
+[Deutsch](./home-assistant-app/DOCS.de.md).
 
 [![Open your Home Assistant instance and add this App repository.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fgaetancollaud%2Fdigitalstrom-mqtt)
 

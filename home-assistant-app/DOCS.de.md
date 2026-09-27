@@ -9,6 +9,12 @@ digitalSTROM bereitgestellt oder unterstützt. Die App verwendet den
 Home-Assistant-MQTT-Dienst oder einen manuell konfigurierten Broker und MQTT
 Discovery. Unterstützte digitalSTROM-Geräte erscheinen dadurch automatisch in Home Assistant.
 
+## Neu bei der App?
+
+Beginne mit der bebilderten Anleitung für Einsteiger auf [Deutsch](guide/beginner-guide.de.md)
+oder [Englisch](guide/beginner-guide.en.md). Sie erklärt MQTT, Installation,
+Verbindungsprüfung und Wiederherstellung.
+
 ## Kompatibilität
 
 - Home Assistant OS mit App-Unterstützung wird benötigt.

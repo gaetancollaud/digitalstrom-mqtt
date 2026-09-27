@@ -8,6 +8,12 @@ Home Assistant OS. It is not provided or supported by digitalSTROM. The App
 uses the Home Assistant MQTT service or a manually configured broker and MQTT
 Discovery, so supported digitalSTROM devices appear automatically in Home Assistant.
 
+## New to the App?
+
+Start with the illustrated beginner guide in [English](guide/beginner-guide.en.md)
+or [Deutsch](guide/beginner-guide.de.md). It covers MQTT setup, installation,
+connection checks and recovery.
+
 ## Compatibility
 
 - Home Assistant OS with Apps support is required.
