@@ -71,7 +71,7 @@ def mqtt_choice() -> None:
         draw.text((145, top + 22), title, fill=INK, font=title_font)
         box_top = top + 100
         boxes = [
-            (55, 470, "digitalSTROM App"),
+            (55, 525, "digitalSTROM App"),
             (670, 1140, broker),
             (1285, 1755, "Home Assistant"),
         ]

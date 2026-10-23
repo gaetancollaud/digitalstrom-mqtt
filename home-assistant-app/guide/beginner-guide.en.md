@@ -4,7 +4,7 @@
 
 A beginner's guide to connecting digitalSTROM to Home Assistant
 
-**Current release: 2.4.0-haos.1.** The regular Home Assistant App is available from the project's App repository. This is an unofficial community project and is not provided or supported by digitalSTROM.
+The Home Assistant App is available from the project's App repository. Check the [release page](https://github.com/gaetancollaud/digitalstrom-mqtt/releases) for the current version. This is an unofficial community project and is not provided or supported by digitalSTROM.
 
 The screenshots show a German-language Home Assistant interface. Follow the English menu and field names in the steps.
 
@@ -23,15 +23,13 @@ The App and Home Assistant's **MQTT integration** use the same broker. The App a
 
 ### Already using digitalstrom-mqtt?
 
-Stop the existing bridge before starting this App. Keep the old installation available until the new App has passed its checks and restart. If your old setup uses custom MQTT topic names or discovery settings, review the migration notes in the detailed documentation first.
+Read the detailed [migration instructions](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/DOCS.md) before switching. Stop the existing bridge before starting this App. Carry over its settings for **Invert blind position** and metering. Keep the old installation available until the new App has passed its checks and restart.
 
 ### Find your next step
 
 - **Sections 2 and 3:** Set up MQTT and install the App.
 - **Section 4:** Check connections and devices.
 - **Sections 5 and 6:** Updates, recovery and help.
-
-<!-- pagebreak -->
 
 ## 2. Choose your MQTT setup
 
@@ -42,18 +40,18 @@ If you do not have an MQTT broker yet, choose **A**. This is the simplest start:
 ### A. Home Assistant MQTT service
 
 1. Open **Settings > Apps > App store**. Find **Mosquitto broker**, install it and start it.
-2. Open **Settings > Devices & services**. If MQTT is discovered, select **Configure**. Otherwise select **Add integration > MQTT** and follow the setup prompts.
+2. Open **Settings > Devices & services**. If MQTT is discovered, select **Add**. Otherwise select **Add integration > MQTT** and follow the setup prompts.
 3. Confirm that the MQTT integration is connected to the Mosquitto broker.
 
 In the digitalSTROM App, keep **MQTT connection** set to **Home Assistant MQTT service**. This is the default. Home Assistant supplies the App with the broker connection details. Leave the manual MQTT fields alone; the App ignores them in this mode. You do not need to copy the Mosquitto password.
 
 ### B. Manual configuration for an existing broker
 
-![MQTT connection mode in the App configuration. This example shows Manual configuration selected; Home Assistant MQTT service is the other choice.](images/mqtt-mode.png)
+![MQTT connection mode in the App configuration. This example shows Manual configuration selected; Home Assistant MQTT service is the other choice.](images/mqtt-mode.jpg)
 
 1. In **Settings > Devices & services**, open the **MQTT** integration. If it is missing, select **Add integration > MQTT**.
 2. Connect Home Assistant to your existing broker. Ask its administrator for the address, port and login if you need them.
-3. In the digitalSTROM App, select **Manual configuration** and enter the same broker address, port and an allowed login.
+3. Note the broker address, port, username and password. You will enter them in the digitalSTROM App after installing it in section 3.
 
 The App does not copy settings from Home Assistant's MQTT integration. If Home Assistant uses an external broker, enter that broker separately in the App. Manual configuration does not require Mosquitto in Home Assistant and does not fall back to the Home Assistant MQTT service.
 
@@ -67,7 +65,7 @@ Manual settings use plain, unencrypted MQTT on a trusted local network, normally
 
 ### Add the project's App repository
 
-![Repository dialog with the project's public URL. The test Home Assistant interface is in German.](images/add-repository.png)
+![Repository dialog with the project's public URL. The test Home Assistant interface is in German.](images/add-repository.jpg)
 
 1. Open **Settings > Apps > App store**.
 2. Open the **three-dot menu > Repositories**, select **Add**, and enter:
@@ -75,15 +73,17 @@ Manual settings use plain, unencrypted MQTT on a trusted local network, normally
 https://github.com/gaetancollaud/digitalstrom-mqtt
 
 3. After adding the repository, return to the App store and find **digitalSTROM MQTT**.
-4. Select **Install** and wait for it to finish. The current regular release is **2.4.0-haos.1**.
+4. Select **Install** and wait for it to finish.
 
-![App controls after installation: Start, Start on boot, Watchdog and Auto update.](images/app-info.png)
+![App controls in a test view: Start, Start on boot, Watchdog and Auto update.](images/app-info.jpg)
+
+Test view: Start on boot was switched off here. It is on by default after a normal installation.
 
 You can also use Home Assistant's [Add repository button](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fgaetancollaud%2Fdigitalstrom-mqtt).
 
 ### Enter your dSS details
 
-![App configuration with example dSS address, default port and username, and an empty temporary password field.](images/dss-config.png)
+![App configuration with an example dSS address, default port and username.](images/dss-config.png)
 
 Open the App's **Configuration** tab:
 
@@ -99,13 +99,11 @@ Open the App's **Configuration** tab:
 - **Manual MQTT server port:** Usually **1883**.
 - **Manual MQTT username** and **Manual MQTT password:** Use the broker login. Leave them empty only if the broker allows connections without a login. This password is separate from the dSS password and remains saved for reconnects.
 
-Leave other options at their defaults for now. Keep **Regenerate API key** off on the first start. Select **Save**, open the **Info** tab and select **Start**.
+For a first installation, leave other options at their defaults. Keep **Regenerate API key** off on the first start. Select **Save**, open the **Info** tab and select **Start**.
 
 ## 4. Check that it is working
 
 ### Check the App log
-
-<!-- figure-slot: App connection log | Alt text: App log showing the successful MQTT and digitalSTROM WebSocket messages without private broker names. -->
 
 Open the **Log** tab and allow startup to finish. Look for these messages:
 
@@ -121,8 +119,6 @@ After successful setup, the App creates and saves its own dSS API key, then clea
 
 ### Check for devices
 
-<!-- figure-slot: Discovered devices | Alt text: Home Assistant MQTT integration listing discovered digitalSTROM devices and entities, with personal names removed. -->
-
 1. Open **Settings > Devices & services > MQTT** and look for supported digitalSTROM devices and their controls or readings. Home Assistant calls an individual control or reading an **entity**.
 2. Check that readings are available. Not every digitalSTROM device or function is supported.
 3. On the App's **Info** tab, select **Restart**. Confirm that the connection messages return and devices become available again without re-entering the dSS password.
@@ -132,10 +128,6 @@ Discovery confirms that devices were announced; it does not prove that every fun
 **Setup is complete when** the log confirms both connections, supported devices appear under MQTT, and a normal restart succeeds.
 
 ## 5. Recovery, updates and removal
-
-### Start the App automatically
-
-On the App's **Info** tab, enable **Start on boot** if you want the App to start with Home Assistant. This is separate from its watchdog and update settings.
 
 ### Watchdog and connection recovery
 
@@ -157,13 +149,11 @@ Stop the App. In **Configuration**, enter the dSS password and turn on **Regener
 
 Create a backup, then stop the App before uninstalling it. Uninstalling does not revoke the API key on the dSS or remove retained MQTT Discovery messages. When the key is no longer used, revoke **digitalstrom-mqtt-home-assistant** in the dSS authorization settings. Remove retained Discovery messages only after confirming no other bridge depends on them. A fresh installation needs the dSS password to create a new key.
 
-<!-- pagebreak -->
-
 ## 6. Troubleshooting and help
 
 ### The App is missing or installation fails
 
-Check the repository address in section 3, your internet connection and the Home Assistant App log. Confirm that **digitalSTROM MQTT 2.4.0-haos.1** is offered. If the image cannot be downloaded, check the project's release and issue pages before repeating installation.
+Check the repository address in section 3 and your internet connection. If installation fails, select **View supervisor logs** in the error dialog. Check the project's release and issue pages before trying again.
 
 ### The App asks for the dSS password
 
@@ -175,11 +165,7 @@ For **Home Assistant MQTT service**, check that Mosquitto broker is installed an
 
 ### The App connects but no devices appear
 
-Check both connection messages in section 4. Confirm that the App and Home Assistant use the same broker, and stop any older bridge publishing the same devices. Custom topic prefixes or discovery settings require a migration review.
-
-### Commands work, but wall-switch changes do not appear
-
-The dSS HTTPS API normally uses port **8080**. Live notifications use the dSS WebSocket on port **8090**, which must be reachable from Home Assistant. Do not create internet-facing router port forwards.
+Check both connection messages in section 4. If the WebSocket message is missing, check that Home Assistant can reach the dSS on port **8090**. Confirm that the App and Home Assistant use the same broker, and stop any older bridge publishing the same devices. Custom topic prefixes or discovery settings require a migration review. Do not create internet-facing router port forwards.
 
 ### Ask for help safely
 
@@ -191,4 +177,4 @@ Use the [project issue tracker](https://github.com/gaetancollaud/digitalstrom-mq
 - [Home Assistant MQTT help](https://www.home-assistant.io/integrations/mqtt/) - broker and integration setup.
 - [Home Assistant backups and common tasks](https://www.home-assistant.io/common-tasks/os/) - protect your setup before changes.
 
-Guide revision: 27 September 2026. Menu labels may vary with your Home Assistant version.
+Menu labels may vary with your Home Assistant version.

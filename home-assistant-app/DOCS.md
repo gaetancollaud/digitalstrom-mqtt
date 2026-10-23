@@ -10,8 +10,8 @@ Discovery, so supported digitalSTROM devices appear automatically in Home Assist
 
 ## New to the App?
 
-Start with the illustrated beginner guide in [English](guide/beginner-guide.en.md)
-or [Deutsch](guide/beginner-guide.de.md). It covers MQTT setup, installation,
+Start with the illustrated beginner guide in [English](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/guide/beginner-guide.en.md)
+or [Deutsch](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/guide/beginner-guide.de.md). It covers MQTT setup, installation,
 connection checks and recovery.
 
 ## Compatibility
@@ -156,8 +156,9 @@ Uninstalling the App and deleting its data resets this first-start state.
 
 ## Migrating an existing bridge
 
-1. Record any non-default MQTT topic, discovery prefix, or name normalization
-   settings used by the existing installation.
+1. Record any non-default MQTT topic, discovery prefix and name normalization
+   settings, plus the old values for **Invert blind position**, **Enable metering
+   sensors** and **Metering interval**.
 2. Stop the existing bridge before starting this App.
 3. Install and configure the App, then verify the discovered devices and a few
    commands in Home Assistant.
