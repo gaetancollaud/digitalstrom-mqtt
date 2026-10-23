@@ -33,3 +33,12 @@ Pull requests do not publish the Home Assistant App image. To generate a local
 App from an exact Git commit and test it on Home Assistant OS, follow
 [`home-assistant-app/DEVELOPMENT.md`](home-assistant-app/DEVELOPMENT.md#test-a-pull-request-on-home-assistant-os).
 
+
+## Make a release
+
+```shell
+./scripts/prepare-release.sh 1.2.3
+git commit -m "Release 1.2.3"
+git push
+./scripts/release.sh 1.2.3
+```

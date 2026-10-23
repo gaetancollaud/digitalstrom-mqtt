@@ -241,7 +241,7 @@ Feel free to create an issue or to directly edit this file if you have tested th
 
 ## Development
 
-See [CONTRIBUTION.md](./CONTRIBUTION.md)
+See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 
 ## Contributors
