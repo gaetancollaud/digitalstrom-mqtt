@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.0-haos.1
+
+- Update digitalSTROM MQTT to 2.5.0.
+
 ## 2.4.0-haos.1
 
 - Initial native Home Assistant App package.
