@@ -35,6 +35,9 @@ configuration:
   meterings_interval_seconds:
     name: Verbrauchsintervall
     description: Sekunden zwischen den Abfragen der digitalSTROM Verbrauchswerte.
+  scenes_enabled:
+    name: Szenen-Events aktivieren
+    description: digitalSTROM Szenenaufrufe wie in Version 1.x über MQTT veröffentlichen. Verwendet die alte JSON-API des dSS.
   log_level:
     name: Log-Level
     description: Detailgrad der Einträge im App-Protokoll.

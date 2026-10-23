@@ -42,6 +42,7 @@ type Config struct {
 	InvertBlindsPosition bool
 	MeteringsEnabled     bool
 	MeteringsInterval    int
+	ScenesEnabled        bool
 }
 
 const (
@@ -63,6 +64,7 @@ const (
 	envKeyInvertBlindsPosition              string = "invert_blinds_position"
 	envKeyMeteringsEnabled                  string = "meterings_enabled"
 	envKeyMeteringsInterval                 string = "meterings_interval_seconds"
+	envKeyScenesEnabled                     string = "scenes_enabled"
 	envKeyRefreshAtStart                    string = "refresh_at_start"
 	envKeyLogLevel                          string = "log_level"
 	envKeyHomeAssistantDiscoveryEnabled     string = "home_assistant_discovery_enabled"
@@ -89,6 +91,7 @@ var defaultConfig = map[string]interface{}{
 	envKeyInvertBlindsPosition:              false,
 	envKeyMeteringsEnabled:                  true,
 	envKeyMeteringsInterval:                 10,
+	envKeyScenesEnabled:                     false,
 	envKeyHomeAssistantDiscoveryEnabled:     true,
 	envKeyHomeAssistantDiscoveryPrefix:      "homeassistant",
 	envKeyHomeAssistantRemoveRegexpFromName: "",
@@ -153,6 +156,7 @@ func ReadConfig() (*Config, error) {
 		InvertBlindsPosition: viper.GetBool(envKeyInvertBlindsPosition),
 		MeteringsEnabled:     viper.GetBool(envKeyMeteringsEnabled),
 		MeteringsInterval:    viper.GetInt(envKeyMeteringsInterval),
+		ScenesEnabled:        viper.GetBool(envKeyScenesEnabled),
 	}
 
 	if config.MeteringsInterval < 1 {

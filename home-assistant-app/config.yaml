@@ -24,6 +24,7 @@ options:
   invert_blinds_position: false
   meterings_enabled: true
   meterings_interval_seconds: 10
+  scenes_enabled: false
   log_level: INFO
   regenerate_api_key: false
 schema:
@@ -39,5 +40,6 @@ schema:
   invert_blinds_position: bool
   meterings_enabled: bool
   meterings_interval_seconds: "int(1,)"
+  scenes_enabled: bool
   log_level: "list(TRACE|DEBUG|INFO|WARN|ERROR)"
   regenerate_api_key: bool

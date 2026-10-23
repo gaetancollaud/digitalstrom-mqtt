@@ -350,6 +350,7 @@ load_configuration() {
         || ! INVERT_BLINDS_POSITION="$(app_option 'invert_blinds_position' 'false')" \
         || ! METERINGS_ENABLED="$(app_option 'meterings_enabled' 'true')" \
         || ! METERINGS_INTERVAL_SECONDS="$(app_option 'meterings_interval_seconds' '10')" \
+        || ! SCENES_ENABLED="$(app_option 'scenes_enabled' 'false')" \
         || ! LOG_LEVEL="$(app_option 'log_level' '"INFO"')"; then
         bashio::log.error "Home Assistant App configuration could not be read."
         return 1
@@ -366,7 +367,7 @@ load_configuration() {
         return 1
     fi
     export DIGITALSTROM_HOST DIGITALSTROM_PORT INVERT_BLINDS_POSITION
-    export METERINGS_ENABLED METERINGS_INTERVAL_SECONDS LOG_LEVEL
+    export METERINGS_ENABLED METERINGS_INTERVAL_SECONDS SCENES_ENABLED LOG_LEVEL
     export HOME_ASSISTANT_DISCOVERY_ENABLED="true"
 }
 

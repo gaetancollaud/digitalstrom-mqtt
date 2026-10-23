@@ -35,6 +35,9 @@ configuration:
   meterings_interval_seconds:
     name: Metering interval
     description: Seconds between digitalSTROM metering polls.
+  scenes_enabled:
+    name: Enable scene events
+    description: Publish digitalSTROM scene calls to MQTT, like version 1.x. Uses the legacy JSON API of the dSS.
   log_level:
     name: Log level
     description: Detail level written to the App log.
