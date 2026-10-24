@@ -9,6 +9,12 @@ digitalSTROM bereitgestellt oder unterstützt. Die App verwendet den
 Home-Assistant-MQTT-Dienst oder einen manuell konfigurierten Broker und MQTT
 Discovery. Unterstützte digitalSTROM-Geräte erscheinen dadurch automatisch in Home Assistant.
 
+## Neu bei der App?
+
+Beginne mit der bebilderten Anleitung für Einsteiger auf [Deutsch](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/guide/beginner-guide.de.md)
+oder [Englisch](https://github.com/gaetancollaud/digitalstrom-mqtt/blob/master/home-assistant-app/guide/beginner-guide.en.md). Sie erklärt MQTT, Installation,
+Verbindungsprüfung und Wiederherstellung.
+
 ## Kompatibilität
 
 - Home Assistant OS mit App-Unterstützung wird benötigt.
@@ -130,7 +136,9 @@ eingeben. Schlägt die Erneuerung fehl, bleibt der bisherige Key erhalten.
 ## Bestehende Bridge migrieren
 
 1. Von der bestehenden Installation abweichende MQTT-Topics,
-   Discovery-Präfixe oder Einstellungen zur Namensnormalisierung notieren.
+   Discovery-Präfixe, Einstellungen zur Namensnormalisierung sowie die Werte
+   für **Storenposition umkehren**, **Verbrauchssensoren aktivieren** und
+   **Verbrauchsintervall** notieren.
 2. Die bisherige Bridge stoppen, bevor diese App gestartet wird.
 3. Die App installieren und konfigurieren. Danach die erkannten Geräte und
    einige Befehle in Home Assistant prüfen.
